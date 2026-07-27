@@ -117,3 +117,14 @@ model Task {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
+
+model Comment {
+  id         String    @id @default(cuid())
+  content    String
+  
+  editedAt   DateTime?
+  deletedAt  DateTime?
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
