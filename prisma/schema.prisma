@@ -88,3 +88,32 @@ model ProjectMember {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 }
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Task {
+  id            String         @id @default(cuid())
+  taskNumber    Int
+  title         String
+  description   String?
+  status        TaskStatus     @default(TODO)
+  priority      TaskPriority   @default(MEDIUM)
+  dueDate       DateTime?
+  position      Int
+  isArchived    Boolean        @default(false)
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
