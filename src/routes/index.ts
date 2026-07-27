@@ -1,8 +1,3 @@
-import { Router, type Router as RouterType } from "express";
-// import { usersRouter } from "../modules/users/index.js";
+import { Router } from "express";
 
-
-export const router: RouterType = Router();
-
-// router.use("/users", usersRouter);
-
+export const router = Router();

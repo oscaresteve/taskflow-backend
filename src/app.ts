@@ -1,8 +1,8 @@
-import express, { type Express } from "express";
-import { router } from "./routes/index.js";
+import express from "express";
+import { router } from "./routes/index.ts";
 // import { errorHandler } from "./shared/middlewares/error-handler.js";
 
-const app: Express = express();
+const app = express();
 
 app.use(express.json());
 
