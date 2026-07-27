@@ -74,3 +74,17 @@ model Project {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 }
+
+enum ProjectRole {
+  ADMIN
+  MEMBER
+}
+
+model ProjectMember {
+  id         String      @id @default(cuid())
+  role       ProjectRole @default(MEMBER)
+  joinedAt   DateTime    @default(now())
+
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
