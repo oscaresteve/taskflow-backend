@@ -8,11 +8,7 @@ import slugify from "../../shared/utils/slugify.ts";
 
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
-    const id = req.user.id;
-    const body = req.body;
-    const slug = slugify(req.body.name); // Generar el slug
-
-    const workspace = await workspacesService.create(id, body, slug);
+    const workspace = await workspacesService.create(req.body, req.user.id);
 
     const workspaceResponse = workspace; //TODO: Mappear la respuesta
 
