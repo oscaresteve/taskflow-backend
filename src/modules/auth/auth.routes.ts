@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as authController from "./auth.controller.ts";
 import { validate } from "../../shared/middlewares/validate.ts";
 import { signInBodySchema, signUpBodySchema } from "./schemas/auth.schema.ts";
+import { auth } from "../../shared/middlewares/auth.ts";
 
 export const authRouter = Router();
 
@@ -9,3 +10,4 @@ export const authRouter = Router();
 
 authRouter.post("/sign-up", validate({ body: signUpBodySchema }), authController.signUp);
 authRouter.post("/sign-in", validate({ body: signInBodySchema }), authController.signIn);
+authRouter.get("/me", auth, authController.me);

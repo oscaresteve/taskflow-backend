@@ -1,4 +1,4 @@
-import type { AuthResponseDto } from "../dtos/auth.dto.ts";
+import type { AuthResponseDto, UserResponseDto } from "../dtos/auth.dto.ts";
 import type { User } from "../types/auth.types.ts";
 
 interface ToAuthResponseDtoInput {
@@ -20,5 +20,19 @@ export function toAuthResponseDto({ user, accessToken }: ToAuthResponseDtoInput)
       updatedAt: user.updatedAt,
     },
     accessToken,
+  };
+}
+
+export function toUserResponseDto(user: User): UserResponseDto {
+  return {
+    name: user.name,
+    email: user.email,
+    id: user.id,
+    avatarUrl: user.avatarUrl,
+    isActive: user.isActive,
+    emailVerifiedAt: user.emailVerifiedAt,
+    lastLoginAt: user.lastLoginAt,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
   };
 }

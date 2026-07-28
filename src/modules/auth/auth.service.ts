@@ -6,6 +6,7 @@ import { generateAccessToken } from "../../shared/security/jwt.ts";
 import type { User } from "./types/auth.types.ts";
 import type { SignInDto } from "./schemas/auth.schema.ts";
 import { SignInFailedError } from "../../shared/errors/sign-in-failed-error.ts";
+import { UnauthorizedError } from "../../shared/errors/unauthorized-error.ts";
 
 interface AuthResult {
   user: User;
@@ -47,4 +48,14 @@ export async function signIn(data: SignInDto): Promise<AuthResult> {
   const accessToken = generateAccessToken({ sub: user.id });
 
   return { user, accessToken };
+}
+
+export async function getAuthenticatedUser(userId: string): Promise<User> {
+  const user = await authRepository.findById(userId);
+
+  if (!user) {
+    throw new UnauthorizedError("Authentication required");
+  }
+
+  return user;
 }
