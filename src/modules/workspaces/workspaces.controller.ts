@@ -1,6 +1,6 @@
 import { type NextFunction, type Request, type Response } from "express";
 import * as workspacesService from "./workspaces.service.ts";
-import slugify from "../../shared/utils/slugify.ts";
+import { toWorkspaceResponseDto, toWorkspaceResponseDtoList } from "./mappers/workspaces.mapper.ts";
 
 // Llamar al servicio y mappear la respuesta.
 // Responder HTTP
@@ -12,7 +12,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
     const userId = req.user.id;
     const workspace = await workspacesService.create(data, userId);
 
-    const workspaceResponse = workspace; //TODO: Mappear la respuesta
+    const workspaceResponse = toWorkspaceResponseDto(workspace);
 
     res.status(201).json(workspaceResponse);
   } catch (error) {
@@ -25,7 +25,7 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
     const userId = req.user.id;
     const workspaces = await workspacesService.findAll(userId);
 
-    const workspacesResponse = workspaces; //TODO: Mappear la respuesta
+    const workspacesResponse = toWorkspaceResponseDtoList(workspaces);
 
     res.json(workspacesResponse);
   } catch (error) {
