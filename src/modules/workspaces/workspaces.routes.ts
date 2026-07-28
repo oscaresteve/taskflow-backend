@@ -2,7 +2,7 @@ import { Router } from "express";
 import { auth } from "../../shared/middlewares/auth.ts";
 import { validate } from "../../shared/middlewares/validate.ts";
 import * as workspacesController from "./workspaces.controller.ts";
-import { createWorkspaceBodySchema } from "./schemas/workspaces.schema.ts";
+import { createWorkspaceBodySchema, workspacesQuerySchema } from "./schemas/workspaces.schema.ts";
 
 export const workspacesRouter = Router();
 
@@ -21,7 +21,7 @@ workspacesRouter.post("/", auth, validate({ body: createWorkspaceBodySchema }), 
 
 // 2. Listar mis Workspaces
 // GET /workspaces
-workspacesRouter.get("/", auth, workspacesController.findAll);
+workspacesRouter.get("/", auth, validate({ query: workspacesQuerySchema }), workspacesController.findAll);
 
 // No devuelve todos.
 // Solo aquellos en los que el usuario pertenece.

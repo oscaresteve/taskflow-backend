@@ -1,6 +1,7 @@
 import { type NextFunction, type Request, type Response } from "express";
 import * as workspacesService from "./workspaces.service.ts";
-import { toWorkspaceResponseDto, toWorkspaceResponseDtoList } from "./mappers/workspaces.mapper.ts";
+import { toPaginatedWorkspaceResponseDto, toWorkspaceResponseDto } from "./mappers/workspaces.mapper.ts";
+import { workspacesQuerySchema } from "./schemas/workspaces.schema.ts";
 
 // Llamar al servicio y mappear la respuesta.
 // Responder HTTP
@@ -22,10 +23,12 @@ export async function create(req: Request, res: Response, next: NextFunction) {
 
 export async function findAll(req: Request, res: Response, next: NextFunction) {
   try {
-    const userId = req.user.id;
-    const workspaces = await workspacesService.findAll(userId);
+    const query = workspacesQuerySchema.parse(req.query); // Volver a parsear la query para obtener el tipado (no deberia hacerse ningun parseo en el controller)
 
-    const workspacesResponse = toWorkspaceResponseDtoList(workspaces);
+    const userId = req.user.id;
+    const workspaces = await workspacesService.findAll(userId, query);
+
+    const workspacesResponse = toPaginatedWorkspaceResponseDto(workspaces, query.page, query.limit);
 
     res.json(workspacesResponse);
   } catch (error) {

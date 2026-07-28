@@ -1,5 +1,7 @@
 import { prisma } from "../../config/prisma.ts";
-import type { CreateWorkspaceDto } from "./schemas/workspaces.schema.ts";
+import type { Prisma } from "../../prisma/generated/prisma/client.ts";
+import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
+import type { CreateWorkspaceDto, WorkspacesQueryDto } from "./schemas/workspaces.schema.ts";
 import { WorkspaceMemberStatus, WorkspaceRole, type Workspace } from "./types/workspaces.types.ts";
 
 // Solo comunicarse con el ORM o DB
@@ -53,15 +55,59 @@ export async function existsBySlug(slug: string): Promise<boolean> {
   return !!workspace;
 }
 
-export async function findAllByUserId(userId: string): Promise<Workspace[]> {
-  const workspaces = await prisma.workspace.findMany({
-    where: {
-      members: {
-        some: {
-          userId: userId,
+export async function findAllByUserId(query: WorkspacesQueryDto, userId: string): Promise<PaginatedResult<Workspace>> {
+  // Construimos los filtros
+  const where: Prisma.WorkspaceWhereInput = {};
+
+  // Añadimos primero el filtro por usuario
+  where.members = {
+    some: {
+      userId: userId,
+    },
+  };
+
+  // Luego los filtros de la paginacion
+  if (query.isActive !== undefined) {
+    where.isActive = query.isActive;
+  }
+
+  if (query.search) {
+    where.OR = [
+      {
+        name: {
+          contains: query.search,
         },
       },
-    },
-  });
-  return workspaces;
+      {
+        description: {
+          contains: query.search,
+        },
+      },
+    ];
+  }
+
+  // Construimos la ordenacion
+  const orderBy: Prisma.WorkspaceOrderByWithRelationInput = {
+    [query.sort]: query.order,
+  };
+
+  const skip = (query.page - 1) * query.limit;
+
+  const [items, total] = await Promise.all([
+    prisma.workspace.findMany({
+      where,
+      orderBy,
+      skip,
+      take: query.limit,
+    }),
+
+    prisma.workspace.count({
+      where,
+    }),
+  ]);
+
+  return {
+    items,
+    total,
+  };
 }
