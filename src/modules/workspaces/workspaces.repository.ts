@@ -4,7 +4,15 @@ import { WorkspaceMemberStatus, WorkspaceRole, type Workspace } from "./types/wo
 
 // Solo comunicarse con el ORM o DB
 
-export async function create(data: CreateWorkspaceDto, slug: string, userId: string): Promise<Workspace> {
+export async function create({
+  data,
+  slug,
+  userId,
+}: {
+  data: CreateWorkspaceDto;
+  slug: string;
+  userId: string;
+}): Promise<Workspace> {
   // Crear el workspacemeber usando Prisma Interactive Transactions
   return prisma.$transaction(async (tx) => {
     // 1. Crear el workspace
@@ -30,4 +38,17 @@ export async function create(data: CreateWorkspaceDto, slug: string, userId: str
 
     return workspace;
   });
+}
+
+export async function existsBySlug(slug: string): Promise<boolean> {
+  const workspace = await prisma.workspace.findUnique({
+    where: {
+      slug,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  return !!workspace;
 }
