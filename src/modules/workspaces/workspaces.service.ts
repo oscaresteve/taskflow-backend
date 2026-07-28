@@ -1,8 +1,7 @@
-import slugify from "../../shared/utils/slugify.ts";
 import * as workspacesRepository from "./workspaces.repository.ts";
 import type { CreateWorkspaceDto } from "./schemas/workspaces.schema.ts";
 import type { Workspace } from "./types/workspaces.types.ts";
-import generateUniqueSlug from "../../shared/utils/generateUniqueSlug.ts";
+import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
 
 // LLamar al repository y realizar toda la lógica necesaria
 
