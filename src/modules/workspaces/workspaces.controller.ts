@@ -19,3 +19,16 @@ export async function create(req: Request, res: Response, next: NextFunction) {
     next(error);
   }
 }
+
+export async function findAll(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const workspaces = await workspacesService.findAll(userId);
+
+    const workspacesResponse = workspaces; //TODO: Mappear la respuesta
+
+    res.json(workspacesResponse);
+  } catch (error) {
+    next(error);
+  }
+}

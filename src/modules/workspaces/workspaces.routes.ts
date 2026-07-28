@@ -8,7 +8,6 @@ export const workspacesRouter = Router();
 
 // Validar el body, params, y query mediante middleware antes de pasar al controller.
 
-
 // 1. Crear Workspace
 // POST /workspaces
 
@@ -22,6 +21,7 @@ workspacesRouter.post("/", auth, validate({ body: createWorkspaceBodySchema }), 
 
 // 2. Listar mis Workspaces
 // GET /workspaces
+workspacesRouter.get("/", auth, workspacesController.findAll);
 
 // No devuelve todos.
 // Solo aquellos en los que el usuario pertenece.

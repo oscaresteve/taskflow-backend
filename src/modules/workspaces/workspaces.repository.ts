@@ -52,3 +52,16 @@ export async function existsBySlug(slug: string): Promise<boolean> {
 
   return !!workspace;
 }
+
+export async function findAllByUserId(userId: string): Promise<Workspace[]> {
+  const workspaces = await prisma.workspace.findMany({
+    where: {
+      members: {
+        some: {
+          userId: userId,
+        },
+      },
+    },
+  });
+  return workspaces;
+}

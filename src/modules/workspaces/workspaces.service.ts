@@ -16,3 +16,8 @@ export async function create(data: CreateWorkspaceDto, userId: string): Promise<
 
   return workspace;
 }
+
+export async function findAll(userId: string): Promise<Workspace[]> {
+  const workspaces = await workspacesRepository.findAllByUserId(userId);
+  return workspaces;
+}
