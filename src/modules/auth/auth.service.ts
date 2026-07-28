@@ -1,9 +1,11 @@
 import { ConflictError } from "../../shared/errors/conflict-error.ts";
 import type { SignUpDto } from "./dtos/auth.dto.ts";
 import * as authRepository from "./auth.repository.ts";
-import { hashPassword } from "../../shared/security/password.ts";
+import { comparePassword, hashPassword } from "../../shared/security/password.ts";
 import { generateAccessToken } from "../../shared/security/jwt.ts";
 import type { User } from "./types/auth.types.ts";
+import type { SignInDto } from "./schemas/auth.schema.ts";
+import { SignInFailedError } from "../../shared/errors/sign-in-failed-error.ts";
 
 interface AuthResult {
   user: User;
@@ -23,6 +25,24 @@ export async function signUp(data: SignUpDto): Promise<AuthResult> {
     ...data,
     password: passwordHash,
   });
+
+  const accessToken = generateAccessToken({ sub: user.id });
+
+  return { user, accessToken };
+}
+
+export async function signIn(data: SignInDto): Promise<AuthResult> {
+  const user = await authRepository.findByEmail(data.email);
+
+  if (!user) {
+    throw new SignInFailedError("Invalid credentials");
+  }
+
+  const isValid = await comparePassword(data.password, user.passwordHash);
+
+  if (!isValid) {
+    throw new SignInFailedError("Invalid credentials");
+  }
 
   const accessToken = generateAccessToken({ sub: user.id });
 

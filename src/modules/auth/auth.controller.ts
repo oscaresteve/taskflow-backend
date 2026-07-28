@@ -12,3 +12,14 @@ export async function signUp(req: Request, res: Response, next: NextFunction) {
     next(error);
   }
 }
+
+export async function signIn(req: Request, res: Response, next: NextFunction) {
+  try {
+    const result = await authService.signIn(req.body);
+
+    const authResponse = toAuthResponseDto(result);
+    res.status(200).json(authResponse);
+  } catch (error) {
+    next(error);
+  }
+}
