@@ -1,1 +1,1 @@
-export type { User } from "../../../../generated/prisma/client.ts";
+export type { User } from "../../../prisma/generated/prisma/client.ts";

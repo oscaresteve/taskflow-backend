@@ -1,4 +1,4 @@
-import { prisma } from "../../prisma/client.ts";
+import { prisma } from "../../config/prisma.ts";
 import type { SignUpDto } from "./dtos/auth.dto.ts";
 import type { User } from "./types/auth.types.ts";
 
