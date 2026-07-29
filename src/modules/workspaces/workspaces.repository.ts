@@ -78,9 +78,7 @@ export async function findAllByUserId({
   };
 
   // Luego los filtros de la paginacion
-  if (query.isActive !== undefined) {
-    where.isActive = query.isActive;
-  }
+  where.isActive = query.isActive ?? true; // Por defecto solo activos
 
   if (query.search) {
     where.OR = [
@@ -124,6 +122,15 @@ export async function findAllByUserId({
 }
 
 export async function findBySlug(slug: string): Promise<Workspace | null> {
+  return prisma.workspace.findUnique({
+    where: {
+      slug,
+      isActive: true,
+    },
+  });
+}
+
+export async function findBySlugIncludingInactive(slug: string): Promise<Workspace | null> {
   return prisma.workspace.findUnique({
     where: {
       slug,

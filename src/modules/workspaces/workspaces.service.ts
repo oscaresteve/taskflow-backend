@@ -98,7 +98,7 @@ export async function update({
 }
 
 export async function deactivate({ userId, slug }: { userId: string; slug: string }): Promise<void> {
-  const workspace = await workspacesRepository.findBySlug(slug);
+  const workspace = await workspacesRepository.findBySlugIncludingInactive(slug);
 
   if (!workspace) throw new NotFoundError("Workspace not found");
 
