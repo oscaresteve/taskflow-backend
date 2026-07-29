@@ -51,3 +51,9 @@ workspacesRouter.patch(
 // 5. Archivar o eliminar
 // En lugar de implementar un DELETE físico, utilizar el campo isActive.
 // PATCH /workspaces/:slug/deactivate
+workspacesRouter.patch(
+  "/:slug/deactivate",
+  auth,
+  validate({ params: workspacesSlugParamsSchema }),
+  workspacesController.deactivate,
+);

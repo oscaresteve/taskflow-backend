@@ -5,6 +5,7 @@ import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import { NotFoundError } from "../../shared/errors/not-found-error.ts";
 import { ForbiddenError } from "../../shared/errors/forbidden-error.ts";
+import { ConflictError } from "../../shared/errors/conflict-error.ts";
 
 // LLamar al repository y realizar toda la lógica necesaria
 
@@ -86,7 +87,7 @@ export async function update({
   }
 
   const updatedWorkspace = await workspacesRepository.update({
-    workspaceId: workspace.id,
+    workspaceId,
     data: {
       ...data,
       slug: newSlug,
@@ -94,4 +95,26 @@ export async function update({
   });
 
   return updatedWorkspace;
+}
+
+export async function deactivate({ userId, slug }: { userId: string; slug: string }): Promise<void> {
+  const workspace = await workspacesRepository.findBySlug(slug);
+
+  if (!workspace) throw new NotFoundError("Workspace not found");
+
+  // Comprobar que el usuario es miembro
+  const workspaceId = workspace.id;
+
+  const workspaceMember = await workspacesRepository.findWorkspaceMember({ userId, workspaceId });
+
+  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
+
+  // Comprobar que tiene permisos (Solo los OWNER)
+  if (workspaceMember.role !== WorkspaceRole.OWNER)
+    throw new ForbiddenError("You have not permissions to deactivate this workspace");
+
+  // Comprobar que no este ya desactivado
+  if (workspace.isActive === false) throw new ConflictError("Workspace is already deactivated");
+
+  await workspacesRepository.deactivate(workspaceId);
 }

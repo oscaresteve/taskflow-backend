@@ -162,3 +162,14 @@ export async function update({
     data,
   });
 }
+
+export async function deactivate(workspaceId: string): Promise<void> {
+  await prisma.workspace.update({
+    where: {
+      id: workspaceId,
+    },
+    data: {
+      isActive: false,
+    },
+  });
+}

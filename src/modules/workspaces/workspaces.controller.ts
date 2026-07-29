@@ -76,3 +76,16 @@ export async function update(req: Request, res: Response, next: NextFunction) {
     next(error);
   }
 }
+export async function deactivate(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = req.validated.params as WorkspacesSlugParamsDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
+    const userId = req.user.id;
+    const slug = params.slug;
+
+    await workspacesService.deactivate({ userId, slug });
+
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+}
