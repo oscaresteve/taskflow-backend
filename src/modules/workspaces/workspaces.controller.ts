@@ -1,7 +1,7 @@
 import { type NextFunction, type Request, type Response } from "express";
 import * as workspacesService from "./workspaces.service.ts";
 import { toPaginatedWorkspaceResponseDto, toWorkspaceResponseDto } from "./mappers/workspaces.mapper.ts";
-import { workspacesQuerySchema, workspacesSlugParamsSchema } from "./schemas/workspaces.schema.ts";
+import { type WorkspacesQueryDto, type WorkspacesSlugParamsDto } from "./schemas/workspaces.schema.ts";
 
 // Llamar al servicio y mappear la respuesta.
 // Responder HTTP
@@ -25,7 +25,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
 export async function findAll(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user.id;
-    const query = workspacesQuerySchema.parse(req.query); // Volver a parsear la query para obtener el tipado (no deberia hacerse ningun parseo en el controller)
+    const query = req.query as unknown as WorkspacesQueryDto; // TODO: Tipar los Request de Express tras la validación con Zod.
     const page = query.page;
     const limit = query.limit;
 
@@ -41,7 +41,7 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
 
 export async function findBySlug(req: Request, res: Response, next: NextFunction) {
   try {
-    const params = workspacesSlugParamsSchema.parse(req.params); // Volver a parsear para obtener el tipado
+    const params = req.params as WorkspacesSlugParamsDto; // TODO: Tipar los Request de Express tras la validación con Zod.
     const userId = req.user.id;
     const slug = params.slug;
 
