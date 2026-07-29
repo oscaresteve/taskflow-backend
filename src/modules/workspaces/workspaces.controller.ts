@@ -1,7 +1,7 @@
 import { type NextFunction, type Request, type Response } from "express";
 import * as workspacesService from "./workspaces.service.ts";
 import { toPaginatedWorkspaceResponseDto, toWorkspaceResponseDto } from "./mappers/workspaces.mapper.ts";
-import { workspacesQuerySchema } from "./schemas/workspaces.schema.ts";
+import { workspacesQuerySchema, workspacesSlugParamsSchema } from "./schemas/workspaces.schema.ts";
 
 // Llamar al servicio y mappear la respuesta.
 // Responder HTTP
@@ -31,6 +31,21 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
     const workspacesResponse = toPaginatedWorkspaceResponseDto(workspaces, query.page, query.limit);
 
     res.json(workspacesResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function findBySlug(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = workspacesSlugParamsSchema.parse(req.params); // Volver a parsear para obtener el tipado
+    const userId = req.user.id;
+
+    const workspace = await workspacesService.findBySlug(userId, params.slug);
+
+    const workspaceResponse = toWorkspaceResponseDto(workspace);
+
+    res.json(workspaceResponse);
   } catch (error) {
     next(error);
   }

@@ -31,5 +31,9 @@ export const workspacesQuerySchema = z.object({
   order: z.enum(["asc", "desc"]).default("asc"),
 });
 
+export const workspacesSlugParamsSchema = z.object({
+  slug: z.string(), // TODO: Validar que es un slug
+});
+
 export type CreateWorkspaceDto = z.infer<typeof createWorkspaceBodySchema>;
 export type WorkspacesQueryDto = z.infer<typeof workspacesQuerySchema>;

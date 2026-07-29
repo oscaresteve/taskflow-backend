@@ -2,7 +2,11 @@ import { Router } from "express";
 import { auth } from "../../shared/middlewares/auth.ts";
 import { validate } from "../../shared/middlewares/validate.ts";
 import * as workspacesController from "./workspaces.controller.ts";
-import { createWorkspaceBodySchema, workspacesQuerySchema } from "./schemas/workspaces.schema.ts";
+import {
+  createWorkspaceBodySchema,
+  workspacesSlugParamsSchema,
+  workspacesQuerySchema,
+} from "./schemas/workspaces.schema.ts";
 
 export const workspacesRouter = Router();
 
@@ -28,6 +32,7 @@ workspacesRouter.get("/", auth, validate({ query: workspacesQuerySchema }), work
 
 // 3. Obtener un Workspace
 // GET /workspaces/:slug
+workspacesRouter.get("/:slug", auth, validate({ params: workspacesSlugParamsSchema }), workspacesController.findBySlug);
 
 // Solo si el usuario pertenece a ese Workspace.
 
