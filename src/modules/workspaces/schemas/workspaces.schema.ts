@@ -32,7 +32,7 @@ export const workspacesQuerySchema = z.object({
 });
 
 export const workspacesSlugParamsSchema = z.object({
-  slug: z.string(), // TODO: Validar que es un slug
+  slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "El slug no es válido"),
 });
 
 export type CreateWorkspaceDto = z.infer<typeof createWorkspaceBodySchema>;
