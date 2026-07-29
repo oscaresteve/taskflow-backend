@@ -28,7 +28,7 @@ export const workspacesQuerySchema = z.object({
 
   // Ordenacion
   sort: z.enum(sortableFields).default("createdAt"),
-  order: z.enum(["asc", "desc"]).default("desc"),
+  order: z.enum(["asc", "desc"]).default("asc"),
 });
 
 export type CreateWorkspaceDto = z.infer<typeof createWorkspaceBodySchema>;
