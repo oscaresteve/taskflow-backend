@@ -4,10 +4,10 @@ export const createWorkspaceBodySchema = z.object({
   name: z
     .string()
     .trim()
-    .min(2, "El nombre debe tener al menos 2 caracteres")
-    .max(100, "El nombre no puede superar los 100 caracteres"),
-  description: z.string().trim().max(500, "La descripción no puede superar los 500 caracteres").optional(),
-  logoUrl: z.url("La URL del logo no es válida").optional(),
+    .min(2, "Name must be at least 2 characters long")
+    .max(100, "Name cannot exceed 100 characters"),
+  description: z.string().trim().max(500, "Description cannot exceed 500 characters").optional(),
+  logoUrl: z.url("Logo URL must be a valid URL").optional(),
 });
 
 export const updateWorkspaceBodySchema = z
@@ -15,12 +15,12 @@ export const updateWorkspaceBodySchema = z
     name: z
       .string()
       .trim()
-      .min(2, "El nombre debe tener al menos 2 caracteres")
-      .max(100, "El nombre no puede superar los 100 caracteres")
+      .min(2, "Name must be at least 2 characters long")
+      .max(100, "Name cannot exceed 100 characters")
       .optional(),
-    description: z.string().trim().max(500, "La descripción no puede superar los 500 caracteres").optional().nullable(),
+    description: z.string().trim().max(500, "Description cannot exceed 500 characters").optional().nullable(),
     // Nullable para permitir borrar el contenido ya que este es opcional
-    logoUrl: z.url("La URL del logo no es válida").optional().nullable(),
+    logoUrl: z.url("Logo URL must be a valid URL").optional().nullable(),
   })
   .refine((data) => Object.keys(data).length > 0, "At least one field must be provided");
 // Como todos los campos son opcionales se valida que al menos se envie un campo
@@ -45,7 +45,7 @@ export const workspacesQuerySchema = z.object({
 });
 
 export const workspacesSlugParamsSchema = z.object({
-  slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "El slug no es válido"),
+  slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
 });
 
 export type CreateWorkspaceDto = z.infer<typeof createWorkspaceBodySchema>;
