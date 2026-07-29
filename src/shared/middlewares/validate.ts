@@ -10,9 +10,11 @@ interface ValidationSchemas {
 export function validate(schemas: ValidationSchemas): RequestHandler {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
-      schemas.body?.parse(req.body);
-      schemas.params?.parse(req.params);
-      schemas.query?.parse(req.query);
+      req.validated = {
+        body: schemas.body?.parse(req.body),
+        params: schemas.params?.parse(req.params),
+        query: schemas.query?.parse(req.query),
+      };
 
       next();
     } catch (error) {

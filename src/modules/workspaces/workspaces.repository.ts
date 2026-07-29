@@ -1,7 +1,7 @@
 import { prisma } from "../../config/prisma.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
-import type { CreateWorkspaceDto, WorkspacesQueryDto } from "./schemas/workspaces.schema.ts";
+import type { CreateWorkspaceDto, UpdateWorkspaceDto, WorkspacesQueryDto } from "./schemas/workspaces.schema.ts";
 import {
   WorkspaceMemberStatus,
   WorkspaceRole,
@@ -145,5 +145,20 @@ export async function findWorkspaceMember({
         workspaceId,
       },
     },
+  });
+}
+
+export async function update({
+  workspaceId,
+  data,
+}: {
+  workspaceId: string;
+  data: UpdateWorkspaceDto & { slug: string };
+}): Promise<Workspace> {
+  return prisma.workspace.update({
+    where: {
+      id: workspaceId,
+    },
+    data,
   });
 }

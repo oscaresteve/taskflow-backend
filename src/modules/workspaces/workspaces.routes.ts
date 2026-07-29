@@ -6,6 +6,7 @@ import {
   createWorkspaceBodySchema,
   workspacesSlugParamsSchema,
   workspacesQuerySchema,
+  updateWorkspaceBodySchema,
 } from "./schemas/workspaces.schema.ts";
 
 export const workspacesRouter = Router();
@@ -38,6 +39,12 @@ workspacesRouter.get("/:slug", auth, validate({ params: workspacesSlugParamsSche
 
 // 4. Actualizar Workspace
 // PATCH /workspaces/:slug
+workspacesRouter.patch(
+  "/:slug",
+  auth,
+  validate({ params: workspacesSlugParamsSchema, body: updateWorkspaceBodySchema }),
+  workspacesController.update,
+);
 
 // Solo el OWNER o un ADMIN (según la política que definas).
 
