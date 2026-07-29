@@ -8,8 +8,11 @@ import { ForbiddenError } from "../../shared/errors/forbidden-error.ts";
 
 // LLamar al repository y realizar toda la lógica necesaria
 
-export async function create(data: CreateWorkspaceDto, userId: string): Promise<Workspace> {
-  const slug = await generateUniqueSlug(data.name, workspacesRepository.existsBySlug); // Generar el slug unico
+export async function create({ data, userId }: { data: CreateWorkspaceDto; userId: string }): Promise<Workspace> {
+  const text = data.name;
+  const exists = workspacesRepository.existsBySlug;
+
+  const slug = await generateUniqueSlug({ text, exists }); // Generar el slug unico
 
   const workspace = await workspacesRepository.create({
     data,
@@ -20,19 +23,28 @@ export async function create(data: CreateWorkspaceDto, userId: string): Promise<
   return workspace;
 }
 
-export async function findAll(userId: string, query: WorkspacesQueryDto): Promise<PaginatedResult<Workspace>> {
-  const workspaces = await workspacesRepository.findAllByUserId(query, userId);
+export async function findAll({
+  userId,
+  query,
+}: {
+  userId: string;
+  query: WorkspacesQueryDto;
+}): Promise<PaginatedResult<Workspace>> {
+  const workspaces = await workspacesRepository.findAllByUserId({ query, userId });
+
   return workspaces;
 }
 
-export async function findBySlug(userId: string, slug: string): Promise<Workspace> {
+export async function findBySlug({ userId, slug }: { userId: string; slug: string }): Promise<Workspace> {
   const workspace = await workspacesRepository.findBySlug(slug);
 
   if (!workspace) throw new NotFoundError("Workspace not found");
 
   // Revisar si es miembro del workspace
 
-  const workspaceMeber = await workspacesRepository.findWorkspaceMember(userId, workspace.id);
+  const workspaceId = workspace.id;
+
+  const workspaceMeber = await workspacesRepository.findWorkspaceMember({ userId, workspaceId });
 
   if (!workspaceMeber) throw new ForbiddenError("You are not a member of this workspace");
 

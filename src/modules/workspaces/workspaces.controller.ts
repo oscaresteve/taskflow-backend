@@ -11,7 +11,8 @@ export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     const data = req.body;
     const userId = req.user.id;
-    const workspace = await workspacesService.create(data, userId);
+
+    const workspace = await workspacesService.create({ data, userId });
 
     const workspaceResponse = toWorkspaceResponseDto(workspace);
 
@@ -23,12 +24,14 @@ export async function create(req: Request, res: Response, next: NextFunction) {
 
 export async function findAll(req: Request, res: Response, next: NextFunction) {
   try {
-    const query = workspacesQuerySchema.parse(req.query); // Volver a parsear la query para obtener el tipado (no deberia hacerse ningun parseo en el controller)
-
     const userId = req.user.id;
-    const workspaces = await workspacesService.findAll(userId, query);
+    const query = workspacesQuerySchema.parse(req.query); // Volver a parsear la query para obtener el tipado (no deberia hacerse ningun parseo en el controller)
+    const page = query.page;
+    const limit = query.limit;
 
-    const workspacesResponse = toPaginatedWorkspaceResponseDto(workspaces, query.page, query.limit);
+    const workspaces = await workspacesService.findAll({ userId, query });
+
+    const workspacesResponse = toPaginatedWorkspaceResponseDto({ workspaces, page, limit });
 
     res.json(workspacesResponse);
   } catch (error) {
@@ -40,8 +43,9 @@ export async function findBySlug(req: Request, res: Response, next: NextFunction
   try {
     const params = workspacesSlugParamsSchema.parse(req.params); // Volver a parsear para obtener el tipado
     const userId = req.user.id;
+    const slug = params.slug;
 
-    const workspace = await workspacesService.findBySlug(userId, params.slug);
+    const workspace = await workspacesService.findBySlug({ userId, slug });
 
     const workspaceResponse = toWorkspaceResponseDto(workspace);
 

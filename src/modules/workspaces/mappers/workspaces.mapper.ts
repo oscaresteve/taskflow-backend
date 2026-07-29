@@ -19,19 +19,23 @@ export function toWorkspaceResponseDtoList(workspaces: Workspace[]) {
   return workspaces.map(toWorkspaceResponseDto);
 }
 
-export function toPaginatedWorkspaceResponseDto(
-  result: PaginatedResult<Workspace>,
-  page: number,
-  limit: number,
-): PaginatedResponseDto<WorkspaceResponseDto> {
+export function toPaginatedWorkspaceResponseDto({
+  workspaces,
+  page,
+  limit,
+}: {
+  workspaces: PaginatedResult<Workspace>;
+  page: number;
+  limit: number;
+}): PaginatedResponseDto<WorkspaceResponseDto> {
   return {
-    data: toWorkspaceResponseDtoList(result.items),
+    data: toWorkspaceResponseDtoList(workspaces.items),
 
     pagination: {
       page,
       limit,
-      total: result.total,
-      pages: Math.ceil(result.total / limit),
+      total: workspaces.total,
+      pages: Math.ceil(workspaces.total / limit),
     },
   };
 }

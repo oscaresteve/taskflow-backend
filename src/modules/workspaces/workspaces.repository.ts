@@ -60,7 +60,13 @@ export async function existsBySlug(slug: string): Promise<boolean> {
   return !!workspace;
 }
 
-export async function findAllByUserId(query: WorkspacesQueryDto, userId: string): Promise<PaginatedResult<Workspace>> {
+export async function findAllByUserId({
+  query,
+  userId,
+}: {
+  query: WorkspacesQueryDto;
+  userId: string;
+}): Promise<PaginatedResult<Workspace>> {
   // Construimos los filtros
   const where: Prisma.WorkspaceWhereInput = {};
 
@@ -125,7 +131,13 @@ export async function findBySlug(slug: string): Promise<Workspace | null> {
   });
 }
 
-export async function findWorkspaceMember(userId: string, workspaceId: string): Promise<WorkspaceMember | null> {
+export async function findWorkspaceMember({
+  userId,
+  workspaceId,
+}: {
+  userId: string;
+  workspaceId: string;
+}): Promise<WorkspaceMember | null> {
   return prisma.workspaceMember.findUnique({
     where: {
       userId_workspaceId: {

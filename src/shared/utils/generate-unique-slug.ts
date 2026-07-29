@@ -2,7 +2,13 @@ import slugify from "./slugify.ts";
 
 type SlugExistsFn = (slug: string) => Promise<boolean>;
 
-export default async function generateUniqueSlug(text: string, exists: SlugExistsFn): Promise<string> {
+export default async function generateUniqueSlug({
+  text,
+  exists,
+}: {
+  text: string;
+  exists: SlugExistsFn;
+}): Promise<string> {
   const baseSlug = slugify(text);
 
   let slug = baseSlug;
