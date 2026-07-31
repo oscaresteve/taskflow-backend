@@ -7,4 +7,4 @@ export const router = Router();
 
 router.use("/auth", authRouter);
 router.use("/workspaces", workspacesRouter);
-router.use("/projects", projectsRouter);
+router.use(projectsRouter);
