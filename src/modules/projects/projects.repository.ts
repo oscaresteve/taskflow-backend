@@ -1,6 +1,6 @@
 import { prisma } from "../../config/prisma.ts";
 import type { CreateProjectDto, ProjectsQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
-import type { Project, Workspace, WorkspaceMember } from "./types/projects.types.ts";
+import type { Project, Workspace, WorkspaceMember, ProjectMember } from "./types/projects.types.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 
@@ -225,7 +225,13 @@ export async function archive(projectId: string): Promise<void> {
   });
 }
 
-export async function findProjectMember({ userId, projectId }: { userId: string; projectId: string }) {
+export async function findProjectMember({
+  userId,
+  projectId,
+}: {
+  userId: string;
+  projectId: string;
+}): Promise<ProjectMember | null> {
   return prisma.projectMember.findUnique({
     where: {
       projectId_userId: {
