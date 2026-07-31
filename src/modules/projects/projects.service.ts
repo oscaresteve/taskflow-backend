@@ -78,3 +78,31 @@ export async function findAll({
 
   return projects;
 }
+
+export async function findBySlug({
+  userId,
+  workspaceSlug,
+  projectSlug,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+}): Promise<Project> {
+  // Comprobar si existe el workspace
+  const workspace = await projectsRepository.findWorkspaceBySlug(workspaceSlug);
+
+  if (!workspace) throw new NotFoundError("Workspace not found");
+
+  // Revisar si es miembro del workspace
+  const workspaceId = workspace.id;
+
+  const workspaceMember = await projectsRepository.findWorkspaceMember({ userId, workspaceId });
+
+  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
+
+  const project = await projectsRepository.findBySlug({ workspaceId, projectSlug });
+
+  if (!project) throw new NotFoundError("Project not found");
+
+  return project;
+}

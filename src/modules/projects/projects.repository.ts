@@ -175,3 +175,20 @@ export async function findAll({
     total,
   };
 }
+
+export async function findBySlug({
+  workspaceId,
+  projectSlug,
+}: {
+  workspaceId: string;
+  projectSlug: string;
+}): Promise<Project | null> {
+  return prisma.project.findUnique({
+    where: {
+      workspaceId_slug: {
+        workspaceId,
+        slug: projectSlug,
+      },
+    },
+  });
+}

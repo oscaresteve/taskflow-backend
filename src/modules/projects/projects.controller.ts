@@ -1,5 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
-import type { CreateProjectDto, ProjectsQueryDto, WorkspaceSlugParamsDto } from "./schemas/projects.schema.ts";
+import type {
+  CreateProjectDto,
+  ProjectsQueryDto,
+  WorkspaceSlugAndProjectSlugParamsDto,
+  WorkspaceSlugParamsDto,
+} from "./schemas/projects.schema.ts";
 import * as projectService from "./projects.service.ts";
 import {
   toPaginatedProjectResponseDto,
@@ -41,6 +46,23 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
 
     const projectsResponse = toPaginatedProjectResponseDto({ page, limit, projects });
     res.json(projectsResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function findBySlug(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = req.validated.params as WorkspaceSlugAndProjectSlugParamsDto;
+    const userId = req.user.id;
+    const workspaceSlug = params.workspaceSlug;
+    const projectSlug = params.projectSlug;
+
+    const project = await projectService.findBySlug({ workspaceSlug, userId, projectSlug });
+
+    const projectResponse = toProjectResponseDto(project);
+
+    res.json(projectResponse);
   } catch (error) {
     next(error);
   }

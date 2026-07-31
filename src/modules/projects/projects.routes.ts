@@ -2,7 +2,12 @@ import { Router } from "express";
 import { auth } from "../../shared/middlewares/auth.ts";
 import { validate } from "../../shared/middlewares/validate.ts";
 import * as projectsController from "./projects.controller.ts";
-import { createProjectBodySchema, projectsQuerySchema, workspaceSlugParamsSchema } from "./schemas/projects.schema.ts";
+import {
+  createProjectBodySchema,
+  projectsQuerySchema,
+  workspaceSlugAndProjectSlugParamsSchema,
+  workspaceSlugParamsSchema,
+} from "./schemas/projects.schema.ts";
 
 export const projectsRouter = Router();
 
@@ -29,10 +34,17 @@ projectsRouter.get(
   projectsController.findAll,
 );
 
+// Solo los proyectos de los cuales el usuario sea miembro
 // Solo los proyectos que no esten archivados
 
 // 3. Obtener un proyecto
 // GET    /workspaces/:workspaceSlug/projects/:projectSlug
+projectsRouter.get(
+  "/workspaces/:workspaceSlug/projects/:projectSlug",
+  auth,
+  validate({ params: workspaceSlugAndProjectSlugParamsSchema }),
+  projectsController.findBySlug,
+);
 
 // 4. Actualizar un proyecto
 // PATCH  /workspaces/:workspaceSlug/projects/:projectSlug

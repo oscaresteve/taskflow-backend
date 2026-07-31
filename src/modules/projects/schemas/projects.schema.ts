@@ -40,6 +40,12 @@ export const projectsQuerySchema = z.object({
   order: z.enum(["asc", "desc"]).default("asc"),
 });
 
+export const workspaceSlugAndProjectSlugParamsSchema = z.object({
+  workspaceSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
+  projectSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
+});
+
 export type CreateProjectDto = z.infer<typeof createProjectBodySchema>;
 export type WorkspaceSlugParamsDto = z.infer<typeof workspaceSlugParamsSchema>;
 export type ProjectsQueryDto = z.infer<typeof projectsQuerySchema>;
+export type WorkspaceSlugAndProjectSlugParamsDto = z.infer<typeof workspaceSlugAndProjectSlugParamsSchema>;
