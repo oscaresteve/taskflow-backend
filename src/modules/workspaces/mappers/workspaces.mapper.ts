@@ -5,11 +5,16 @@ import type { Workspace } from "../types/workspaces.types.ts";
 
 export function toWorkspaceResponseDto(workspace: Workspace): WorkspaceResponseDto {
   return {
+    id: workspace.id,
+
     name: workspace.name,
     slug: workspace.slug,
+
     description: workspace.description,
     logoUrl: workspace.logoUrl,
+
     isActive: workspace.isActive,
+
     createdAt: workspace.createdAt,
     updatedAt: workspace.updatedAt,
   };
