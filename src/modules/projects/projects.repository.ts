@@ -213,3 +213,14 @@ export async function update({
     },
   });
 }
+
+export async function archive(projectId: string): Promise<void> {
+  await prisma.project.update({
+    where: {
+      id: projectId,
+    },
+    data: {
+      isArchived: true,
+    },
+  });
+}

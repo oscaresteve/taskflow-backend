@@ -86,3 +86,18 @@ export async function update(req: Request, res: Response, next: NextFunction) {
     next(error);
   }
 }
+
+export async function archive(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const params = req.validated.params as WorkspaceSlugAndProjectSlugParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const projectSlug = params.projectSlug;
+
+    await projectService.archive({ userId, workspaceSlug, projectSlug });
+
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+}

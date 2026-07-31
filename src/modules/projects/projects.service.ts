@@ -158,3 +158,39 @@ export async function update({
 
   return updatedProject;
 }
+
+export async function archive({
+  userId,
+  workspaceSlug,
+  projectSlug,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+}): Promise<void> {
+  // Comprobar si existe el workspace
+  const workspace = await projectsRepository.findWorkspaceBySlug(workspaceSlug);
+
+  if (!workspace) throw new NotFoundError("Workspace not found");
+
+  // Revisar si es miembro del workspace
+  const workspaceId = workspace.id;
+
+  const workspaceMember = await projectsRepository.findWorkspaceMember({ userId, workspaceId });
+
+  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
+
+  // Comprobar si es OWNER O ADMIN
+  if (workspaceMember.role !== WorkspaceRole.OWNER && workspaceMember.role !== WorkspaceRole.ADMIN)
+    throw new ForbiddenError("You have not permissions to manage this workspace");
+
+  // Comprobar que existe el proyecto a archivar
+  const project = await projectsRepository.findBySlug({ workspaceId, slug: projectSlug });
+
+  if (!project) throw new NotFoundError("Project not found");
+
+  // Comprobar que no este ya archivado
+  if (project.isArchived === true) throw new ConflictError("Project is already archived");
+
+  await projectsRepository.archive(project.id);
+}

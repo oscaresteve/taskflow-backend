@@ -63,3 +63,9 @@ projectsRouter.patch(
 
 // 5. Archivar un proyecto
 // PATCH  /workspaces/:workspaceSlug/projects/:projectSlug/archive
+projectsRouter.patch(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/archive",
+  auth,
+  validate({ params: workspaceSlugAndProjectSlugParamsSchema }),
+  projectsController.archive,
+);
