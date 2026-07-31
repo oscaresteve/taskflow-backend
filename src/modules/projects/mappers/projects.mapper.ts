@@ -22,8 +22,8 @@ export function toProjectResponseDto(project: Project): ProjectResponseDto {
   };
 }
 
-export function toProjectResponseDtoList(workspaces: Project[]) {
-  return workspaces.map(toProjectResponseDto);
+export function toProjectResponseDtoList(projects: Project[]) {
+  return projects.map(toProjectResponseDto);
 }
 
 export function toPaginatedProjectResponseDto({
