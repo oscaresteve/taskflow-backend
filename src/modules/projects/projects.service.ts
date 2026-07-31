@@ -104,6 +104,16 @@ export async function findBySlug({
 
   if (!project) throw new NotFoundError("Project not found");
 
+  // Comprobar que es miembro del proyecto
+  const projectMember = await projectsRepository.findProjectMember({
+    userId,
+    projectId: project.id,
+  });
+
+  if (!projectMember) {
+    throw new ForbiddenError("You are not a member of this project");
+  }
+
   return project;
 }
 
@@ -138,6 +148,16 @@ export async function update({
   const project = await projectsRepository.findBySlug({ workspaceId, slug: projectSlug });
 
   if (!project) throw new NotFoundError("Project not found");
+
+  // Comprobar que es miembro del proyecto
+  const projectMember = await projectsRepository.findProjectMember({
+    userId,
+    projectId: project.id,
+  });
+
+  if (!projectMember) {
+    throw new ForbiddenError("You are not a member of this project");
+  }
 
   // Si cambia el nombre, generar nuevo slug unico en el workspace
   let newSlug = project.slug;
@@ -188,6 +208,16 @@ export async function archive({
   const project = await projectsRepository.findBySlug({ workspaceId, slug: projectSlug });
 
   if (!project) throw new NotFoundError("Project not found");
+
+  // Comprobar que es miembro del proyecto
+  const projectMember = await projectsRepository.findProjectMember({
+    userId,
+    projectId: project.id,
+  });
+
+  if (!projectMember) {
+    throw new ForbiddenError("You are not a member of this project");
+  }
 
   // Comprobar que no este ya archivado
   if (project.isArchived === true) throw new ConflictError("Project is already archived");

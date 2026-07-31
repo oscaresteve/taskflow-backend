@@ -224,3 +224,14 @@ export async function archive(projectId: string): Promise<void> {
     },
   });
 }
+
+export async function findProjectMember({ userId, projectId }: { userId: string; projectId: string }) {
+  return prisma.projectMember.findUnique({
+    where: {
+      projectId_userId: {
+        userId,
+        projectId,
+      },
+    },
+  });
+}
