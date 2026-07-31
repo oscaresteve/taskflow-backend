@@ -6,5 +6,5 @@ import { projectsRouter } from "../modules/projects/index.ts";
 export const router = Router();
 
 router.use("/auth", authRouter);
-router.use("/workspaces", workspacesRouter);
+router.use(workspacesRouter);
 router.use(projectsRouter);

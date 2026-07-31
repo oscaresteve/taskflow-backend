@@ -22,25 +22,30 @@ export const workspacesRouter = Router();
 // Crear automáticamente el WorkspaceMember con rol OWNER y estado ACTIVE.
 // Devolver el Workspace creado.
 
-workspacesRouter.post("/", auth, validate({ body: createWorkspaceBodySchema }), workspacesController.create);
+workspacesRouter.post("/workspaces", auth, validate({ body: createWorkspaceBodySchema }), workspacesController.create);
 
 // 2. Listar mis Workspaces
 // GET /workspaces
-workspacesRouter.get("/", auth, validate({ query: workspacesQuerySchema }), workspacesController.findAll);
+workspacesRouter.get("/workspaces", auth, validate({ query: workspacesQuerySchema }), workspacesController.findAll);
 
 // No devuelve todos.
 // Solo aquellos en los que el usuario pertenece.
 
 // 3. Obtener un Workspace
 // GET /workspaces/:slug
-workspacesRouter.get("/:slug", auth, validate({ params: workspacesSlugParamsSchema }), workspacesController.findBySlug);
+workspacesRouter.get(
+  "/workspaces/:slug",
+  auth,
+  validate({ params: workspacesSlugParamsSchema }),
+  workspacesController.findBySlug,
+);
 
 // Solo si el usuario pertenece a ese Workspace.
 
 // 4. Actualizar Workspace
 // PATCH /workspaces/:slug
 workspacesRouter.patch(
-  "/:slug",
+  "/workspaces/:slug",
   auth,
   validate({ params: workspacesSlugParamsSchema, body: updateWorkspaceBodySchema }),
   workspacesController.update,
@@ -52,7 +57,7 @@ workspacesRouter.patch(
 // En lugar de implementar un DELETE físico, utilizar el campo isActive.
 // PATCH /workspaces/:slug/deactivate
 workspacesRouter.patch(
-  "/:slug/deactivate",
+  "/workspaces/:slug/deactivate",
   auth,
   validate({ params: workspacesSlugParamsSchema }),
   workspacesController.deactivate,
