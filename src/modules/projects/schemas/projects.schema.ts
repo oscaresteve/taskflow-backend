@@ -21,5 +21,25 @@ export const workspaceSlugParamsSchema = z.object({
   workspaceSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
 });
 
+const sortableFields = ["name", "createdAt", "updatedAt"] as const;
+
+export const projectsQuerySchema = z.object({
+  // Paginacion
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+
+  // Filtros
+  isArchived: z // Necesitamos hacer esta transformacion porque la query viene en string, no como en el body, asi evitar falsos booleans
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
+  search: z.string().trim().min(1).optional(),
+
+  // Ordenacion
+  sort: z.enum(sortableFields).default("createdAt"),
+  order: z.enum(["asc", "desc"]).default("asc"),
+});
+
 export type CreateProjectDto = z.infer<typeof createProjectBodySchema>;
 export type WorkspaceSlugParamsDto = z.infer<typeof workspaceSlugParamsSchema>;
+export type ProjectsQueryDto = z.infer<typeof projectsQuerySchema>;

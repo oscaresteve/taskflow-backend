@@ -2,7 +2,7 @@ import { Router } from "express";
 import { auth } from "../../shared/middlewares/auth.ts";
 import { validate } from "../../shared/middlewares/validate.ts";
 import * as projectsController from "./projects.controller.ts";
-import { createProjectBodySchema, workspaceSlugParamsSchema } from "./schemas/projects.schema.ts";
+import { createProjectBodySchema, projectsQuerySchema, workspaceSlugParamsSchema } from "./schemas/projects.schema.ts";
 
 export const projectsRouter = Router();
 
@@ -22,6 +22,12 @@ projectsRouter.post(
 
 // 2. Obtener todos los proyectos de un workspace
 // GET    /workspaces/:workspaceSlug/projects
+projectsRouter.get(
+  "/workspaces/:workspaceSlug/projects",
+  auth,
+  validate({ params: workspaceSlugParamsSchema, query: projectsQuerySchema }),
+  projectsController.findAll,
+);
 
 // Solo los proyectos que no esten archivados
 

@@ -1,3 +1,5 @@
+import type { PaginatedResponseDto } from "../../../shared/dtos/pagination.dto.ts";
+import type { PaginatedResult } from "../../../shared/types/pagination.types.ts";
 import type { ProjectResponseDto } from "../dtos/projects.dto.ts";
 import type { Project } from "../types/projects.types.ts";
 
@@ -22,4 +24,25 @@ export function toProjectResponseDto(project: Project): ProjectResponseDto {
 
 export function toProjectResponseDtoList(workspaces: Project[]) {
   return workspaces.map(toProjectResponseDto);
+}
+
+export function toPaginatedProjectResponseDto({
+  projects,
+  page,
+  limit,
+}: {
+  projects: PaginatedResult<Project>;
+  page: number;
+  limit: number;
+}): PaginatedResponseDto<ProjectResponseDto> {
+  return {
+    data: toProjectResponseDtoList(projects.items),
+
+    pagination: {
+      page,
+      limit,
+      total: projects.total,
+      pages: Math.ceil(projects.total / limit),
+    },
+  };
 }

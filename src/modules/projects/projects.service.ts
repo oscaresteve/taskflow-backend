@@ -1,10 +1,11 @@
-import type { CreateProjectDto } from "./schemas/projects.schema.ts";
+import type { CreateProjectDto, ProjectsQueryDto } from "./schemas/projects.schema.ts";
 import { WorkspaceRole, type Project } from "./types/projects.types.ts";
 import * as projectsRepository from "./projects.repository.ts";
 import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
 import { NotFoundError } from "../../shared/errors/not-found-error.ts";
 import { ForbiddenError } from "../../shared/errors/forbidden-error.ts";
 import { ConflictError } from "../../shared/errors/conflict-error.ts";
+import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 
 // LLamar al repository y realizar toda la lógica necesaria
 
@@ -49,4 +50,31 @@ export async function create({
   const project = await projectsRepository.create({ data, slug, workspaceId, userId });
 
   return project;
+}
+
+export async function findAll({
+  workspaceSlug,
+  userId,
+  query,
+}: {
+  workspaceSlug: string;
+  userId: string;
+  query: ProjectsQueryDto;
+}): Promise<PaginatedResult<Project>> {
+  // Comprobar si existe el workspace
+  const workspace = await projectsRepository.findWorkspaceBySlug(workspaceSlug);
+
+  if (!workspace) throw new NotFoundError("Workspace not found");
+
+  // Revisar si es miembro del workspace
+  const workspaceId = workspace.id;
+
+  const workspaceMember = await projectsRepository.findWorkspaceMember({ userId, workspaceId });
+
+  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
+
+  // Buscar los proyectos del workspace en los cuales este el usuario
+  const projects = await projectsRepository.findAll({ query, userId, workspaceId });
+
+  return projects;
 }
