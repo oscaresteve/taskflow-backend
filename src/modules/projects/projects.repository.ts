@@ -1,5 +1,5 @@
 import { prisma } from "../../config/prisma.ts";
-import type { CreateProjectDto, ProjectsQueryDto } from "./schemas/projects.schema.ts";
+import type { CreateProjectDto, ProjectsQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
 import type { Project, Workspace, WorkspaceMember } from "./types/projects.types.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
@@ -178,17 +178,38 @@ export async function findAll({
 
 export async function findBySlug({
   workspaceId,
-  projectSlug,
+  slug,
 }: {
   workspaceId: string;
-  projectSlug: string;
+  slug: string;
 }): Promise<Project | null> {
   return prisma.project.findUnique({
     where: {
       workspaceId_slug: {
         workspaceId,
-        slug: projectSlug,
+        slug,
       },
+    },
+  });
+}
+
+export async function update({
+  data,
+  projectId,
+}: {
+  data: UpdateProjectDto & { slug: string };
+  projectId: string;
+}): Promise<Project> {
+  return await prisma.project.update({
+    where: {
+      id: projectId,
+    },
+    data: {
+      name: data.name,
+      description: data.description,
+      icon: data.icon,
+      color: data.color,
+      slug: data.slug,
     },
   });
 }

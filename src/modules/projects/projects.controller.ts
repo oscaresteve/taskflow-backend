@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import type {
   CreateProjectDto,
   ProjectsQueryDto,
+  UpdateProjectDto,
   WorkspaceSlugAndProjectSlugParamsDto,
   WorkspaceSlugParamsDto,
 } from "./schemas/projects.schema.ts";
@@ -59,6 +60,24 @@ export async function findBySlug(req: Request, res: Response, next: NextFunction
     const projectSlug = params.projectSlug;
 
     const project = await projectService.findBySlug({ workspaceSlug, userId, projectSlug });
+
+    const projectResponse = toProjectResponseDto(project);
+
+    res.json(projectResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function update(req: Request, res: Response, next: NextFunction) {
+  try {
+    const data = req.validated.body as UpdateProjectDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
+    const userId = req.user.id;
+    const params = req.validated.params as WorkspaceSlugAndProjectSlugParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const projectSlug = params.projectSlug;
+
+    const project = await projectService.update({ data, userId, workspaceSlug, projectSlug });
 
     const projectResponse = toProjectResponseDto(project);
 

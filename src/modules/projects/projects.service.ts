@@ -1,4 +1,4 @@
-import type { CreateProjectDto, ProjectsQueryDto } from "./schemas/projects.schema.ts";
+import type { CreateProjectDto, ProjectsQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
 import { WorkspaceRole, type Project } from "./types/projects.types.ts";
 import * as projectsRepository from "./projects.repository.ts";
 import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
@@ -100,9 +100,61 @@ export async function findBySlug({
 
   if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
 
-  const project = await projectsRepository.findBySlug({ workspaceId, projectSlug });
+  const project = await projectsRepository.findBySlug({ workspaceId, slug: projectSlug });
 
   if (!project) throw new NotFoundError("Project not found");
 
   return project;
+}
+
+export async function update({
+  data,
+  userId,
+  workspaceSlug,
+  projectSlug,
+}: {
+  data: UpdateProjectDto;
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+}): Promise<Project> {
+  // Comprobar si existe el workspace
+  const workspace = await projectsRepository.findWorkspaceBySlug(workspaceSlug);
+
+  if (!workspace) throw new NotFoundError("Workspace not found");
+
+  // Revisar si es miembro del workspace
+  const workspaceId = workspace.id;
+
+  const workspaceMember = await projectsRepository.findWorkspaceMember({ userId, workspaceId });
+
+  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
+
+  // Comprobar si es OWNER O ADMIN
+  if (workspaceMember.role !== WorkspaceRole.OWNER && workspaceMember.role !== WorkspaceRole.ADMIN)
+    throw new ForbiddenError("You have not permissions to manage this workspace");
+
+  // Comprobar que existe el proyecto a actualizar
+  const project = await projectsRepository.findBySlug({ workspaceId, slug: projectSlug });
+
+  if (!project) throw new NotFoundError("Project not found");
+
+  // Si cambia el nombre, generar nuevo slug unico en el workspace
+  let newSlug = project.slug;
+
+  if (data.name && data.name !== project.name)
+    newSlug = await generateUniqueSlug({
+      text: data.name,
+      exists: (slug) => projectsRepository.existsBySlugInWorkspace({ slug, workspaceId }),
+    });
+
+  const updatedProject = await projectsRepository.update({
+    data: {
+      ...data,
+      slug: newSlug,
+    },
+    projectId: project.id,
+  });
+
+  return updatedProject;
 }

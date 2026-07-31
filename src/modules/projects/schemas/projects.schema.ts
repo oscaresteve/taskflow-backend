@@ -45,7 +45,23 @@ export const workspaceSlugAndProjectSlugParamsSchema = z.object({
   projectSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
 });
 
+export const updateProjectBodySchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(2, "Name must be at least 2 characters long")
+      .max(100, "Name cannot exceed 100 characters")
+      .optional(),
+    description: z.string().trim().max(500, "Description cannot exceed 500 characters").optional().nullable(),
+    icon: z.string("Icon must be a string").optional().nullable(),
+    color: z.string("Color must be a string").optional().nullable(),
+  })
+  .refine((data) => Object.keys(data).length > 0, "At least one field must be provided");
+// Como todos los campos son opcionales se valida que al menos se envie un campo
+
 export type CreateProjectDto = z.infer<typeof createProjectBodySchema>;
 export type WorkspaceSlugParamsDto = z.infer<typeof workspaceSlugParamsSchema>;
 export type ProjectsQueryDto = z.infer<typeof projectsQuerySchema>;
 export type WorkspaceSlugAndProjectSlugParamsDto = z.infer<typeof workspaceSlugAndProjectSlugParamsSchema>;
+export type UpdateProjectDto = z.infer<typeof updateProjectBodySchema>;

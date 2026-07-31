@@ -5,6 +5,7 @@ import * as projectsController from "./projects.controller.ts";
 import {
   createProjectBodySchema,
   projectsQuerySchema,
+  updateProjectBodySchema,
   workspaceSlugAndProjectSlugParamsSchema,
   workspaceSlugParamsSchema,
 } from "./schemas/projects.schema.ts";
@@ -48,6 +49,15 @@ projectsRouter.get(
 
 // 4. Actualizar un proyecto
 // PATCH  /workspaces/:workspaceSlug/projects/:projectSlug
+projectsRouter.patch(
+  "/workspaces/:workspaceSlug/projects/:projectSlug",
+  auth,
+  validate({
+    params: workspaceSlugAndProjectSlugParamsSchema,
+    body: updateProjectBodySchema,
+  }),
+  projectsController.update,
+);
 
 // La key no se puede actualizar, las tareas del proyecto perderian sentido
 
