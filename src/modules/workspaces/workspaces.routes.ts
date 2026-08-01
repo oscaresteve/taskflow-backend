@@ -3,10 +3,10 @@ import { auth } from "../../shared/middlewares/auth.ts";
 import { validate } from "../../shared/middlewares/validate.ts";
 import * as workspacesController from "./workspaces.controller.ts";
 import {
-  createWorkspaceBodySchema,
-  workspacesSlugParamsSchema,
-  workspacesQuerySchema,
-  updateWorkspaceBodySchema,
+  createWorkspaceSchema,
+  workspaceParamsSchema,
+  workspaceQuerySchema,
+  updateWorkspaceSchema,
 } from "./schemas/workspaces.schema.ts";
 
 export const workspacesRouter = Router();
@@ -22,11 +22,11 @@ export const workspacesRouter = Router();
 // Crear automáticamente el WorkspaceMember con rol OWNER y estado ACTIVE.
 // Devolver el Workspace creado.
 
-workspacesRouter.post("/workspaces", auth, validate({ body: createWorkspaceBodySchema }), workspacesController.create);
+workspacesRouter.post("/workspaces", auth, validate({ body: createWorkspaceSchema }), workspacesController.create);
 
 // 2. Listar mis Workspaces
 // GET /workspaces
-workspacesRouter.get("/workspaces", auth, validate({ query: workspacesQuerySchema }), workspacesController.findAll);
+workspacesRouter.get("/workspaces", auth, validate({ query: workspaceQuerySchema }), workspacesController.findAll);
 
 // No devuelve todos.
 // Solo aquellos en los que el usuario pertenece.
@@ -36,7 +36,7 @@ workspacesRouter.get("/workspaces", auth, validate({ query: workspacesQuerySchem
 workspacesRouter.get(
   "/workspaces/:slug",
   auth,
-  validate({ params: workspacesSlugParamsSchema }),
+  validate({ params: workspaceParamsSchema }),
   workspacesController.findBySlug,
 );
 
@@ -47,7 +47,7 @@ workspacesRouter.get(
 workspacesRouter.patch(
   "/workspaces/:slug",
   auth,
-  validate({ params: workspacesSlugParamsSchema, body: updateWorkspaceBodySchema }),
+  validate({ params: workspaceParamsSchema, body: updateWorkspaceSchema }),
   workspacesController.update,
 );
 
@@ -59,6 +59,6 @@ workspacesRouter.patch(
 workspacesRouter.patch(
   "/workspaces/:slug/deactivate",
   auth,
-  validate({ params: workspacesSlugParamsSchema }),
+  validate({ params: workspaceParamsSchema }),
   workspacesController.deactivate,
 );

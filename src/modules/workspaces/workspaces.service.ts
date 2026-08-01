@@ -1,5 +1,5 @@
 import * as workspacesRepository from "./workspaces.repository.ts";
-import type { CreateWorkspaceDto, UpdateWorkspaceDto, WorkspacesQueryDto } from "./schemas/workspaces.schema.ts";
+import type { CreateWorkspaceDto, UpdateWorkspaceDto, WorkspaceQueryDto } from "./schemas/workspaces.schema.ts";
 import { WorkspaceRole, type Workspace } from "./types/workspaces.types.ts";
 import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
@@ -29,7 +29,7 @@ export async function findAll({
   query,
 }: {
   userId: string;
-  query: WorkspacesQueryDto;
+  query: WorkspaceQueryDto;
 }): Promise<PaginatedResult<Workspace>> {
   const workspaces = await workspacesRepository.findAllByUserId({ query, userId });
 

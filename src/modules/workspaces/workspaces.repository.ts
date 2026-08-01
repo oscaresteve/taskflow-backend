@@ -1,7 +1,7 @@
 import { prisma } from "../../config/prisma.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
-import type { CreateWorkspaceDto, UpdateWorkspaceDto, WorkspacesQueryDto } from "./schemas/workspaces.schema.ts";
+import type { CreateWorkspaceDto, UpdateWorkspaceDto, WorkspaceQueryDto } from "./schemas/workspaces.schema.ts";
 import {
   WorkspaceMemberStatus,
   WorkspaceRole,
@@ -64,7 +64,7 @@ export async function findAllByUserId({
   query,
   userId,
 }: {
-  query: WorkspacesQueryDto;
+  query: WorkspaceQueryDto;
   userId: string;
 }): Promise<PaginatedResult<Workspace>> {
   // Construimos los filtros

@@ -1,6 +1,6 @@
 import z from "zod";
 
-export const createWorkspaceBodySchema = z.object({
+export const createWorkspaceSchema = z.object({
   name: z
     .string()
     .trim()
@@ -10,7 +10,7 @@ export const createWorkspaceBodySchema = z.object({
   logoUrl: z.url("Logo URL must be a valid URL").optional(),
 });
 
-export const updateWorkspaceBodySchema = z
+export const updateWorkspaceSchema = z
   .object({
     name: z
       .string()
@@ -27,7 +27,7 @@ export const updateWorkspaceBodySchema = z
 
 const sortableFields = ["name", "createdAt", "updatedAt"] as const;
 
-export const workspacesQuerySchema = z.object({
+export const workspaceQuerySchema = z.object({
   // Paginacion
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(10),
@@ -44,11 +44,11 @@ export const workspacesQuerySchema = z.object({
   order: z.enum(["asc", "desc"]).default("asc"),
 });
 
-export const workspacesSlugParamsSchema = z.object({
+export const workspaceParamsSchema = z.object({
   slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
 });
 
-export type CreateWorkspaceDto = z.infer<typeof createWorkspaceBodySchema>;
-export type UpdateWorkspaceDto = z.infer<typeof updateWorkspaceBodySchema>;
-export type WorkspacesQueryDto = z.infer<typeof workspacesQuerySchema>;
-export type WorkspacesSlugParamsDto = z.infer<typeof workspacesSlugParamsSchema>;
+export type CreateWorkspaceDto = z.infer<typeof createWorkspaceSchema>;
+export type UpdateWorkspaceDto = z.infer<typeof updateWorkspaceSchema>;
+export type WorkspaceQueryDto = z.infer<typeof workspaceQuerySchema>;
+export type WorkspaceParamsDto = z.infer<typeof workspaceParamsSchema>;

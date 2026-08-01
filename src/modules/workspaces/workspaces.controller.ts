@@ -4,8 +4,8 @@ import { toPaginatedWorkspaceResponseDto, toWorkspaceResponseDto } from "./mappe
 import {
   type CreateWorkspaceDto,
   type UpdateWorkspaceDto,
-  type WorkspacesQueryDto,
-  type WorkspacesSlugParamsDto,
+  type WorkspaceQueryDto,
+  type WorkspaceParamsDto,
 } from "./schemas/workspaces.schema.ts";
 
 // Llamar al servicio y mappear la respuesta.
@@ -30,7 +30,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
 export async function findAll(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user.id;
-    const query = req.validated.query as WorkspacesQueryDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
+    const query = req.validated.query as WorkspaceQueryDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
     const page = query.page;
     const limit = query.limit;
 
@@ -46,7 +46,7 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
 
 export async function findBySlug(req: Request, res: Response, next: NextFunction) {
   try {
-    const params = req.validated.params as WorkspacesSlugParamsDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
+    const params = req.validated.params as WorkspaceParamsDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
     const userId = req.user.id;
     const slug = params.slug;
 
@@ -62,7 +62,7 @@ export async function findBySlug(req: Request, res: Response, next: NextFunction
 
 export async function update(req: Request, res: Response, next: NextFunction) {
   try {
-    const params = req.validated.params as WorkspacesSlugParamsDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
+    const params = req.validated.params as WorkspaceParamsDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
     const userId = req.user.id;
     const slug = params.slug;
     const data = req.validated.body as UpdateWorkspaceDto;
@@ -78,7 +78,7 @@ export async function update(req: Request, res: Response, next: NextFunction) {
 }
 export async function deactivate(req: Request, res: Response, next: NextFunction) {
   try {
-    const params = req.validated.params as WorkspacesSlugParamsDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
+    const params = req.validated.params as WorkspaceParamsDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
     const userId = req.user.id;
     const slug = params.slug;
 
