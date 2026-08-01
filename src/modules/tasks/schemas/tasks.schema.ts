@@ -14,7 +14,7 @@ export const createTaskBodySchema = z.object({
     .max(100, "Title cannot exceed 100 characters"),
   description: z.string().trim().max(500, "Description cannot exceed 500 characters").optional(),
   priority: z.enum(TaskPriority),
-  assigneeId: z.cuid2().optional(),
+  assigneeId: z.cuid().optional(),
   dueDate: z.iso.datetime().optional(),
 });
 
