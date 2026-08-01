@@ -1,0 +1,27 @@
+import type { TaskStatus, TaskPriority } from "../types/tasks.types.ts";
+
+export type TaskResponseDto = {
+  id: string;
+  projectId: string;
+
+  createdById: string;
+  assigneeId: string | null;
+
+  taskNumber: number;
+
+  title: string;
+  description: string | null;
+
+  status: TaskStatus;
+  priority: TaskPriority;
+
+  dueDate: Date | null;
+  completedAt: Date | null;
+
+  position: number;
+
+  isArchived: boolean;
+
+  createdAt: Date;
+  updatedAt: Date;
+};

@@ -1,0 +1,65 @@
+import type { CreateTaskDto } from "./schemas/tasks.schema.ts";
+import { type Task } from "./types/tasks.types.ts";
+import * as tasksRepository from "./tasks.repository.ts";
+import { NotFoundError } from "../../shared/errors/not-found-error.ts";
+import { ForbiddenError } from "../../shared/errors/forbidden-error.ts";
+import { BadRequestError } from "../../shared/errors/bad-request-error.ts";
+
+// LLamar al repository y realizar toda la lógica necesaria
+
+export async function create({
+  data,
+  userId,
+  workspaceSlug,
+  projectSlug,
+}: {
+  data: CreateTaskDto;
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+}): Promise<Task> {
+  // Comprobar si existe el workspace
+  const workspace = await tasksRepository.findWorkspaceBySlug(workspaceSlug);
+
+  if (!workspace) throw new NotFoundError("Workspace not found");
+
+  // Revisar si es miembro del workspace
+  const workspaceId = workspace.id;
+
+  const workspaceMember = await tasksRepository.findWorkspaceMember({ userId, workspaceId });
+
+  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
+
+  const project = await tasksRepository.findBySlug({ workspaceId, slug: projectSlug });
+
+  if (!project) throw new NotFoundError("Project not found");
+
+  const projectId = project.id;
+
+  // Comprobar que es miembro del proyecto
+  const projectMember = await tasksRepository.findProjectMember({
+    userId,
+    projectId,
+  });
+
+  if (!projectMember) {
+    throw new ForbiddenError("You are not a member of this project");
+  }
+
+  // Combrobar que el usuario asignado es miembro
+  if (data.assigneeId) {
+    const assigneeProjectMember = await tasksRepository.findProjectMember({
+      userId: data.assigneeId,
+      projectId,
+    });
+
+    if (!assigneeProjectMember) throw new BadRequestError("Assignee must be a member of the project");
+  }
+
+  // Calcular la posicion (Podria moverse dentro de la transation para mas consistencia)
+  const position = await tasksRepository.getNextTaskPosition(projectId);
+
+  const task = await tasksRepository.create({ data, userId, projectId, position });
+
+  return task;
+}
