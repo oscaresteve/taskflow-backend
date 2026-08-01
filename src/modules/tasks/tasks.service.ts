@@ -109,3 +109,50 @@ export async function findAll({
 
   return tasks;
 }
+
+export async function findByTaskNumber({
+  userId,
+  workspaceSlug,
+  projectSlug,
+  taskNumber,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  taskNumber: number;
+}): Promise<Task> {
+  // Comprobar si existe el workspace
+  const workspace = await tasksRepository.findWorkspaceBySlug(workspaceSlug);
+
+  if (!workspace) throw new NotFoundError("Workspace not found");
+
+  // Revisar si es miembro del workspace
+  const workspaceId = workspace.id;
+
+  const workspaceMember = await tasksRepository.findWorkspaceMember({ userId, workspaceId });
+
+  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
+
+  // Comprobar si existe el proyecto
+  const project = await tasksRepository.findBySlug({ workspaceId, slug: projectSlug });
+
+  if (!project) throw new NotFoundError("Project not found");
+
+  const projectId = project.id;
+
+  // Comprobar que es miembro del proyecto
+  const projectMember = await tasksRepository.findProjectMember({
+    userId,
+    projectId,
+  });
+
+  if (!projectMember) {
+    throw new ForbiddenError("You are not a member of this project");
+  }
+
+  const task = await tasksRepository.findByTaskNumber({ projectId, taskNumber });
+
+  if (!task) throw new NotFoundError("Task not found");
+
+  return task;
+}

@@ -5,6 +5,7 @@ import * as tasksController from "./tasks.controller.ts";
 import {
   createTaskBodySchema,
   tasksQuerySchema,
+  workspaceSlugAndProjectSlugAndTaskNumberParamsSchema,
   workspaceSlugAndProjectSlugParamsSchema,
 } from "./schemas/tasks.schema.ts";
 
@@ -36,6 +37,12 @@ tasksRouter.get(
 
 // 3. Obtener una tarea
 // GET    /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber
+tasksRouter.get(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber",
+  auth,
+  validate({ params: workspaceSlugAndProjectSlugAndTaskNumberParamsSchema }),
+  tasksController.findByTaskNumber,
+);
 
 // 4. Actualizar tarea
 // PATCH  /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber

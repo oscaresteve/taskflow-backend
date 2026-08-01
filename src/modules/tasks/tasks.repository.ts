@@ -194,3 +194,20 @@ export async function findAll({
     total,
   };
 }
+
+export async function findByTaskNumber({
+  projectId,
+  taskNumber,
+}: {
+  projectId: string;
+  taskNumber: number;
+}): Promise<Task | null> {
+  return prisma.task.findUnique({
+    where: {
+      projectId_taskNumber: {
+        projectId,
+        taskNumber,
+      },
+    },
+  });
+}

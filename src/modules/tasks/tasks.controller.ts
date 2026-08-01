@@ -1,5 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
-import type { CreateTaskDto, TasksQueryDto, WorkspaceSlugAndProjectSlugDto } from "./schemas/tasks.schema.ts";
+import type {
+  CreateTaskDto,
+  TasksQueryDto,
+  WorkspaceSlugAndProjectSlugAndTaskNumberDto,
+  WorkspaceSlugAndProjectSlugDto,
+} from "./schemas/tasks.schema.ts";
 import * as tasksService from "./tasks.service.ts";
 import { toPaginatedTaskResponseDto, toTaskResponseDto } from "./mappers/tasks.mapper.ts";
 
@@ -38,6 +43,24 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
     const tasksResponse = toPaginatedTaskResponseDto({ tasks, page: query.page, limit: query.limit });
 
     res.json(tasksResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function findByTaskNumber(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const params = req.validated.params as WorkspaceSlugAndProjectSlugAndTaskNumberDto;
+    const workspaceSlug = params.workspaceSlug;
+    const projectSlug = params.projectSlug;
+    const taskNumber = params.taskNumber;
+
+    const task = await tasksService.findByTaskNumber({ userId, workspaceSlug, projectSlug, taskNumber });
+
+    const taskResponse = toTaskResponseDto(task);
+
+    res.json(taskResponse);
   } catch (error) {
     next(error);
   }

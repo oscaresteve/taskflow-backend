@@ -44,6 +44,15 @@ export const tasksQuerySchema = z.object({
   order: z.enum(["asc", "desc"]).default("asc"),
 });
 
+export const workspaceSlugAndProjectSlugAndTaskNumberParamsSchema = z.object({
+  workspaceSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
+  projectSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
+  taskNumber: z.coerce.number().int().positive("Task number must be positive"),
+});
+
 export type WorkspaceSlugAndProjectSlugDto = z.infer<typeof workspaceSlugAndProjectSlugParamsSchema>;
 export type CreateTaskDto = z.infer<typeof createTaskBodySchema>;
 export type TasksQueryDto = z.infer<typeof tasksQuerySchema>;
+export type WorkspaceSlugAndProjectSlugAndTaskNumberDto = z.infer<
+  typeof workspaceSlugAndProjectSlugAndTaskNumberParamsSchema
+>;
