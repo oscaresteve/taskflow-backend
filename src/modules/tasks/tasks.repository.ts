@@ -1,5 +1,7 @@
 import { prisma } from "../../config/prisma.ts";
-import type { CreateTaskDto } from "./schemas/tasks.schema.ts";
+import type { Prisma } from "../../prisma/generated/prisma/client.ts";
+import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
+import type { CreateTaskDto, TasksQueryDto } from "./schemas/tasks.schema.ts";
 import type { Project, ProjectMember, Task, Workspace, WorkspaceMember } from "./types/tasks.types.ts";
 
 export async function findWorkspaceBySlug(slug: string): Promise<Workspace | null> {
@@ -126,4 +128,69 @@ export async function create({
 
     return task;
   });
+}
+
+export async function findAll({
+  projectId,
+  query,
+}: {
+  projectId: string;
+  query: TasksQueryDto;
+}): Promise<PaginatedResult<Task>> {
+  const where: Prisma.TaskWhereInput = {};
+
+  where.projectId = projectId;
+  where.isArchived = query.isArchived ?? false; // Por defecto solo los que no esten archivadoss
+
+  if (query.search) {
+    where.OR = [
+      {
+        title: {
+          contains: query.search,
+        },
+      },
+      {
+        description: {
+          contains: query.search,
+        },
+      },
+    ];
+  }
+
+  if (query.status) {
+    where.status = query.status;
+  }
+
+  if (query.priority) {
+    where.priority = query.priority;
+  }
+
+  if (query.assigneeId) {
+    where.assigneeId = query.assigneeId;
+  }
+
+  // Construimos la ordenacion
+  const orderBy: Prisma.TaskOrderByWithRelationInput = {
+    [query.sort]: query.order,
+  };
+
+  const skip = (query.page - 1) * query.limit;
+
+  const [items, total] = await Promise.all([
+    prisma.task.findMany({
+      where,
+      orderBy,
+      skip,
+      take: query.limit,
+    }),
+
+    prisma.task.count({
+      where,
+    }),
+  ]);
+
+  return {
+    items,
+    total,
+  };
 }

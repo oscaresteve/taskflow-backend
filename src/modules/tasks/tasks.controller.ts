@@ -1,8 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
-import type { CreateTaskDto } from "./schemas/tasks.schema.ts";
+import type { CreateTaskDto, TasksQueryDto } from "./schemas/tasks.schema.ts";
 import type { WorkspaceSlugAndProjectSlugParamsDto } from "../projects/schemas/projects.schema.ts";
 import * as tasksService from "./tasks.service.ts";
-import { toTaskResponseDto } from "./mappers/tasks.mapper.ts";
+import { toPaginatedTaskResponseDto, toTaskResponseDto } from "./mappers/tasks.mapper.ts";
 import { z } from "zod";
 
 // Llamar al servicio y mappear la respuesta.
@@ -22,6 +22,24 @@ export async function create(req: Request, res: Response, next: NextFunction) {
     const projectResponse = toTaskResponseDto(project);
 
     res.status(201).json(projectResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function findAll(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const query = req.validated.query as TasksQueryDto;
+    const params = req.validated.params as WorkspaceSlugAndProjectSlugParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const projectSlug = params.projectSlug;
+
+    const tasks = await tasksService.findAll({ query, userId, workspaceSlug, projectSlug });
+
+    const tasksResponse = toPaginatedTaskResponseDto({ tasks, page: query.page, limit: query.limit });
+
+    res.json(tasksResponse);
   } catch (error) {
     next(error);
   }

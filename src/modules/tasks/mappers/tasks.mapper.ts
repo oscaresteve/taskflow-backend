@@ -1,3 +1,5 @@
+import type { PaginatedResponseDto } from "../../../shared/dtos/pagination.dto.ts";
+import type { PaginatedResult } from "../../../shared/types/pagination.types.ts";
 import type { TaskResponseDto } from "../dtos/tasks.dto.ts";
 import type { Task } from "../types/tasks.types.ts";
 
@@ -31,4 +33,25 @@ export function toTaskResponseDto(task: Task): TaskResponseDto {
 
 export function toTaskResponseDtoList(tasks: Task[]) {
   return tasks.map(toTaskResponseDto);
+}
+
+export function toPaginatedTaskResponseDto({
+  tasks,
+  page,
+  limit,
+}: {
+  tasks: PaginatedResult<Task>;
+  page: number;
+  limit: number;
+}): PaginatedResponseDto<TaskResponseDto> {
+  return {
+    data: toTaskResponseDtoList(tasks.items),
+
+    pagination: {
+      page,
+      limit,
+      total: tasks.total,
+      pages: Math.ceil(tasks.total / limit),
+    },
+  };
 }

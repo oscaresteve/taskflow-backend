@@ -1,5 +1,5 @@
 import z from "zod";
-import { TaskPriority } from "../types/tasks.types.ts";
+import { TaskPriority, TaskStatus } from "../types/tasks.types.ts";
 
 export const workspaceSlugAndProjectSlugParamsSchema = z.object({
   workspaceSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
@@ -18,5 +18,32 @@ export const createTaskBodySchema = z.object({
   dueDate: z.iso.datetime().optional(),
 });
 
+const sortableFields = ["position", "title", "status", "priority", "dueDate", "createdAt", "updatedAt"] as const;
+
+export const tasksQuerySchema = z.object({
+  // Pagination
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+
+  // Filters
+  isArchived: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
+
+  search: z.string().trim().min(1).optional(),
+
+  status: z.enum(TaskStatus).optional(),
+
+  priority: z.enum(TaskPriority).optional(),
+
+  assigneeId: z.cuid().optional(),
+
+  // Sorting
+  sort: z.enum(sortableFields).default("position"),
+  order: z.enum(["asc", "desc"]).default("asc"),
+});
+
 export type WorkspaceSlugAndProjectSlugDto = z.infer<typeof workspaceSlugAndProjectSlugParamsSchema>;
 export type CreateTaskDto = z.infer<typeof createTaskBodySchema>;
+export type TasksQueryDto = z.infer<typeof tasksQuerySchema>;
