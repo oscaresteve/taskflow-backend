@@ -1,7 +1,7 @@
 import { prisma } from "../../config/prisma.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
-import type { CreateTaskDto, TaskQueryDto } from "./schemas/tasks.schema.ts";
+import type { CreateTaskDto, TaskQueryDto, UpdateTaskDto } from "./schemas/tasks.schema.ts";
 import type { Project, ProjectMember, Task, Workspace, WorkspaceMember } from "./types/tasks.types.ts";
 
 export async function findWorkspaceBySlug(slug: string): Promise<Workspace | null> {
@@ -208,6 +208,36 @@ export async function findByTaskNumber({
         projectId,
         taskNumber,
       },
+    },
+  });
+}
+
+export async function update({
+  data,
+  projectId,
+  taskNumber,
+  completedAt,
+}: {
+  data: UpdateTaskDto;
+  projectId: string;
+  taskNumber: number;
+  completedAt: Date | null;
+}): Promise<Task> {
+  return await prisma.task.update({
+    where: {
+      projectId_taskNumber: {
+        projectId,
+        taskNumber,
+      },
+    },
+    data: {
+      title: data.title,
+      description: data.description,
+      priority: data.priority,
+      status: data.status,
+      assigneeId: data.assigneeId,
+      dueDate: data.dueDate,
+      completedAt,
     },
   });
 }

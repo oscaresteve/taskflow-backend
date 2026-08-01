@@ -1,5 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
-import type { CreateTaskDto, ProjectParamsDto, TaskParamsDto, TaskQueryDto } from "./schemas/tasks.schema.ts";
+import type {
+  CreateTaskDto,
+  ProjectParamsDto,
+  TaskParamsDto,
+  TaskQueryDto,
+  UpdateTaskDto,
+} from "./schemas/tasks.schema.ts";
 import * as tasksService from "./tasks.service.ts";
 import { toPaginatedTaskResponseDto, toTaskResponseDto } from "./mappers/tasks.mapper.ts";
 
@@ -56,6 +62,25 @@ export async function findByTaskNumber(req: Request, res: Response, next: NextFu
     const taskResponse = toTaskResponseDto(task);
 
     res.json(taskResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function update(req: Request, res: Response, next: NextFunction) {
+  try {
+    const data = req.validated.body as UpdateTaskDto;
+    const userId = req.user.id;
+    const params = req.validated.params as TaskParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const projectSlug = params.projectSlug;
+    const taskNumber = params.taskNumber;
+
+    const project = await tasksService.update({ data, userId, workspaceSlug, projectSlug, taskNumber });
+
+    const projectResponse = toTaskResponseDto(project);
+
+    res.json(projectResponse);
   } catch (error) {
     next(error);
   }

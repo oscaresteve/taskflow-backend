@@ -2,7 +2,13 @@ import { Router } from "express";
 import { validate } from "../../shared/middlewares/validate.ts";
 import { auth } from "../../shared/middlewares/auth.ts";
 import * as tasksController from "./tasks.controller.ts";
-import { createTaskSchema, projectParamsSchema, taskParamsSchema, taskQuerySchema } from "./schemas/tasks.schema.ts";
+import {
+  createTaskSchema,
+  projectParamsSchema,
+  taskParamsSchema,
+  taskQuerySchema,
+  updateTaskSchema,
+} from "./schemas/tasks.schema.ts";
 
 export const tasksRouter = Router();
 
@@ -41,6 +47,15 @@ tasksRouter.get(
 
 // 4. Actualizar tarea
 // PATCH  /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber
+tasksRouter.patch(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber",
+  auth,
+  validate({
+    params: taskParamsSchema,
+    body: updateTaskSchema,
+  }),
+  tasksController.update,
+);
 
 // 5. Archivar tarea
 // PATCH  /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/archive

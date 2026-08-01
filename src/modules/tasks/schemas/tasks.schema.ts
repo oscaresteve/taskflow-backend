@@ -50,7 +50,24 @@ export const taskParamsSchema = z.object({
   taskNumber: z.coerce.number().int().positive("Task number must be positive"),
 });
 
+export const updateTaskSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(2, "Title must be at least 2 characters long")
+      .max(100, "Title cannot exceed 100 characters")
+      .optional(),
+    description: z.string().trim().max(500, "Description cannot exceed 500 characters").optional().nullable(),
+    priority: z.enum(TaskPriority).optional(),
+    status: z.enum(TaskStatus).optional(),
+    assigneeId: z.cuid().optional().nullable(),
+    dueDate: z.iso.datetime().optional().nullable(),
+  })
+  .refine((data) => Object.keys(data).length > 0, "At least one field must be provided");
+
 export type ProjectParamsDto = z.infer<typeof projectParamsSchema>;
 export type CreateTaskDto = z.infer<typeof createTaskSchema>;
 export type TaskQueryDto = z.infer<typeof taskQuerySchema>;
 export type TaskParamsDto = z.infer<typeof taskParamsSchema>;
+export type UpdateTaskDto = z.infer<typeof updateTaskSchema>;
