@@ -189,6 +189,7 @@ export async function findBySlug({
         workspaceId,
         slug,
       },
+      isArchived: false,
     },
   });
 }
