@@ -241,3 +241,17 @@ export async function update({
     },
   });
 }
+
+export async function archive({ projectId, taskNumber }: { projectId: string; taskNumber: number }): Promise<void> {
+  await prisma.task.update({
+    where: {
+      projectId_taskNumber: {
+        projectId,
+        taskNumber,
+      },
+    },
+    data: {
+      isArchived: true,
+    },
+  });
+}

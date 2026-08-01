@@ -233,3 +233,56 @@ export async function update({
 
   return updatedTask;
 }
+
+export async function archive({
+  userId,
+  workspaceSlug,
+  projectSlug,
+  taskNumber,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  taskNumber: number;
+}): Promise<void> {
+  // Comprobar si existe el workspace
+  const workspace = await tasksRepository.findWorkspaceBySlug(workspaceSlug);
+
+  if (!workspace) throw new NotFoundError("Workspace not found");
+
+  // Revisar si es miembro del workspace
+  const workspaceId = workspace.id;
+
+  const workspaceMember = await tasksRepository.findWorkspaceMember({ userId, workspaceId });
+
+  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
+
+  // Comprobar si existe el proyecto
+  const project = await tasksRepository.findBySlug({ workspaceId, slug: projectSlug });
+
+  if (!project) throw new NotFoundError("Project not found");
+
+  const projectId = project.id;
+
+  // Comprobar que es miembro del proyecto
+  const projectMember = await tasksRepository.findProjectMember({
+    userId,
+    projectId,
+  });
+
+  if (!projectMember) {
+    throw new ForbiddenError("You are not a member of this project");
+  }
+
+  // Comprobar que existe la tarea
+  const task = await tasksRepository.findByTaskNumber({ projectId, taskNumber });
+
+  if (!task) throw new NotFoundError("Task not found");
+
+  // Comprobar que no este archivada
+  if (task.isArchived) {
+    throw new BadRequestError("Task is already archived");
+  }
+
+  await tasksRepository.archive({ projectId, taskNumber });
+}

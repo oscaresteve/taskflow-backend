@@ -59,3 +59,9 @@ tasksRouter.patch(
 
 // 5. Archivar tarea
 // PATCH  /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/archive
+tasksRouter.patch(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/archive",
+  auth,
+  validate({ params: taskParamsSchema }),
+  tasksController.archive,
+);
