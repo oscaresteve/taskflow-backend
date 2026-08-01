@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const signUpBodySchema = z.object({
+export const signUpSchema = z.object({
   name: z
     .string()
     .trim()
@@ -20,11 +20,11 @@ export const signUpBodySchema = z.object({
 
 // TODO: Implementar confirmar contraseña
 
-export const signInBodySchema = z.object({
+export const signInSchema = z.object({
   email: z.string().trim().toLowerCase().email("Email must be a valid email address"),
 
   password: z.string().min(1, "Password is required"),
 });
 
-export type SignUpDto = z.infer<typeof signUpBodySchema>;
-export type SignInDto = z.infer<typeof signInBodySchema>;
+export type SignUpDto = z.infer<typeof signUpSchema>;
+export type SignInDto = z.infer<typeof signInSchema>;
