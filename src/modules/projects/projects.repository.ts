@@ -1,5 +1,5 @@
 import { prisma } from "../../config/prisma.ts";
-import type { CreateProjectDto, ProjectsQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
+import type { CreateProjectDto, ProjectQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
 import type { Project, Workspace, WorkspaceMember, ProjectMember } from "./types/projects.types.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
@@ -117,7 +117,7 @@ export async function findAll({
   userId,
   workspaceId,
 }: {
-  query: ProjectsQueryDto;
+  query: ProjectQueryDto;
   userId: string;
   workspaceId: string;
 }): Promise<PaginatedResult<Project>> {

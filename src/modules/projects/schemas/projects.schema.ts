@@ -1,6 +1,6 @@
 import z from "zod";
 
-export const createProjectBodySchema = z.object({
+export const createProjectSchema = z.object({
   name: z
     .string()
     .trim()
@@ -17,13 +17,13 @@ export const createProjectBodySchema = z.object({
   color: z.string("Color must be a string").optional(),
 });
 
-export const workspaceSlugParamsSchema = z.object({
+export const workspaceParamsSchema = z.object({
   workspaceSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
 });
 
 const sortableFields = ["name", "createdAt", "updatedAt"] as const;
 
-export const projectsQuerySchema = z.object({
+export const projectQuerySchema = z.object({
   // Paginacion
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(10),
@@ -40,12 +40,12 @@ export const projectsQuerySchema = z.object({
   order: z.enum(["asc", "desc"]).default("asc"),
 });
 
-export const workspaceSlugAndProjectSlugParamsSchema = z.object({
+export const projectParamsSchema = z.object({
   workspaceSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
   projectSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
 });
 
-export const updateProjectBodySchema = z
+export const updateProjectSchema = z
   .object({
     name: z
       .string()
@@ -60,8 +60,8 @@ export const updateProjectBodySchema = z
   .refine((data) => Object.keys(data).length > 0, "At least one field must be provided");
 // Como todos los campos son opcionales se valida que al menos se envie un campo
 
-export type CreateProjectDto = z.infer<typeof createProjectBodySchema>;
-export type WorkspaceSlugParamsDto = z.infer<typeof workspaceSlugParamsSchema>;
-export type ProjectsQueryDto = z.infer<typeof projectsQuerySchema>;
-export type WorkspaceSlugAndProjectSlugParamsDto = z.infer<typeof workspaceSlugAndProjectSlugParamsSchema>;
-export type UpdateProjectDto = z.infer<typeof updateProjectBodySchema>;
+export type CreateProjectDto = z.infer<typeof createProjectSchema>;
+export type WorkspaceParamsDto = z.infer<typeof workspaceParamsSchema>;
+export type ProjectQueryDto = z.infer<typeof projectQuerySchema>;
+export type ProjectParamsDto = z.infer<typeof projectParamsSchema>;
+export type UpdateProjectDto = z.infer<typeof updateProjectSchema>;

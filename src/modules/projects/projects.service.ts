@@ -1,4 +1,4 @@
-import type { CreateProjectDto, ProjectsQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
+import type { CreateProjectDto, ProjectQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
 import { WorkspaceRole, type Project } from "./types/projects.types.ts";
 import * as projectsRepository from "./projects.repository.ts";
 import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
@@ -59,7 +59,7 @@ export async function findAll({
 }: {
   workspaceSlug: string;
   userId: string;
-  query: ProjectsQueryDto;
+  query: ProjectQueryDto;
 }): Promise<PaginatedResult<Project>> {
   // Comprobar si existe el workspace
   const workspace = await projectsRepository.findWorkspaceBySlug(workspaceSlug);

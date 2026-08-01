@@ -3,11 +3,11 @@ import { auth } from "../../shared/middlewares/auth.ts";
 import { validate } from "../../shared/middlewares/validate.ts";
 import * as projectsController from "./projects.controller.ts";
 import {
-  createProjectBodySchema,
-  projectsQuerySchema,
-  updateProjectBodySchema,
-  workspaceSlugAndProjectSlugParamsSchema,
-  workspaceSlugParamsSchema,
+  createProjectSchema,
+  projectQuerySchema,
+  updateProjectSchema,
+  projectParamsSchema,
+  workspaceParamsSchema,
 } from "./schemas/projects.schema.ts";
 
 export const projectsRouter = Router();
@@ -19,7 +19,7 @@ export const projectsRouter = Router();
 projectsRouter.post(
   "/workspaces/:workspaceSlug/projects",
   auth,
-  validate({ params: workspaceSlugParamsSchema, body: createProjectBodySchema }),
+  validate({ params: workspaceParamsSchema, body: createProjectSchema }),
   projectsController.create,
 );
 
@@ -31,7 +31,7 @@ projectsRouter.post(
 projectsRouter.get(
   "/workspaces/:workspaceSlug/projects",
   auth,
-  validate({ params: workspaceSlugParamsSchema, query: projectsQuerySchema }),
+  validate({ params: workspaceParamsSchema, query: projectQuerySchema }),
   projectsController.findAll,
 );
 
@@ -43,7 +43,7 @@ projectsRouter.get(
 projectsRouter.get(
   "/workspaces/:workspaceSlug/projects/:projectSlug",
   auth,
-  validate({ params: workspaceSlugAndProjectSlugParamsSchema }),
+  validate({ params: projectParamsSchema }),
   projectsController.findBySlug,
 );
 
@@ -53,8 +53,8 @@ projectsRouter.patch(
   "/workspaces/:workspaceSlug/projects/:projectSlug",
   auth,
   validate({
-    params: workspaceSlugAndProjectSlugParamsSchema,
-    body: updateProjectBodySchema,
+    params: projectParamsSchema,
+    body: updateProjectSchema,
   }),
   projectsController.update,
 );
@@ -66,6 +66,6 @@ projectsRouter.patch(
 projectsRouter.patch(
   "/workspaces/:workspaceSlug/projects/:projectSlug/archive",
   auth,
-  validate({ params: workspaceSlugAndProjectSlugParamsSchema }),
+  validate({ params: projectParamsSchema }),
   projectsController.archive,
 );

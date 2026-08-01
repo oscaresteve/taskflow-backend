@@ -1,17 +1,13 @@
 import type { NextFunction, Request, Response } from "express";
 import type {
   CreateProjectDto,
-  ProjectsQueryDto,
+  ProjectQueryDto,
   UpdateProjectDto,
-  WorkspaceSlugAndProjectSlugParamsDto,
-  WorkspaceSlugParamsDto,
+  ProjectParamsDto,
+  WorkspaceParamsDto,
 } from "./schemas/projects.schema.ts";
 import * as projectService from "./projects.service.ts";
-import {
-  toPaginatedProjectResponseDto,
-  toProjectResponseDto,
-  toProjectResponseDtoList,
-} from "./mappers/projects.mapper.ts";
+import { toPaginatedProjectResponseDto, toProjectResponseDto } from "./mappers/projects.mapper.ts";
 
 // Llamar al servicio y mappear la respuesta.
 // Responder HTTP
@@ -21,7 +17,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     const data = req.validated.body as CreateProjectDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
     const userId = req.user.id;
-    const params = req.validated.params as WorkspaceSlugParamsDto;
+    const params = req.validated.params as WorkspaceParamsDto;
     const workspaceSlug = params.workspaceSlug;
 
     const project = await projectService.create({ data, userId, workspaceSlug });
@@ -36,10 +32,10 @@ export async function create(req: Request, res: Response, next: NextFunction) {
 
 export async function findAll(req: Request, res: Response, next: NextFunction) {
   try {
-    const params = req.validated.params as WorkspaceSlugParamsDto;
+    const params = req.validated.params as WorkspaceParamsDto;
     const userId = req.user.id;
     const workspaceSlug = params.workspaceSlug;
-    const query = req.validated.query as ProjectsQueryDto;
+    const query = req.validated.query as ProjectQueryDto;
     const page = query.page;
     const limit = query.limit;
 
@@ -54,7 +50,7 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
 
 export async function findBySlug(req: Request, res: Response, next: NextFunction) {
   try {
-    const params = req.validated.params as WorkspaceSlugAndProjectSlugParamsDto;
+    const params = req.validated.params as ProjectParamsDto;
     const userId = req.user.id;
     const workspaceSlug = params.workspaceSlug;
     const projectSlug = params.projectSlug;
@@ -73,7 +69,7 @@ export async function update(req: Request, res: Response, next: NextFunction) {
   try {
     const data = req.validated.body as UpdateProjectDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
     const userId = req.user.id;
-    const params = req.validated.params as WorkspaceSlugAndProjectSlugParamsDto;
+    const params = req.validated.params as ProjectParamsDto;
     const workspaceSlug = params.workspaceSlug;
     const projectSlug = params.projectSlug;
 
@@ -90,7 +86,7 @@ export async function update(req: Request, res: Response, next: NextFunction) {
 export async function archive(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user.id;
-    const params = req.validated.params as WorkspaceSlugAndProjectSlugParamsDto;
+    const params = req.validated.params as ProjectParamsDto;
     const workspaceSlug = params.workspaceSlug;
     const projectSlug = params.projectSlug;
 
