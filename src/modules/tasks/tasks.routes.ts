@@ -2,12 +2,7 @@ import { Router } from "express";
 import { validate } from "../../shared/middlewares/validate.ts";
 import { auth } from "../../shared/middlewares/auth.ts";
 import * as tasksController from "./tasks.controller.ts";
-import {
-  createTaskBodySchema,
-  tasksQuerySchema,
-  workspaceSlugAndProjectSlugAndTaskNumberParamsSchema,
-  workspaceSlugAndProjectSlugParamsSchema,
-} from "./schemas/tasks.schema.ts";
+import { createTaskSchema, projectParamsSchema, taskParamsSchema, taskQuerySchema } from "./schemas/tasks.schema.ts";
 
 export const tasksRouter = Router();
 
@@ -16,7 +11,7 @@ export const tasksRouter = Router();
 tasksRouter.post(
   "/workspaces/:workspaceSlug/projects/:projectSlug/tasks",
   auth,
-  validate({ params: workspaceSlugAndProjectSlugParamsSchema, body: createTaskBodySchema }),
+  validate({ params: projectParamsSchema, body: createTaskSchema }),
   tasksController.create,
 );
 
@@ -29,8 +24,8 @@ tasksRouter.get(
   "/workspaces/:workspaceSlug/projects/:projectSlug/tasks",
   auth,
   validate({
-    query: tasksQuerySchema,
-    params: workspaceSlugAndProjectSlugParamsSchema,
+    query: taskQuerySchema,
+    params: projectParamsSchema,
   }),
   tasksController.findAll,
 );
@@ -40,7 +35,7 @@ tasksRouter.get(
 tasksRouter.get(
   "/workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber",
   auth,
-  validate({ params: workspaceSlugAndProjectSlugAndTaskNumberParamsSchema }),
+  validate({ params: taskParamsSchema }),
   tasksController.findByTaskNumber,
 );
 

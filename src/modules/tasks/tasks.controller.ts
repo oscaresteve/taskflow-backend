@@ -1,10 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import type {
-  CreateTaskDto,
-  TasksQueryDto,
-  WorkspaceSlugAndProjectSlugAndTaskNumberDto,
-  WorkspaceSlugAndProjectSlugDto,
-} from "./schemas/tasks.schema.ts";
+import type { CreateTaskDto, ProjectParamsDto, TaskParamsDto, TaskQueryDto } from "./schemas/tasks.schema.ts";
 import * as tasksService from "./tasks.service.ts";
 import { toPaginatedTaskResponseDto, toTaskResponseDto } from "./mappers/tasks.mapper.ts";
 
@@ -16,7 +11,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     const data = req.validated.body as CreateTaskDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
     const userId = req.user.id;
-    const params = req.validated.params as WorkspaceSlugAndProjectSlugDto;
+    const params = req.validated.params as ProjectParamsDto;
     const workspaceSlug = params.workspaceSlug;
     const projectSlug = params.projectSlug;
 
@@ -33,8 +28,8 @@ export async function create(req: Request, res: Response, next: NextFunction) {
 export async function findAll(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user.id;
-    const query = req.validated.query as TasksQueryDto;
-    const params = req.validated.params as WorkspaceSlugAndProjectSlugDto;
+    const query = req.validated.query as TaskQueryDto;
+    const params = req.validated.params as ProjectParamsDto;
     const workspaceSlug = params.workspaceSlug;
     const projectSlug = params.projectSlug;
 
@@ -51,7 +46,7 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
 export async function findByTaskNumber(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user.id;
-    const params = req.validated.params as WorkspaceSlugAndProjectSlugAndTaskNumberDto;
+    const params = req.validated.params as TaskParamsDto;
     const workspaceSlug = params.workspaceSlug;
     const projectSlug = params.projectSlug;
     const taskNumber = params.taskNumber;

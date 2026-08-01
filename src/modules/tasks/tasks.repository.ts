@@ -1,7 +1,7 @@
 import { prisma } from "../../config/prisma.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
-import type { CreateTaskDto, TasksQueryDto } from "./schemas/tasks.schema.ts";
+import type { CreateTaskDto, TaskQueryDto } from "./schemas/tasks.schema.ts";
 import type { Project, ProjectMember, Task, Workspace, WorkspaceMember } from "./types/tasks.types.ts";
 
 export async function findWorkspaceBySlug(slug: string): Promise<Workspace | null> {
@@ -135,7 +135,7 @@ export async function findAll({
   query,
 }: {
   projectId: string;
-  query: TasksQueryDto;
+  query: TaskQueryDto;
 }): Promise<PaginatedResult<Task>> {
   const where: Prisma.TaskWhereInput = {};
 

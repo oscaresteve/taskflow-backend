@@ -1,4 +1,4 @@
-import type { CreateTaskDto, TasksQueryDto } from "./schemas/tasks.schema.ts";
+import type { CreateTaskDto, TaskQueryDto } from "./schemas/tasks.schema.ts";
 import { type Task } from "./types/tasks.types.ts";
 import * as tasksRepository from "./tasks.repository.ts";
 import { NotFoundError } from "../../shared/errors/not-found-error.ts";
@@ -71,7 +71,7 @@ export async function findAll({
   workspaceSlug,
   projectSlug,
 }: {
-  query: TasksQueryDto;
+  query: TaskQueryDto;
   userId: string;
   workspaceSlug: string;
   projectSlug: string;
