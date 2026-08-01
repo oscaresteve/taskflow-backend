@@ -1,9 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
-import type { CreateTaskDto, TasksQueryDto } from "./schemas/tasks.schema.ts";
-import type { WorkspaceSlugAndProjectSlugParamsDto } from "../projects/schemas/projects.schema.ts";
+import type { CreateTaskDto, TasksQueryDto, WorkspaceSlugAndProjectSlugDto } from "./schemas/tasks.schema.ts";
 import * as tasksService from "./tasks.service.ts";
 import { toPaginatedTaskResponseDto, toTaskResponseDto } from "./mappers/tasks.mapper.ts";
-import { z } from "zod";
 
 // Llamar al servicio y mappear la respuesta.
 // Responder HTTP
@@ -13,7 +11,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     const data = req.validated.body as CreateTaskDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
     const userId = req.user.id;
-    const params = req.validated.params as WorkspaceSlugAndProjectSlugParamsDto;
+    const params = req.validated.params as WorkspaceSlugAndProjectSlugDto;
     const workspaceSlug = params.workspaceSlug;
     const projectSlug = params.projectSlug;
 
@@ -31,7 +29,7 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user.id;
     const query = req.validated.query as TasksQueryDto;
-    const params = req.validated.params as WorkspaceSlugAndProjectSlugParamsDto;
+    const params = req.validated.params as WorkspaceSlugAndProjectSlugDto;
     const workspaceSlug = params.workspaceSlug;
     const projectSlug = params.projectSlug;
 
