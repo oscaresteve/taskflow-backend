@@ -140,6 +140,7 @@ export const ProjectMemberScalarFieldEnum = {
   id: 'id',
   projectId: 'projectId',
   userId: 'userId',
+  role: 'role',
   joinedAt: 'joinedAt',
   isActive: 'isActive',
   createdAt: 'createdAt',

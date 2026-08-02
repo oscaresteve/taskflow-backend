@@ -108,11 +108,19 @@ model Project {
   @@index([workspaceId])
 }
 
+enum ProjectRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
 model ProjectMember {
   id          String   @id @default(cuid())
 
   projectId   String
   userId      String
+
+  role        ProjectRole @default(MEMBER)
 
   joinedAt    DateTime?
 

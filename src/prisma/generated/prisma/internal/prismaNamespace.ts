@@ -1118,6 +1118,7 @@ export const ProjectMemberScalarFieldEnum = {
   id: 'id',
   projectId: 'projectId',
   userId: 'userId',
+  role: 'role',
   joinedAt: 'joinedAt',
   isActive: 'isActive',
   createdAt: 'createdAt',
@@ -1240,6 +1241,13 @@ export type EnumWorkspaceMemberStatusFieldRefInput<$PrismaModel> = FieldRefInput
  * Reference to a field of type 'Int'
  */
 export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
+    
+
+
+/**
+ * Reference to a field of type 'ProjectRole'
+ */
+export type EnumProjectRoleFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ProjectRole'>
     
 
 

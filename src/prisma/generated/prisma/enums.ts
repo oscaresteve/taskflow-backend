@@ -27,6 +27,15 @@ export const WorkspaceMemberStatus = {
 export type WorkspaceMemberStatus = (typeof WorkspaceMemberStatus)[keyof typeof WorkspaceMemberStatus]
 
 
+export const ProjectRole = {
+  OWNER: 'OWNER',
+  ADMIN: 'ADMIN',
+  MEMBER: 'MEMBER'
+} as const
+
+export type ProjectRole = (typeof ProjectRole)[keyof typeof ProjectRole]
+
+
 export const TaskStatus = {
   TODO: 'TODO',
   IN_PROGRESS: 'IN_PROGRESS',
