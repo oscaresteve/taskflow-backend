@@ -5,4 +5,4 @@ export type {
   Project,
   ProjectMember,
 } from "../../../prisma/generated/prisma/client.ts";
-export { TaskPriority, TaskStatus, WorkspaceRole } from "../../../prisma/generated/prisma/enums.ts";
+export { TaskPriority, TaskStatus, WorkspaceRole, ProjectRole } from "../../../prisma/generated/prisma/enums.ts";

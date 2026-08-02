@@ -1,5 +1,5 @@
 import type { CreateTaskDto, TaskQueryDto, UpdateTaskDto } from "./schemas/tasks.schema.ts";
-import { type Task } from "./types/tasks.types.ts";
+import { ProjectRole, type Task } from "./types/tasks.types.ts";
 import * as tasksRepository from "./tasks.repository.ts";
 import { NotFoundError } from "../../shared/errors/not-found-error.ts";
 import { ForbiddenError } from "../../shared/errors/forbidden-error.ts";
@@ -272,6 +272,11 @@ export async function archive({
 
   if (!projectMember) {
     throw new ForbiddenError("You are not a member of this project");
+  }
+
+  // Comprobar que tiene permisos de proyecto
+  if (projectMember.role !== ProjectRole.OWNER && projectMember.role !== ProjectRole.ADMIN) {
+    throw new ForbiddenError("You have not permissions to manage this project");
   }
 
   // Comprobar que existe la tarea
