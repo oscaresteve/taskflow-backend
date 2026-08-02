@@ -104,6 +104,7 @@ export async function create({
       data: {
         projectId: project.id,
         userId,
+        role: "OWNER",
         joinedAt: new Date(),
       },
     });
