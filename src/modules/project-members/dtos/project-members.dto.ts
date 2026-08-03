@@ -1,0 +1,17 @@
+import type { ProjectRole } from "../types/project-members.types.ts";
+
+export type ProjectMemberResponseDto = {
+  id: string;
+
+  projectId: string;
+  userId: string;
+
+  role: ProjectRole;
+
+  joinedAt: Date | null;
+
+  isActive: boolean;
+
+  createdAt: Date;
+  updatedAt: Date;
+};
