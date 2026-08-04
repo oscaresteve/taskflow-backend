@@ -1,4 +1,3 @@
-import { ForbiddenError } from "../../shared/errors/forbidden-error.ts";
 import { NotFoundError } from "../../shared/errors/not-found-error.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type {
@@ -7,8 +6,14 @@ import type {
   WorkspaceMembersQueryDto,
 } from "./schemas/workspace-members.schema.ts";
 import * as workspaceMembersRepository from "./workspace-members.repository.ts";
-import { WorkspaceMemberStatus, WorkspaceRole, type WorkspaceMember } from "./types/workspace-members.types.ts";
+import { WorkspaceMemberStatus, type WorkspaceMember } from "./types/workspace-members.types.ts";
 import { BadRequestError } from "../../shared/errors/bad-request-error.ts";
+import * as authorizationService from "../../shared/auth/authorization.service.ts";
+import {
+  requireCanAssignWorkspaceRole,
+  requireCanManageWorkspaceMember,
+  requireWorkspaceManager,
+} from "../../shared/auth/permissions.ts";
 
 export async function findAll({
   query,
@@ -19,19 +24,10 @@ export async function findAll({
   userId: string;
   workspaceSlug: string;
 }): Promise<PaginatedResult<WorkspaceMember>> {
-  // Comprobar si existe el workspace
-  const workspace = await workspaceMembersRepository.findWorkspaceBySlug(workspaceSlug);
+  // Obtener contexto
+  const { workspace } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
 
-  if (!workspace) throw new NotFoundError("Workspace not found");
-
-  // Revisar si es miembro del workspace
-  const workspaceId = workspace.id;
-
-  const workspaceMember = await workspaceMembersRepository.findWorkspaceMember({ userId, workspaceId });
-
-  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
-
-  const workspaceMembers = await workspaceMembersRepository.findAll({ workspaceId, query });
+  const workspaceMembers = await workspaceMembersRepository.findAll({ workspaceId: workspace.id, query });
 
   return workspaceMembers;
 }
@@ -45,26 +41,16 @@ export async function create({
   userId: string;
   workspaceSlug: string;
 }): Promise<WorkspaceMember> {
-  // Comprobar si existe el workspace
-  const workspace = await workspaceMembersRepository.findWorkspaceBySlug(workspaceSlug);
+  // Obtener contexto
+  const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
 
-  if (!workspace) throw new NotFoundError("Workspace not found");
+  // Comprobar permisos
+  requireWorkspaceManager(workspaceMember);
 
-  // Revisar si es miembro del workspace
-  const workspaceId = workspace.id;
-
-  const workspaceMember = await workspaceMembersRepository.findWorkspaceMember({ userId, workspaceId });
-
-  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
-
-  // Comprobar si tiene permisos
-  if (workspaceMember.role !== WorkspaceRole.OWNER && workspaceMember.role !== WorkspaceRole.ADMIN) {
-    throw new ForbiddenError("You have not permissions to manage this workspace");
-  }
-
-  if (workspaceMember.role === WorkspaceRole.ADMIN && data.role === WorkspaceRole.OWNER) {
-    throw new ForbiddenError("Admins cannot assign the owner role");
-  }
+  requireCanAssignWorkspaceRole({
+    actor: workspaceMember,
+    role: data.role,
+  });
 
   // Comprobar si existe el usuario a añadir existe o esta activo
   const userActive = await workspaceMembersRepository.findUserActive(data.userId);
@@ -76,14 +62,14 @@ export async function create({
   // Comprobar que no sea ya miembro
   const existingMember = await workspaceMembersRepository.findWorkspaceMember({
     userId: data.userId,
-    workspaceId,
+    workspaceId: workspace.id,
   });
 
   if (existingMember) {
     throw new BadRequestError("User is already a member of this workspace");
   }
 
-  const newWorkspaceMember = await workspaceMembersRepository.create({ data, workspaceId });
+  const newWorkspaceMember = await workspaceMembersRepository.create({ data, workspaceId: workspace.id });
 
   return newWorkspaceMember;
 }
@@ -97,44 +83,24 @@ export async function activate({
   workspaceSlug: string;
   workspaceMemberUserId: string;
 }): Promise<void> {
-  // Comprobar si existe el workspace
-  const workspace = await workspaceMembersRepository.findWorkspaceBySlug(workspaceSlug);
-
-  if (!workspace) throw new NotFoundError("Workspace not found");
-
-  const workspaceId = workspace.id;
-
-  // Comprobar que el actor es miembro del workspace
-  const workspaceMember = await workspaceMembersRepository.findWorkspaceMember({
-    userId,
-    workspaceId,
-  });
-
-  if (!workspaceMember) {
-    throw new ForbiddenError("You are not a member of this workspace");
-  }
+  // Obtener contexto
+  const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
 
   // Comprobar permisos
-  if (workspaceMember.role !== WorkspaceRole.OWNER && workspaceMember.role !== WorkspaceRole.ADMIN) {
-    throw new ForbiddenError("You have not permissions to manage this workspace");
-  }
+  requireWorkspaceManager(workspaceMember);
 
-  // Comprobar que existe el miembro a activar
-  const workspaceMemberTarget = await workspaceMembersRepository.findWorkspaceMember({
-    workspaceId,
-    userId: workspaceMemberUserId,
+  // Obtener miembro objetivo
+  const { workspaceMemberTarget } = await authorizationService.getWorkspaceMemberTarget({
+    workspaceId: workspace.id,
+    workspaceMemberUserId,
   });
 
-  if (!workspaceMemberTarget) {
-    throw new NotFoundError("Workspace member not found");
-  }
+  // ADMIN no puede administrar un OWNER
+  requireCanManageWorkspaceMember({
+    actor: workspaceMember,
+    target: workspaceMemberTarget,
+  });
 
-  // Un ADMIN no puede activar a un OWNER
-  if (workspaceMember.role === WorkspaceRole.ADMIN && workspaceMemberTarget.role === WorkspaceRole.OWNER) {
-    throw new ForbiddenError("Admins cannot activate owners");
-  }
-
-  // Validar estado
   if (workspaceMemberTarget.status === WorkspaceMemberStatus.REMOVED) {
     throw new BadRequestError("Removed members cannot be activated");
   }
@@ -144,7 +110,7 @@ export async function activate({
   }
 
   await workspaceMembersRepository.activate({
-    workspaceId,
+    workspaceId: workspace.id,
     userId: workspaceMemberUserId,
   });
 }
@@ -160,38 +126,20 @@ export async function update({
   workspaceSlug: string;
   workspaceMemberUserId: string;
 }): Promise<void> {
-  const workspace = await workspaceMembersRepository.findWorkspaceBySlug(workspaceSlug);
+  // Obtener contexto
+  const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
 
-  if (!workspace) throw new NotFoundError("Workspace not found");
+  // Comprobar permisos
+  requireWorkspaceManager(workspaceMember);
 
-  const workspaceId = workspace.id;
-
-  // Actor
-  const workspaceMember = await workspaceMembersRepository.findWorkspaceMember({
-    userId,
-    workspaceId,
+  // Obtener miembro objetivo
+  const { workspaceMemberTarget } = await authorizationService.getWorkspaceMemberTarget({
+    workspaceId: workspace.id,
+    workspaceMemberUserId,
   });
 
-  if (!workspaceMember) {
-    throw new ForbiddenError("You are not a member of this workspace");
-  }
-
-  if (workspaceMember.role !== WorkspaceRole.OWNER && workspaceMember.role !== WorkspaceRole.ADMIN) {
-    throw new ForbiddenError("You have not permissions to manage this workspace");
-  }
-
-  // Objetivo
   if (workspaceMemberUserId === userId) {
     throw new BadRequestError("You cannot change your own role");
-  }
-
-  const workspaceMemberTarget = await workspaceMembersRepository.findWorkspaceMember({
-    workspaceId,
-    userId: workspaceMemberUserId,
-  });
-
-  if (!workspaceMemberTarget) {
-    throw new NotFoundError("Workspace member not found");
   }
 
   // No modificar eliminados
@@ -199,23 +147,25 @@ export async function update({
     throw new BadRequestError("Removed members cannot be updated");
   }
 
-  // ADMIN no puede modificar OWNER
-  if (workspaceMember.role === WorkspaceRole.ADMIN && workspaceMemberTarget.role === WorkspaceRole.OWNER) {
-    throw new ForbiddenError("Admins cannot manage owners");
-  }
+  // ADMIN no puede administrar un OWNER
+  requireCanManageWorkspaceMember({
+    actor: workspaceMember,
+    target: workspaceMemberTarget,
+  });
 
-  // ADMIN no puede promover a OWNER
-  if (workspaceMember.role === WorkspaceRole.ADMIN && data.role === WorkspaceRole.OWNER) {
-    throw new ForbiddenError("Admins cannot assign the owner role");
-  }
+  // ADMIN no puede asignar el rol OWNER
+  requireCanAssignWorkspaceRole({
+    actor: workspaceMember,
+    role: data.role,
+  });
 
-  // Evitar actualización innecesaria
+  // Evitar actualización innecesari
   if (workspaceMemberTarget.role === data.role) {
     throw new BadRequestError("Workspace member already has this role");
   }
 
   await workspaceMembersRepository.update({
-    workspaceId,
+    workspaceId: workspace.id,
     userId: workspaceMemberUserId,
     role: data.role,
   });
@@ -230,47 +180,28 @@ export async function remove({
   workspaceSlug: string;
   workspaceMemberUserId: string;
 }): Promise<void> {
-  // Comprobar si existe el workspace
-  const workspace = await workspaceMembersRepository.findWorkspaceBySlug(workspaceSlug);
-
-  if (!workspace) throw new NotFoundError("Workspace not found");
-
-  const workspaceId = workspace.id;
-
-  // Comprobar que el actor es miembro
-  const workspaceMember = await workspaceMembersRepository.findWorkspaceMember({
-    userId,
-    workspaceId,
-  });
-
-  if (!workspaceMember) {
-    throw new ForbiddenError("You are not a member of this workspace");
-  }
+  // Obtener contexto
+  const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
 
   // Comprobar permisos
-  if (workspaceMember.role !== WorkspaceRole.OWNER && workspaceMember.role !== WorkspaceRole.ADMIN) {
-    throw new ForbiddenError("You have not permissions to manage this workspace");
-  }
+  requireWorkspaceManager(workspaceMember);
 
-  // Comprobar que existe el miembro objetivo
-  const workspaceMemberTarget = await workspaceMembersRepository.findWorkspaceMember({
-    workspaceId,
-    userId: workspaceMemberUserId,
+  // Obtener miembro objetivo
+  const { workspaceMemberTarget } = await authorizationService.getWorkspaceMemberTarget({
+    workspaceId: workspace.id,
+    workspaceMemberUserId,
   });
-
-  if (!workspaceMemberTarget) {
-    throw new NotFoundError("Workspace member not found");
-  }
 
   // No permitir eliminar un miembro ya eliminado
   if (workspaceMemberTarget.status === WorkspaceMemberStatus.REMOVED) {
     throw new BadRequestError("Workspace member is already removed");
   }
 
-  // Un ADMIN no puede eliminar a un OWNER
-  if (workspaceMember.role === WorkspaceRole.ADMIN && workspaceMemberTarget.role === WorkspaceRole.OWNER) {
-    throw new ForbiddenError("Admins cannot remove owners");
-  }
+  // ADMIN no puede administrar un OWNER
+  requireCanManageWorkspaceMember({
+    actor: workspaceMember,
+    target: workspaceMemberTarget,
+  });
 
   // No permitir eliminarse a sí mismo
   if (workspaceMemberUserId === userId) {
@@ -278,7 +209,7 @@ export async function remove({
   }
 
   await workspaceMembersRepository.remove({
-    workspaceId,
+    workspaceId: workspace.id,
     userId: workspaceMemberUserId,
   });
 }
