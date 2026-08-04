@@ -3,7 +3,7 @@ import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { CreateWorkspaceMemberDto, WorkspaceMembersQueryDto } from "./schemas/workspace-members.schema.ts";
 import type { Workspace, WorkspaceMember } from "./types/workspace-members.types.ts";
-import { WorkspaceMemberStatus } from "./types/workspace-members.types.ts";
+import { WorkspaceMemberStatus, WorkspaceRole } from "./types/workspace-members.types.ts";
 
 export async function findWorkspaceBySlug(slug: string): Promise<Workspace | null> {
   return prisma.workspace.findUnique({
@@ -112,6 +112,28 @@ export async function activate({ workspaceId, userId }: { workspaceId: string; u
     data: {
       status: WorkspaceMemberStatus.ACTIVE,
       joinedAt: new Date(),
+    },
+  });
+}
+
+export async function update({
+  workspaceId,
+  userId,
+  role,
+}: {
+  workspaceId: string;
+  userId: string;
+  role: WorkspaceRole;
+}): Promise<void> {
+  await prisma.workspaceMember.update({
+    where: {
+      userId_workspaceId: {
+        userId,
+        workspaceId,
+      },
+    },
+    data: {
+      role,
     },
   });
 }

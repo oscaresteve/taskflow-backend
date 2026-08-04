@@ -1,7 +1,11 @@
 import { ForbiddenError } from "../../shared/errors/forbidden-error.ts";
 import { NotFoundError } from "../../shared/errors/not-found-error.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
-import type { CreateWorkspaceMemberDto, WorkspaceMembersQueryDto } from "./schemas/workspace-members.schema.ts";
+import type {
+  CreateWorkspaceMemberDto,
+  UpdateWorkspaceMemberDto,
+  WorkspaceMembersQueryDto,
+} from "./schemas/workspace-members.schema.ts";
 import * as workspaceMembersRepository from "./workspace-members.repository.ts";
 import { WorkspaceMemberStatus, WorkspaceRole, type WorkspaceMember } from "./types/workspace-members.types.ts";
 import { BadRequestError } from "../../shared/errors/bad-request-error.ts";
@@ -142,5 +146,77 @@ export async function activate({
   await workspaceMembersRepository.activate({
     workspaceId,
     userId: workspaceMemberUserId,
+  });
+}
+
+export async function update({
+  data,
+  userId,
+  workspaceSlug,
+  workspaceMemberUserId,
+}: {
+  data: UpdateWorkspaceMemberDto;
+  userId: string;
+  workspaceSlug: string;
+  workspaceMemberUserId: string;
+}): Promise<void> {
+  const workspace = await workspaceMembersRepository.findWorkspaceBySlug(workspaceSlug);
+
+  if (!workspace) throw new NotFoundError("Workspace not found");
+
+  const workspaceId = workspace.id;
+
+  // Actor
+  const workspaceMember = await workspaceMembersRepository.findWorkspaceMember({
+    userId,
+    workspaceId,
+  });
+
+  if (!workspaceMember) {
+    throw new ForbiddenError("You are not a member of this workspace");
+  }
+
+  if (workspaceMember.role !== WorkspaceRole.OWNER && workspaceMember.role !== WorkspaceRole.ADMIN) {
+    throw new ForbiddenError("You have not permissions to manage this workspace");
+  }
+
+  // Objetivo
+  if (workspaceMemberUserId === userId) {
+    throw new BadRequestError("You cannot change your own role");
+  }
+
+  const workspaceMemberTarget = await workspaceMembersRepository.findWorkspaceMember({
+    workspaceId,
+    userId: workspaceMemberUserId,
+  });
+
+  if (!workspaceMemberTarget) {
+    throw new NotFoundError("Workspace member not found");
+  }
+
+  // No modificar eliminados
+  if (workspaceMemberTarget.status === WorkspaceMemberStatus.REMOVED) {
+    throw new BadRequestError("Removed members cannot be updated");
+  }
+
+  // ADMIN no puede modificar OWNER
+  if (workspaceMember.role === WorkspaceRole.ADMIN && workspaceMemberTarget.role === WorkspaceRole.OWNER) {
+    throw new ForbiddenError("Admins cannot manage owners");
+  }
+
+  // ADMIN no puede promover a OWNER
+  if (workspaceMember.role === WorkspaceRole.ADMIN && data.role === WorkspaceRole.OWNER) {
+    throw new ForbiddenError("Admins cannot assign the owner role");
+  }
+
+  // Evitar actualización innecesaria
+  if (workspaceMemberTarget.role === data.role) {
+    throw new BadRequestError("Workspace member already has this role");
+  }
+
+  await workspaceMembersRepository.update({
+    workspaceId,
+    userId: workspaceMemberUserId,
+    role: data.role,
   });
 }

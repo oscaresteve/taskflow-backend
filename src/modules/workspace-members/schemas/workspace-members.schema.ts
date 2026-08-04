@@ -32,7 +32,12 @@ export const workspaceMemberParamsSchema = z.object({
   userId: z.cuid(),
 });
 
+export const updateWorkspaceMemberSchema = z.object({
+  role: z.enum(WorkspaceRole),
+});
+
 export type WorkspaceParamsDto = z.infer<typeof workspaceParamsSchema>;
 export type WorkspaceMembersQueryDto = z.infer<typeof workspaceMembersQuerySchema>;
 export type CreateWorkspaceMemberDto = z.infer<typeof createWorkspaceMemberSchema>;
 export type WorkspaceMemberParamsDto = z.infer<typeof workspaceMemberParamsSchema>;
+export type UpdateWorkspaceMemberDto = z.infer<typeof updateWorkspaceMemberSchema>;

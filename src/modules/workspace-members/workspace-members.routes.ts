@@ -4,6 +4,7 @@ import { validate } from "../../shared/middlewares/validate.ts";
 import * as workspaceMembersController from "./workspace-members.controller.ts";
 import {
   createWorkspaceMemberSchema,
+  updateWorkspaceMemberSchema,
   workspaceMemberParamsSchema,
   workspaceMembersQuerySchema,
   workspaceParamsSchema,
@@ -29,8 +30,8 @@ workspaceMembersRouter.post(
   workspaceMembersController.create,
 );
 
-// Por defecto MEMBER
-// Solo OWNER o ADMIN
+// Un OWNER puede asignar OWNER, ADMIN y MEMBER
+// Un ADMIN puede asignar ADMIN, y MEMBER
 
 // Activar miembros
 // PATCH  /workspaces/:workspaceSlug/members/:userId/activate
@@ -43,9 +44,15 @@ workspaceMembersRouter.patch(
 
 // 3. Cambiar rol
 // PATCH  /workspaces/:workspaceSlug/members/:userId
+workspaceMembersRouter.patch(
+  "/workspaces/:workspaceSlug/members/:userId",
+  auth,
+  validate({ params: workspaceMemberParamsSchema, body: updateWorkspaceMemberSchema }),
+  workspaceMembersController.update,
+);
 
-// No se puede modificar OWNER
-// Solo OWNER o ADMIN
+// Un OWNER puede modificar OWNER, ADMIN y MEMBER
+// Un ADMIN puede modificar ADMIN, y MEMBER
 
 // 4. Eliminar miembro
 // DELETE /workspaces/:workspaceSlug/members/:userId

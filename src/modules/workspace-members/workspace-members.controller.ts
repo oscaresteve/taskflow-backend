@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import * as workspaceMembersService from "./workspace-members.service.ts";
 import type {
   CreateWorkspaceMemberDto,
+  UpdateWorkspaceMemberDto,
   WorkspaceMemberParamsDto,
   WorkspaceMembersQueryDto,
   WorkspaceParamsDto,
@@ -57,6 +58,27 @@ export async function activate(req: Request, res: Response, next: NextFunction) 
     const workspaceMemberUserId = params.userId;
 
     await workspaceMembersService.activate({
+      userId,
+      workspaceSlug,
+      workspaceMemberUserId,
+    });
+
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function update(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const data = req.validated.body as UpdateWorkspaceMemberDto;
+    const params = req.validated.params as WorkspaceMemberParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const workspaceMemberUserId = params.userId;
+
+    await workspaceMembersService.update({
+      data,
       userId,
       workspaceSlug,
       workspaceMemberUserId,
