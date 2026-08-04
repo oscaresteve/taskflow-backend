@@ -1,4 +1,9 @@
-import { WorkspaceRole, type WorkspaceMember } from "../../prisma/generated/prisma/client.ts";
+import {
+  ProjectRole,
+  WorkspaceRole,
+  type ProjectMember,
+  type WorkspaceMember,
+} from "../../prisma/generated/prisma/client.ts";
 import { ForbiddenError } from "../errors/forbidden-error.ts";
 
 export function requireWorkspaceManager(workspaceMember: WorkspaceMember): void {
@@ -25,5 +30,12 @@ export function requireCanAssignWorkspaceRole({ actor, role }: { actor: Workspac
   // ADMIN no puede asignar el rol OWNER
   if (actor.role === WorkspaceRole.ADMIN && role === WorkspaceRole.OWNER) {
     throw new ForbiddenError("Admins cannot assign the owner role");
+  }
+}
+
+export function requireProjectManager(projectMember: ProjectMember): void {
+  // OWNER o ADMIN pueden administrar el workspace
+  if (projectMember.role !== ProjectRole.OWNER && projectMember.role !== ProjectRole.ADMIN) {
+    throw new ForbiddenError("You have not permissions to manage this project");
   }
 }

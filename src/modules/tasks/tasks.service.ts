@@ -1,10 +1,10 @@
 import type { CreateTaskDto, TaskQueryDto, UpdateTaskDto } from "./schemas/tasks.schema.ts";
-import { ProjectRole, type Task } from "./types/tasks.types.ts";
+import { type Task } from "./types/tasks.types.ts";
 import * as tasksRepository from "./tasks.repository.ts";
-import { NotFoundError } from "../../shared/errors/not-found-error.ts";
-import { ForbiddenError } from "../../shared/errors/forbidden-error.ts";
 import { BadRequestError } from "../../shared/errors/bad-request-error.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
+import * as authorizationService from "../../shared/auth/authorization.service.ts";
+import { requireProjectManager } from "../../shared/auth/permissions.ts";
 
 // LLamar al repository y realizar toda la lógica necesaria
 
@@ -19,48 +19,25 @@ export async function create({
   workspaceSlug: string;
   projectSlug: string;
 }): Promise<Task> {
-  // Comprobar si existe el workspace
-  const workspace = await tasksRepository.findWorkspaceBySlug(workspaceSlug);
-
-  if (!workspace) throw new NotFoundError("Workspace not found");
-
-  // Revisar si es miembro del workspace
-  const workspaceId = workspace.id;
-
-  const workspaceMember = await tasksRepository.findWorkspaceMember({ userId, workspaceId });
-
-  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
-
-  const project = await tasksRepository.findBySlug({ workspaceId, slug: projectSlug });
-
-  if (!project) throw new NotFoundError("Project not found");
-
-  const projectId = project.id;
-
-  // Comprobar que es miembro del proyecto
-  const projectMember = await tasksRepository.findProjectMember({
+  // Obtener el contexto
+  const { project } = await authorizationService.getProjectContext({
     userId,
-    projectId,
+    workspaceSlug,
+    projectSlug,
   });
 
-  if (!projectMember) {
-    throw new ForbiddenError("You are not a member of this project");
-  }
-
-  // Combrobar que el usuario asignado es miembro
+  // Combrobar que el objetivo es miembro
   if (data.assigneeId) {
-    const assigneeProjectMember = await tasksRepository.findProjectMember({
-      userId: data.assigneeId,
-      projectId,
+    await authorizationService.getProjectMemberTarget({
+      projectId: project.id,
+      projectMemberUserId: data.assigneeId,
     });
-
-    if (!assigneeProjectMember) throw new BadRequestError("Assignee must be a member of the project");
   }
 
   // Calcular la posicion (Podria moverse dentro de la transation para mas consistencia)
-  const position = await tasksRepository.getNextTaskPosition(projectId);
+  const position = await tasksRepository.getNextTaskPosition(project.id);
 
-  const task = await tasksRepository.create({ data, userId, projectId, position });
+  const task = await tasksRepository.create({ data, userId, projectId: project.id, position });
 
   return task;
 }
@@ -76,36 +53,14 @@ export async function findAll({
   workspaceSlug: string;
   projectSlug: string;
 }): Promise<PaginatedResult<Task>> {
-  // Comprobar si existe el workspace
-  const workspace = await tasksRepository.findWorkspaceBySlug(workspaceSlug);
-
-  if (!workspace) throw new NotFoundError("Workspace not found");
-
-  // Revisar si es miembro del workspace
-  const workspaceId = workspace.id;
-
-  const workspaceMember = await tasksRepository.findWorkspaceMember({ userId, workspaceId });
-
-  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
-
-  // Comprobar si existe el proyecto
-  const project = await tasksRepository.findBySlug({ workspaceId, slug: projectSlug });
-
-  if (!project) throw new NotFoundError("Project not found");
-
-  const projectId = project.id;
-
-  // Comprobar que es miembro del proyecto
-  const projectMember = await tasksRepository.findProjectMember({
+  // Obtener el contexto
+  const { project } = await authorizationService.getProjectContext({
     userId,
-    projectId,
+    workspaceSlug,
+    projectSlug,
   });
 
-  if (!projectMember) {
-    throw new ForbiddenError("You are not a member of this project");
-  }
-
-  const tasks = await tasksRepository.findAll({ projectId, query });
+  const tasks = await tasksRepository.findAll({ projectId: project.id, query });
 
   return tasks;
 }
@@ -121,38 +76,8 @@ export async function findByTaskNumber({
   projectSlug: string;
   taskNumber: number;
 }): Promise<Task> {
-  // Comprobar si existe el workspace
-  const workspace = await tasksRepository.findWorkspaceBySlug(workspaceSlug);
-
-  if (!workspace) throw new NotFoundError("Workspace not found");
-
-  // Revisar si es miembro del workspace
-  const workspaceId = workspace.id;
-
-  const workspaceMember = await tasksRepository.findWorkspaceMember({ userId, workspaceId });
-
-  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
-
-  // Comprobar si existe el proyecto
-  const project = await tasksRepository.findBySlug({ workspaceId, slug: projectSlug });
-
-  if (!project) throw new NotFoundError("Project not found");
-
-  const projectId = project.id;
-
-  // Comprobar que es miembro del proyecto
-  const projectMember = await tasksRepository.findProjectMember({
-    userId,
-    projectId,
-  });
-
-  if (!projectMember) {
-    throw new ForbiddenError("You are not a member of this project");
-  }
-
-  const task = await tasksRepository.findByTaskNumber({ projectId, taskNumber });
-
-  if (!task) throw new NotFoundError("Task not found");
+  // Obtener contexto
+  const { task } = await authorizationService.getTaskContext({ userId, workspaceSlug, projectSlug, taskNumber });
 
   return task;
 }
@@ -170,52 +95,25 @@ export async function update({
   projectSlug: string;
   taskNumber: number;
 }): Promise<Task> {
-  // Comprobar si existe el workspace
-  const workspace = await tasksRepository.findWorkspaceBySlug(workspaceSlug);
-
-  if (!workspace) throw new NotFoundError("Workspace not found");
-
-  // Revisar si es miembro del workspace
-  const workspaceId = workspace.id;
-
-  const workspaceMember = await tasksRepository.findWorkspaceMember({ userId, workspaceId });
-
-  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
-
-  const project = await tasksRepository.findBySlug({ workspaceId, slug: projectSlug });
-
-  if (!project) throw new NotFoundError("Project not found");
-
-  const projectId = project.id;
-
-  // Comprobar que es miembro del proyecto
-  const projectMember = await tasksRepository.findProjectMember({
+  // Obtener contexto
+  const { project, task } = await authorizationService.getTaskContext({
     userId,
-    projectId,
+    workspaceSlug,
+    projectSlug,
+    taskNumber,
   });
 
-  if (!projectMember) {
-    throw new ForbiddenError("You are not a member of this project");
+  // Combrobar que el objetivo es miembro, solo si cambia
+  if (data.assigneeId && data.assigneeId !== task.assigneeId) {
+    await authorizationService.getProjectMemberTarget({
+      projectId: project.id,
+      projectMemberUserId: data.assigneeId,
+    });
   }
-
-  // Comprobar que existe la tarea
-  const task = await tasksRepository.findByTaskNumber({ projectId, taskNumber });
-
-  if (!task) throw new NotFoundError("Task not found");
 
   // Comprobar que no este archivada
   if (task.isArchived) {
     throw new BadRequestError("Archived tasks cannot be updated");
-  }
-
-  // Combrobar que el usuario asignado es miembro, solo si cambia
-  if (data.assigneeId && data.assigneeId !== task.assigneeId) {
-    const assigneeProjectMember = await tasksRepository.findProjectMember({
-      userId: data.assigneeId,
-      projectId,
-    });
-
-    if (!assigneeProjectMember) throw new BadRequestError("Assignee must be a member of the project");
   }
 
   // Marcar fecha de completado
@@ -229,7 +127,7 @@ export async function update({
     completedAt = null;
   }
 
-  const updatedTask = await tasksRepository.update({ projectId, taskNumber, data, completedAt });
+  const updatedTask = await tasksRepository.update({ projectId: project.id, taskNumber, data, completedAt });
 
   return updatedTask;
 }
@@ -245,49 +143,21 @@ export async function archive({
   projectSlug: string;
   taskNumber: number;
 }): Promise<void> {
-  // Comprobar si existe el workspace
-  const workspace = await tasksRepository.findWorkspaceBySlug(workspaceSlug);
-
-  if (!workspace) throw new NotFoundError("Workspace not found");
-
-  // Revisar si es miembro del workspace
-  const workspaceId = workspace.id;
-
-  const workspaceMember = await tasksRepository.findWorkspaceMember({ userId, workspaceId });
-
-  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
-
-  // Comprobar si existe el proyecto
-  const project = await tasksRepository.findBySlug({ workspaceId, slug: projectSlug });
-
-  if (!project) throw new NotFoundError("Project not found");
-
-  const projectId = project.id;
-
-  // Comprobar que es miembro del proyecto
-  const projectMember = await tasksRepository.findProjectMember({
+  // Obtener contexto
+  const { project, projectMember, task } = await authorizationService.getTaskContext({
     userId,
-    projectId,
+    workspaceSlug,
+    projectSlug,
+    taskNumber,
   });
 
-  if (!projectMember) {
-    throw new ForbiddenError("You are not a member of this project");
-  }
-
-  // Comprobar que tiene permisos de proyecto
-  if (projectMember.role !== ProjectRole.OWNER && projectMember.role !== ProjectRole.ADMIN) {
-    throw new ForbiddenError("You have not permissions to manage this project");
-  }
-
-  // Comprobar que existe la tarea
-  const task = await tasksRepository.findByTaskNumber({ projectId, taskNumber });
-
-  if (!task) throw new NotFoundError("Task not found");
+  // Comprobar permisos
+  requireProjectManager(projectMember);
 
   // Comprobar que no este archivada
   if (task.isArchived) {
     throw new BadRequestError("Task is already archived");
   }
 
-  await tasksRepository.archive({ projectId, taskNumber });
+  await tasksRepository.archive({ projectId: project.id, taskNumber });
 }

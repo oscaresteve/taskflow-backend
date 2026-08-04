@@ -2,67 +2,7 @@ import { prisma } from "../../config/prisma.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { CreateTaskDto, TaskQueryDto, UpdateTaskDto } from "./schemas/tasks.schema.ts";
-import type { Project, ProjectMember, Task, Workspace, WorkspaceMember } from "./types/tasks.types.ts";
-
-export async function findWorkspaceBySlug(slug: string): Promise<Workspace | null> {
-  return prisma.workspace.findUnique({
-    where: {
-      slug,
-      isActive: true,
-    },
-  });
-}
-
-export async function findWorkspaceMember({
-  userId,
-  workspaceId,
-}: {
-  userId: string;
-  workspaceId: string;
-}): Promise<WorkspaceMember | null> {
-  return prisma.workspaceMember.findUnique({
-    where: {
-      userId_workspaceId: {
-        userId,
-        workspaceId,
-      },
-    },
-  });
-}
-
-export async function findBySlug({
-  workspaceId,
-  slug,
-}: {
-  workspaceId: string;
-  slug: string;
-}): Promise<Project | null> {
-  return prisma.project.findUnique({
-    where: {
-      workspaceId_slug: {
-        workspaceId,
-        slug,
-      },
-    },
-  });
-}
-
-export async function findProjectMember({
-  userId,
-  projectId,
-}: {
-  userId: string;
-  projectId: string;
-}): Promise<ProjectMember | null> {
-  return prisma.projectMember.findUnique({
-    where: {
-      projectId_userId: {
-        userId,
-        projectId,
-      },
-    },
-  });
-}
+import type { Task } from "./types/tasks.types.ts";
 
 export async function getNextTaskPosition(projectId: string): Promise<number> {
   const lastPosition = await prisma.task.findFirst({
@@ -193,23 +133,6 @@ export async function findAll({
     items,
     total,
   };
-}
-
-export async function findByTaskNumber({
-  projectId,
-  taskNumber,
-}: {
-  projectId: string;
-  taskNumber: number;
-}): Promise<Task | null> {
-  return prisma.task.findUnique({
-    where: {
-      projectId_taskNumber: {
-        projectId,
-        taskNumber,
-      },
-    },
-  });
 }
 
 export async function update({
