@@ -89,3 +89,22 @@ export async function update(req: Request, res: Response, next: NextFunction) {
     next(error);
   }
 }
+
+export async function remove(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const params = req.validated.params as WorkspaceMemberParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const workspaceMemberUserId = params.userId;
+
+    await workspaceMembersService.remove({
+      userId,
+      workspaceSlug,
+      workspaceMemberUserId,
+    });
+
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+}

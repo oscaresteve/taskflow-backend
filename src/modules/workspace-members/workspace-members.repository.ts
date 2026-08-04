@@ -137,3 +137,19 @@ export async function update({
     },
   });
 }
+
+export async function remove({ workspaceId, userId }: { workspaceId: string; userId: string }): Promise<void> {
+  await prisma.workspaceMember.update({
+    where: {
+      userId_workspaceId: {
+        userId,
+        workspaceId,
+      },
+    },
+    data: {
+      status: WorkspaceMemberStatus.REMOVED,
+      role: WorkspaceRole.MEMBER, // Eliminar permisos por si en un futuro se vuelve a activar el usuario
+      joinedAt: null,
+    },
+  });
+}

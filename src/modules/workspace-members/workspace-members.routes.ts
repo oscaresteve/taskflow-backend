@@ -55,7 +55,13 @@ workspaceMembersRouter.patch(
 // Un ADMIN puede modificar ADMIN, y MEMBER
 
 // 4. Eliminar miembro
-// DELETE /workspaces/:workspaceSlug/members/:userId
+// PATCH /workspaces/:workspaceSlug/members/:userId/remove
+workspaceMembersRouter.patch(
+  "/workspaces/:workspaceSlug/members/:userId/remove",
+  auth,
+  validate({ params: workspaceMemberParamsSchema }),
+  workspaceMembersController.remove,
+);
 
 // No se puede eliminar OWNER
 // Solo OWNER o ADMIN

@@ -220,3 +220,65 @@ export async function update({
     role: data.role,
   });
 }
+
+export async function remove({
+  userId,
+  workspaceSlug,
+  workspaceMemberUserId,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  workspaceMemberUserId: string;
+}): Promise<void> {
+  // Comprobar si existe el workspace
+  const workspace = await workspaceMembersRepository.findWorkspaceBySlug(workspaceSlug);
+
+  if (!workspace) throw new NotFoundError("Workspace not found");
+
+  const workspaceId = workspace.id;
+
+  // Comprobar que el actor es miembro
+  const workspaceMember = await workspaceMembersRepository.findWorkspaceMember({
+    userId,
+    workspaceId,
+  });
+
+  if (!workspaceMember) {
+    throw new ForbiddenError("You are not a member of this workspace");
+  }
+
+  // Comprobar permisos
+  if (workspaceMember.role !== WorkspaceRole.OWNER && workspaceMember.role !== WorkspaceRole.ADMIN) {
+    throw new ForbiddenError("You have not permissions to manage this workspace");
+  }
+
+  // Comprobar que existe el miembro objetivo
+  const workspaceMemberTarget = await workspaceMembersRepository.findWorkspaceMember({
+    workspaceId,
+    userId: workspaceMemberUserId,
+  });
+
+  if (!workspaceMemberTarget) {
+    throw new NotFoundError("Workspace member not found");
+  }
+
+  // No permitir eliminar un miembro ya eliminado
+  if (workspaceMemberTarget.status === WorkspaceMemberStatus.REMOVED) {
+    throw new BadRequestError("Workspace member is already removed");
+  }
+
+  // Un ADMIN no puede eliminar a un OWNER
+  if (workspaceMember.role === WorkspaceRole.ADMIN && workspaceMemberTarget.role === WorkspaceRole.OWNER) {
+    throw new ForbiddenError("Admins cannot remove owners");
+  }
+
+  // No permitir eliminarse a sí mismo
+  if (workspaceMemberUserId === userId) {
+    throw new BadRequestError("You cannot remove yourself from the workspace");
+  }
+
+  await workspaceMembersRepository.remove({
+    workspaceId,
+    userId: workspaceMemberUserId,
+  });
+}
