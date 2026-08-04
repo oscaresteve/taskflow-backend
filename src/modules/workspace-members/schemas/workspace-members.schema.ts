@@ -21,5 +21,12 @@ export const workspaceMembersQuerySchema = z.object({
   order: z.enum(["asc", "desc"]).default("asc"),
 });
 
+export const createWorkspaceMemberSchema = z.object({
+  userId: z.cuid(),
+
+  role: z.enum(WorkspaceRole).default("MEMBER"),
+});
+
 export type WorkspaceParamsDto = z.infer<typeof workspaceParamsSchema>;
 export type WorkspaceMembersQueryDto = z.infer<typeof workspaceMembersQuerySchema>;
+export type CreateWorkspaceMemberDto = z.infer<typeof createWorkspaceMemberSchema>;

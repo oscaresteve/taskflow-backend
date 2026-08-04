@@ -1,7 +1,7 @@
 import { prisma } from "../../config/prisma.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
-import type { WorkspaceMembersQueryDto } from "./schemas/workspace-members.schema.ts";
+import type { CreateWorkspaceMemberDto, WorkspaceMembersQueryDto } from "./schemas/workspace-members.schema.ts";
 import type { Workspace, WorkspaceMember } from "./types/workspace-members.types.ts";
 import { WorkspaceMemberStatus } from "./types/workspace-members.types.ts";
 
@@ -71,4 +71,32 @@ export async function findAll({
     items,
     total,
   };
+}
+
+export async function findUserActive(id: string): Promise<{ id: string; isActive: boolean } | null> {
+  return prisma.user.findUnique({
+    where: {
+      id,
+    },
+    select: {
+      id: true,
+      isActive: true,
+    },
+  });
+}
+
+export async function create({
+  data,
+  workspaceId,
+}: {
+  data: CreateWorkspaceMemberDto;
+  workspaceId: string;
+}): Promise<WorkspaceMember> {
+  return await prisma.workspaceMember.create({
+    data: {
+      userId: data.userId,
+      role: data.role,
+      workspaceId,
+    },
+  });
 }
