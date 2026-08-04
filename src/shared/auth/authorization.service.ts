@@ -1,4 +1,4 @@
-import type { Workspace, WorkspaceMember } from "../../prisma/generated/prisma/client.ts";
+import type { Project, ProjectMember, Workspace, WorkspaceMember } from "../../prisma/generated/prisma/client.ts";
 import * as authorizationRepository from "../../shared/auth/authorization.repository.ts";
 import { ForbiddenError } from "../errors/forbidden-error.ts";
 import { NotFoundError } from "../errors/not-found-error.ts";
@@ -46,5 +46,45 @@ export async function getWorkspaceMemberTarget({
 
   return {
     workspaceMemberTarget,
+  };
+}
+
+export async function getProjectContext({
+  userId,
+  workspaceSlug,
+  projectSlug,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+}): Promise<{
+  workspace: Workspace;
+  workspaceMember: WorkspaceMember;
+  project: Project;
+  projectMember: ProjectMember;
+}> {
+  // Workspace existe
+  const workspace = await authorizationRepository.findWorkspaceBySlug(workspaceSlug);
+  if (!workspace) throw new NotFoundError("Workspace not found");
+
+  // El usuario es miembro
+  const workspaceMember = await authorizationRepository.findWorkspaceMember({ userId, workspaceId: workspace.id });
+  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
+
+  // Proyecto existe
+  const project = await authorizationRepository.findProjectBySlug({ workspaceId: workspace.id, slug: projectSlug });
+  if (!project) throw new NotFoundError("Project not found");
+
+  // El usuario es miembro
+  const projectMember = await authorizationRepository.findProjectMember({ userId, projectId: project.id });
+  if (!projectMember) {
+    throw new ForbiddenError("You are not a member of this project");
+  }
+
+  return {
+    workspace,
+    workspaceMember,
+    project,
+    projectMember,
   };
 }

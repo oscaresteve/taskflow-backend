@@ -1,5 +1,5 @@
 import { prisma } from "../../config/prisma.ts";
-import type { Workspace, WorkspaceMember } from "../../prisma/generated/prisma/client.ts";
+import type { Project, ProjectMember, Workspace, WorkspaceMember } from "../../prisma/generated/prisma/client.ts";
 
 export async function findWorkspaceBySlug(slug: string): Promise<Workspace | null> {
   return prisma.workspace.findUnique({
@@ -22,6 +22,41 @@ export async function findWorkspaceMember({
       userId_workspaceId: {
         userId,
         workspaceId,
+      },
+    },
+  });
+}
+
+export async function findProjectBySlug({
+  workspaceId,
+  slug,
+}: {
+  workspaceId: string;
+  slug: string;
+}): Promise<Project | null> {
+  return prisma.project.findUnique({
+    where: {
+      workspaceId_slug: {
+        workspaceId,
+        slug,
+      },
+      isArchived: false,
+    },
+  });
+}
+
+export async function findProjectMember({
+  userId,
+  projectId,
+}: {
+  userId: string;
+  projectId: string;
+}): Promise<ProjectMember | null> {
+  return prisma.projectMember.findUnique({
+    where: {
+      projectId_userId: {
+        userId,
+        projectId,
       },
     },
   });

@@ -1,34 +1,8 @@
 import { prisma } from "../../config/prisma.ts";
 import type { CreateProjectDto, ProjectQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
-import type { Project, Workspace, WorkspaceMember, ProjectMember } from "./types/projects.types.ts";
+import type { Project } from "./types/projects.types.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
-
-export async function findWorkspaceBySlug(slug: string): Promise<Workspace | null> {
-  return prisma.workspace.findUnique({
-    where: {
-      slug,
-      isActive: true,
-    },
-  });
-}
-
-export async function findWorkspaceMember({
-  userId,
-  workspaceId,
-}: {
-  userId: string;
-  workspaceId: string;
-}): Promise<WorkspaceMember | null> {
-  return prisma.workspaceMember.findUnique({
-    where: {
-      userId_workspaceId: {
-        userId,
-        workspaceId,
-      },
-    },
-  });
-}
 
 export async function existsBySlugInWorkspace({
   slug,
@@ -177,30 +151,14 @@ export async function findAll({
   };
 }
 
-export async function findBySlug({
-  workspaceId,
-  slug,
-}: {
-  workspaceId: string;
-  slug: string;
-}): Promise<Project | null> {
-  return prisma.project.findUnique({
-    where: {
-      workspaceId_slug: {
-        workspaceId,
-        slug,
-      },
-      isArchived: false,
-    },
-  });
-}
-
 export async function update({
   data,
   projectId,
+  newSlug,
 }: {
-  data: UpdateProjectDto & { slug: string };
+  data: UpdateProjectDto;
   projectId: string;
+  newSlug: string;
 }): Promise<Project> {
   return await prisma.project.update({
     where: {
@@ -211,7 +169,7 @@ export async function update({
       description: data.description,
       icon: data.icon,
       color: data.color,
-      slug: data.slug,
+      slug: newSlug,
     },
   });
 }
@@ -223,23 +181,6 @@ export async function archive(projectId: string): Promise<void> {
     },
     data: {
       isArchived: true,
-    },
-  });
-}
-
-export async function findProjectMember({
-  userId,
-  projectId,
-}: {
-  userId: string;
-  projectId: string;
-}): Promise<ProjectMember | null> {
-  return prisma.projectMember.findUnique({
-    where: {
-      projectId_userId: {
-        userId,
-        projectId,
-      },
     },
   });
 }
