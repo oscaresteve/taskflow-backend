@@ -100,3 +100,18 @@ export async function create({
     },
   });
 }
+
+export async function activate({ workspaceId, userId }: { workspaceId: string; userId: string }): Promise<void> {
+  await prisma.workspaceMember.update({
+    where: {
+      userId_workspaceId: {
+        userId,
+        workspaceId,
+      },
+    },
+    data: {
+      status: WorkspaceMemberStatus.ACTIVE,
+      joinedAt: new Date(),
+    },
+  });
+}

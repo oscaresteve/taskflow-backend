@@ -27,6 +27,12 @@ export const createWorkspaceMemberSchema = z.object({
   role: z.enum(WorkspaceRole).default("MEMBER"),
 });
 
+export const workspaceMemberParamsSchema = z.object({
+  workspaceSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
+  userId: z.cuid(),
+});
+
 export type WorkspaceParamsDto = z.infer<typeof workspaceParamsSchema>;
 export type WorkspaceMembersQueryDto = z.infer<typeof workspaceMembersQuerySchema>;
 export type CreateWorkspaceMemberDto = z.infer<typeof createWorkspaceMemberSchema>;
+export type WorkspaceMemberParamsDto = z.infer<typeof workspaceMemberParamsSchema>;

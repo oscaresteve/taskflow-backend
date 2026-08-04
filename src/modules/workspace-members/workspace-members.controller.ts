@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import * as workspaceMembersService from "./workspace-members.service.ts";
 import type {
   CreateWorkspaceMemberDto,
+  WorkspaceMemberParamsDto,
   WorkspaceMembersQueryDto,
   WorkspaceParamsDto,
 } from "./schemas/workspace-members.schema.ts";
@@ -43,6 +44,25 @@ export async function create(req: Request, res: Response, next: NextFunction) {
     const workspaceMemberResponse = toWorkspaceMemberResponseDto(workspaceMember);
 
     res.status(201).json(workspaceMemberResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function activate(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const params = req.validated.params as WorkspaceMemberParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const workspaceMemberUserId = params.userId;
+
+    await workspaceMembersService.activate({
+      userId,
+      workspaceSlug,
+      workspaceMemberUserId,
+    });
+
+    res.sendStatus(204);
   } catch (error) {
     next(error);
   }

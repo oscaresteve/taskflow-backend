@@ -4,6 +4,7 @@ import { validate } from "../../shared/middlewares/validate.ts";
 import * as workspaceMembersController from "./workspace-members.controller.ts";
 import {
   createWorkspaceMemberSchema,
+  workspaceMemberParamsSchema,
   workspaceMembersQuerySchema,
   workspaceParamsSchema,
 } from "./schemas/workspace-members.schema.ts";
@@ -30,6 +31,15 @@ workspaceMembersRouter.post(
 
 // Por defecto MEMBER
 // Solo OWNER o ADMIN
+
+// Activar miembros
+// PATCH  /workspaces/:workspaceSlug/members/:userId/activate
+workspaceMembersRouter.patch(
+  "/workspaces/:workspaceSlug/members/:userId/activate",
+  auth,
+  validate({ params: workspaceMemberParamsSchema }),
+  workspaceMembersController.activate,
+);
 
 // 3. Cambiar rol
 // PATCH  /workspaces/:workspaceSlug/members/:userId
