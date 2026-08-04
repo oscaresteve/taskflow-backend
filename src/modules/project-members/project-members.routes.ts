@@ -2,7 +2,11 @@ import { Router } from "express";
 import { auth } from "../../shared/middlewares/auth.ts";
 import { validate } from "../../shared/middlewares/validate.ts";
 import * as projectMembersController from "./project-members.controller.ts";
-import { projectMembersQuerySchema, projectParamsSchema } from "./schemas/project-members.schema.ts";
+import {
+  createProjectMemberSchema,
+  projectMembersQuerySchema,
+  projectParamsSchema,
+} from "./schemas/project-members.schema.ts";
 
 export const projectMembersRouter = Router();
 
@@ -17,6 +21,12 @@ projectMembersRouter.get(
 
 // 2. Añadir miembro
 // POST   /workspaces/:workspaceSlug/projects/:projectSlug/members
+projectMembersRouter.post(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/members",
+  auth,
+  validate({ params: projectParamsSchema, body: createProjectMemberSchema }),
+  projectMembersController.create,
+);
 
 // Por defecto MEMBER
 // Solo OWNER o ADMIN

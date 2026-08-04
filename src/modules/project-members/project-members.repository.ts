@@ -1,7 +1,7 @@
 import { prisma } from "../../config/prisma.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
-import type { ProjectMembersQueryDto } from "./schemas/project-members.schema.ts";
+import type { CreateProjectMemberDto, ProjectMembersQueryDto } from "./schemas/project-members.schema.ts";
 import type { ProjectMember } from "./types/project-members.types.ts";
 
 export async function findAll({
@@ -44,4 +44,38 @@ export async function findAll({
     items,
     total,
   };
+}
+
+export async function findProjectMember({
+  projectId,
+  userId,
+}: {
+  projectId: string;
+  userId: string;
+}): Promise<ProjectMember | null> {
+  return await prisma.projectMember.findUnique({
+    where: {
+      projectId_userId: {
+        userId,
+        projectId,
+      },
+    },
+  });
+}
+
+export async function create({
+  data,
+  projectId,
+}: {
+  data: CreateProjectMemberDto;
+  projectId: string;
+}): Promise<ProjectMember> {
+  return await prisma.projectMember.create({
+    data: {
+      userId: data.userId,
+      role: data.role,
+      projectId,
+      joinedAt: new Date(),
+    },
+  });
 }

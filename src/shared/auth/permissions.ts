@@ -34,8 +34,27 @@ export function requireCanAssignWorkspaceRole({ actor, role }: { actor: Workspac
 }
 
 export function requireProjectManager(projectMember: ProjectMember): void {
-  // OWNER o ADMIN pueden administrar el workspace
+  // OWNER o ADMIN pueden administrar el proyecto
   if (projectMember.role !== ProjectRole.OWNER && projectMember.role !== ProjectRole.ADMIN) {
     throw new ForbiddenError("You have not permissions to manage this project");
+  }
+}
+
+export function requireCanManageProjectMember({
+  actor,
+  target,
+}: {
+  actor: ProjectMember;
+  target: ProjectMember;
+}): void {
+  if (actor.role === ProjectRole.ADMIN && target.role === ProjectRole.OWNER) {
+    throw new ForbiddenError("Admins cannot manage owners");
+  }
+}
+
+export function requireCanAssignProjectRole({ actor, role }: { actor: ProjectMember; role: ProjectRole }) {
+  // ADMIN no puede asignar el rol OWNER
+  if (actor.role === ProjectRole.ADMIN && role === ProjectRole.OWNER) {
+    throw new ForbiddenError("Admins cannot assign the owner role");
   }
 }

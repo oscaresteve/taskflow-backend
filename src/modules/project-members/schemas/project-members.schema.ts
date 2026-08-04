@@ -26,5 +26,12 @@ export const projectMembersQuerySchema = z.object({
   order: z.enum(["asc", "desc"]).default("asc"),
 });
 
+export const createProjectMemberSchema = z.object({
+  userId: z.cuid(),
+
+  role: z.enum(ProjectRole).default("MEMBER"),
+});
+
 export type ProjectParamsDto = z.infer<typeof projectParamsSchema>;
 export type ProjectMembersQueryDto = z.infer<typeof projectMembersQuerySchema>;
+export type CreateProjectMemberDto = z.infer<typeof createProjectMemberSchema>;
