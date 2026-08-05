@@ -1,6 +1,6 @@
 import { prisma } from "../../config/prisma.ts";
 import type { SignUpDto } from "./dtos/auth.dto.ts";
-import type { User } from "../../shared/types/prisma.types.ts";
+import type { RefreshToken, User } from "../../shared/types/prisma.types.ts";
 
 // Solo comunicarse con el ORM o DB
 
@@ -28,6 +28,43 @@ export async function findById(id: string): Promise<User | null> {
   return prisma.user.findUnique({
     where: {
       id,
+    },
+  });
+}
+
+export async function createRefreshToken({
+  userId,
+  tokenHash,
+  expiresAt,
+}: {
+  userId: string;
+  tokenHash: string;
+  expiresAt: Date;
+}): Promise<RefreshToken> {
+  return prisma.refreshToken.create({
+    data: {
+      userId,
+      tokenHash,
+      expiresAt,
+    },
+  });
+}
+
+export async function findRefreshTokenByHash(tokenHash: string): Promise<RefreshToken | null> {
+  return prisma.refreshToken.findUnique({
+    where: {
+      tokenHash,
+    },
+  });
+}
+
+export async function revokeRefreshToken({ id }: { id: string }): Promise<RefreshToken> {
+  return prisma.refreshToken.update({
+    where: {
+      id,
+    },
+    data: {
+      revokedAt: new Date(),
     },
   });
 }

@@ -7,8 +7,10 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   // NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(10).max(15),
-  JWT_SECRET: z.string().min(32),
-  JWT_EXPIRES_IN: z.string(),
+  JWT_ACCESS_SECRET: z.string().min(32),
+  JWT_ACCESS_EXPIRES_IN: z.string(),
+  JWT_REFRESH_SECRET: z.string().min(32),
+  JWT_REFRESH_EXPIRES_IN: z.string(),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

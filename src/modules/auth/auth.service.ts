@@ -2,7 +2,8 @@ import { ConflictError } from "../../shared/errors/conflict-error.ts";
 import type { SignUpDto } from "./dtos/auth.dto.ts";
 import * as authRepository from "./auth.repository.ts";
 import { comparePassword, hashPassword } from "../../shared/security/password.ts";
-import { generateAccessToken } from "../../shared/security/jwt.ts";
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../shared/security/jwt.ts";
+import { hashToken } from "../../shared/security/hash-token.ts";
 import type { User } from "../../shared/types/prisma.types.ts";
 import type { SignInDto } from "./schemas/auth.schema.ts";
 import { SignInFailedError } from "../../shared/errors/sign-in-failed-error.ts";
@@ -11,6 +12,19 @@ import { UnauthorizedError } from "../../shared/errors/unauthorized-error.ts";
 interface AuthResult {
   user: User;
   accessToken: string;
+  refreshToken: string;
+}
+
+async function issueRefreshToken(userId: string): Promise<string> {
+  const { token, expiresAt } = generateRefreshToken({ sub: userId });
+
+  await authRepository.createRefreshToken({
+    userId,
+    tokenHash: hashToken(token),
+    expiresAt,
+  });
+
+  return token;
 }
 
 export async function signUp(data: SignUpDto): Promise<AuthResult> {
@@ -28,8 +42,9 @@ export async function signUp(data: SignUpDto): Promise<AuthResult> {
   });
 
   const accessToken = generateAccessToken({ sub: user.id });
+  const refreshToken = await issueRefreshToken(user.id);
 
-  return { user, accessToken };
+  return { user, accessToken, refreshToken };
 }
 
 export async function signIn(data: SignInDto): Promise<AuthResult> {
@@ -46,8 +61,9 @@ export async function signIn(data: SignInDto): Promise<AuthResult> {
   }
 
   const accessToken = generateAccessToken({ sub: user.id });
+  const refreshToken = await issueRefreshToken(user.id);
 
-  return { user, accessToken };
+  return { user, accessToken, refreshToken };
 }
 
 export async function getAuthenticatedUser(userId: string): Promise<User> {
@@ -58,4 +74,28 @@ export async function getAuthenticatedUser(userId: string): Promise<User> {
   }
 
   return user;
+}
+
+export async function refresh(refreshToken: string): Promise<{ accessToken: string }> {
+  const payload = verifyRefreshToken(refreshToken);
+
+  const record = await authRepository.findRefreshTokenByHash(hashToken(refreshToken));
+
+  if (!record || record.revokedAt || record.expiresAt < new Date()) {
+    throw new UnauthorizedError("Invalid or expired refresh token");
+  }
+
+  const accessToken = generateAccessToken({ sub: payload.sub });
+
+  return { accessToken };
+}
+
+export async function signOut(refreshToken: string): Promise<void> {
+  const record = await authRepository.findRefreshTokenByHash(hashToken(refreshToken));
+
+  if (!record || record.revokedAt) {
+    return;
+  }
+
+  await authRepository.revokeRefreshToken({ id: record.id });
 }

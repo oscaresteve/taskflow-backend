@@ -21,7 +21,25 @@ export async function signUp(overrides: Partial<{ name: string; email: string; p
     throw new Error(`signUp failed: ${res.status} ${JSON.stringify(res.body)}`);
   }
 
-  return { user: res.body.user as { id: string; email: string }, accessToken: res.body.accessToken as string };
+  return {
+    user: res.body.user as { id: string; email: string },
+    accessToken: res.body.accessToken as string,
+    refreshToken: res.body.refreshToken as string,
+  };
+}
+
+export async function signIn(overrides: { email: string; password: string }) {
+  const res = await request(app).post("/api/auth/sign-in").send(overrides);
+
+  if (res.status !== 200) {
+    throw new Error(`signIn failed: ${res.status} ${JSON.stringify(res.body)}`);
+  }
+
+  return {
+    user: res.body.user as { id: string; email: string },
+    accessToken: res.body.accessToken as string,
+    refreshToken: res.body.refreshToken as string,
+  };
 }
 
 export async function createWorkspace(ownerAccessToken: string, name = "Test Workspace") {

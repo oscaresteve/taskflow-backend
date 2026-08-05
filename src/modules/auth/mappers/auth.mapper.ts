@@ -4,9 +4,10 @@ import type { User } from "../../../shared/types/prisma.types.ts";
 interface ToAuthResponseDtoInput {
   user: User;
   accessToken: string;
+  refreshToken: string;
 }
 
-export function toAuthResponseDto({ user, accessToken }: ToAuthResponseDtoInput): AuthResponseDto {
+export function toAuthResponseDto({ user, accessToken, refreshToken }: ToAuthResponseDtoInput): AuthResponseDto {
   return {
     user: {
       name: user.name,
@@ -20,6 +21,7 @@ export function toAuthResponseDto({ user, accessToken }: ToAuthResponseDtoInput)
       updatedAt: user.updatedAt,
     },
     accessToken,
+    refreshToken,
   };
 }
 
