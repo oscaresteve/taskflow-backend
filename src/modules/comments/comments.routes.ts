@@ -38,7 +38,7 @@ commentsRouter.patch(
   commentsController.update,
 );
 
-// Solo el autor, y OWNER o ADMIN del proyecto
+// Solo el autor
 
 // 4. Eliminar un comentario
 // PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/comments/:commentId/delete
@@ -48,3 +48,5 @@ commentsRouter.patch(
   validate({ params: commentParamsSchema }),
   commentsController.remove,
 );
+
+// Solo el autor, y OWNER o ADMIN del proyecto

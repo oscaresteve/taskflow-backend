@@ -5,6 +5,7 @@ import * as commentsRepository from "./comments.repository.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import { requireCanManageComment } from "../../shared/auth/permissions.ts";
 import { ConflictError } from "../../shared/errors/conflict-error.ts";
+import { ForbiddenError } from "../../shared/errors/forbidden-error.ts";
 
 export async function create({
   userId,
@@ -61,7 +62,7 @@ export async function update({
   commentId: string;
   data: UpdateCommentDto;
 }): Promise<Comment> {
-  const { projectMember, comment } = await authorizationService.getCommentContext({
+  const { comment } = await authorizationService.getCommentContext({
     userId,
     workspaceSlug,
     projectSlug,
@@ -69,7 +70,7 @@ export async function update({
     commentId,
   });
 
-  requireCanManageComment({ actor: projectMember, comment, userId });
+  if (comment.authorId !== userId) throw new ForbiddenError("You cannot manage others comments");
 
   const newComment = await commentsRepository.update({ data, commentId });
 
