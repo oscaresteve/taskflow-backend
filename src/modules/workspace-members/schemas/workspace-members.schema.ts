@@ -1,5 +1,5 @@
 import z from "zod";
-import { WorkspaceMemberStatus, WorkspaceRole } from "../types/workspace-members.types.ts";
+import { WorkspaceMemberStatus, WorkspaceRole } from "../../../shared/types/prisma.types.ts";
 
 export const workspaceParamsSchema = z.object({
   workspaceSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),

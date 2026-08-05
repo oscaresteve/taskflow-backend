@@ -1,4 +1,4 @@
-import type { Project, ProjectMember, Task, Workspace, WorkspaceMember } from "../../prisma/generated/prisma/client.ts";
+import type { Project, ProjectMember, Task, Workspace, WorkspaceMember } from "../types/prisma.types.ts";
 import * as authorizationRepository from "../../shared/auth/authorization.repository.ts";
 import { ForbiddenError } from "../errors/forbidden-error.ts";
 import { NotFoundError } from "../errors/not-found-error.ts";

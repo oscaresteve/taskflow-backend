@@ -1,5 +1,5 @@
 import type { CreateProjectDto, ProjectQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
-import { type Project } from "./types/projects.types.ts";
+import { type Project } from "../../shared/types/prisma.types.ts";
 import * as projectsRepository from "./projects.repository.ts";
 import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
 import { ConflictError } from "../../shared/errors/conflict-error.ts";

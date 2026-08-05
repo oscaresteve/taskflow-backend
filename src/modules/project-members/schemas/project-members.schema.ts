@@ -1,5 +1,5 @@
 import z from "zod";
-import { ProjectRole } from "../types/project-members.types.ts";
+import { ProjectRole } from "../../../shared/types/prisma.types.ts";
 
 export const projectParamsSchema = z.object({
   workspaceSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),

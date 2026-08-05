@@ -4,7 +4,6 @@ import type {
   ProjectMembersQueryDto,
   UpdateProjectMemberDto,
 } from "./schemas/project-members.schema.ts";
-import type { ProjectMember } from "./types/project-members.types.ts";
 import * as projectMembersRepository from "./project-members.repository.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import {
@@ -12,7 +11,7 @@ import {
   requireCanManageProjectMember,
   requireProjectManager,
 } from "../../shared/auth/permissions.ts";
-import { WorkspaceMemberStatus } from "../workspaces/types/workspaces.types.ts";
+import { WorkspaceMemberStatus, type ProjectMember } from "../../shared/types/prisma.types.ts";
 import { BadRequestError } from "../../shared/errors/bad-request-error.ts";
 
 export async function findAll({

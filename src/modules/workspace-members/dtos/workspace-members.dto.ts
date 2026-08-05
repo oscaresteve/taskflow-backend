@@ -1,4 +1,4 @@
-import type { WorkspaceMemberStatus, WorkspaceRole } from "../types/workspace-members.types.ts";
+import type { WorkspaceMemberStatus, WorkspaceRole } from "../../../shared/types/prisma.types.ts";
 
 export type WorkspaceMemberResponseDto = {
   id: string;

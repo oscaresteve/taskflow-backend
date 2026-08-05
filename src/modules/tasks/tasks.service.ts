@@ -1,5 +1,5 @@
 import type { CreateTaskDto, TaskQueryDto, UpdateTaskDto } from "./schemas/tasks.schema.ts";
-import { type Task } from "./types/tasks.types.ts";
+import { type Task } from "../../shared/types/prisma.types.ts";
 import * as tasksRepository from "./tasks.repository.ts";
 import { BadRequestError } from "../../shared/errors/bad-request-error.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";

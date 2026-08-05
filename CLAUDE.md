@@ -36,8 +36,9 @@ Each domain lives under `src/modules/<name>/` (`auth`, `users`, `workspaces`, `w
 - `schemas/<name>.schema.ts` — zod schemas for body/params/query; DTO types are `z.infer<...>` of these schemas.
 - `dtos/<name>.dto.ts` — outbound response shape(s).
 - `mappers/<name>.mapper.ts` — converts Prisma model → response DTO (incl. paginated wrapper).
-- `types/<name>.types.ts` — re-exports the relevant Prisma model/enum types from `src/prisma/generated/prisma`.
 - `index.ts` — re-exports just the router.
+
+Prisma model/enum types (`Workspace`, `Task`, `WorkspaceRole`, ...) are imported from the single shared `src/shared/types/prisma.types.ts`, which re-exports them from `src/prisma/generated/prisma`. Modules used to each have their own local `types/<name>.types.ts` re-export file; that's been centralized — don't reintroduce a per-module one, add the type/enum to the shared file instead if it's missing.
 
 Routes → controller → service → repository is a one-way dependency chain; don't skip layers (e.g. no calling `prisma` from a controller, no HTTP concerns in a service).
 

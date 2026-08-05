@@ -1,7 +1,7 @@
 import type { PaginatedResponseDto } from "../../../shared/dtos/pagination.dto.ts";
 import type { PaginatedResult } from "../../../shared/types/pagination.types.ts";
 import type { WorkspaceResponseDto } from "../dtos/workspaces.dto.ts";
-import type { Workspace } from "../types/workspaces.types.ts";
+import type { Workspace } from "../../../shared/types/prisma.types.ts";
 
 export function toWorkspaceResponseDto(workspace: Workspace): WorkspaceResponseDto {
   return {

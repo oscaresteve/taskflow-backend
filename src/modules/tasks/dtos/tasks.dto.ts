@@ -1,4 +1,4 @@
-import type { TaskStatus, TaskPriority } from "../types/tasks.types.ts";
+import type { TaskStatus, TaskPriority } from "../../../shared/types/prisma.types.ts";
 
 export type TaskResponseDto = {
   id: string;

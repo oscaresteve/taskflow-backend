@@ -2,7 +2,7 @@ import { prisma } from "../../config/prisma.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { CreateWorkspaceDto, UpdateWorkspaceDto, WorkspaceQueryDto } from "./schemas/workspaces.schema.ts";
-import { WorkspaceMemberStatus, WorkspaceRole, type Workspace } from "./types/workspaces.types.ts";
+import { WorkspaceMemberStatus, WorkspaceRole, type Workspace } from "../../shared/types/prisma.types.ts";
 
 // Solo comunicarse con el ORM o DB
 

@@ -1,7 +1,7 @@
 import type { PaginatedResponseDto } from "../../../shared/dtos/pagination.dto.ts";
 import type { PaginatedResult } from "../../../shared/types/pagination.types.ts";
 import type { ProjectResponseDto } from "../dtos/projects.dto.ts";
-import type { Project } from "../types/projects.types.ts";
+import type { Project } from "../../../shared/types/prisma.types.ts";
 
 export function toProjectResponseDto(project: Project): ProjectResponseDto {
   return {

@@ -3,7 +3,7 @@ import type { SignUpDto } from "./dtos/auth.dto.ts";
 import * as authRepository from "./auth.repository.ts";
 import { comparePassword, hashPassword } from "../../shared/security/password.ts";
 import { generateAccessToken } from "../../shared/security/jwt.ts";
-import type { User } from "./types/auth.types.ts";
+import type { User } from "../../shared/types/prisma.types.ts";
 import type { SignInDto } from "./schemas/auth.schema.ts";
 import { SignInFailedError } from "../../shared/errors/sign-in-failed-error.ts";
 import { UnauthorizedError } from "../../shared/errors/unauthorized-error.ts";

@@ -1,7 +1,7 @@
 import type { PaginatedResponseDto } from "../../../shared/dtos/pagination.dto.ts";
 import type { PaginatedResult } from "../../../shared/types/pagination.types.ts";
 import type { TaskResponseDto } from "../dtos/tasks.dto.ts";
-import type { Task } from "../types/tasks.types.ts";
+import type { Task } from "../../../shared/types/prisma.types.ts";
 
 export function toTaskResponseDto(task: Task): TaskResponseDto {
   return {

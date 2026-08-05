@@ -1,6 +1,6 @@
 import * as workspacesRepository from "./workspaces.repository.ts";
 import type { CreateWorkspaceDto, UpdateWorkspaceDto, WorkspaceQueryDto } from "./schemas/workspaces.schema.ts";
-import { type Workspace } from "./types/workspaces.types.ts";
+import { type Workspace } from "../../shared/types/prisma.types.ts";
 import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import { ConflictError } from "../../shared/errors/conflict-error.ts";

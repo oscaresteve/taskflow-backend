@@ -6,7 +6,7 @@ import type {
   WorkspaceMembersQueryDto,
 } from "./schemas/workspace-members.schema.ts";
 import * as workspaceMembersRepository from "./workspace-members.repository.ts";
-import { WorkspaceMemberStatus, type WorkspaceMember } from "./types/workspace-members.types.ts";
+import { WorkspaceMemberStatus, type WorkspaceMember } from "../../shared/types/prisma.types.ts";
 import { BadRequestError } from "../../shared/errors/bad-request-error.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import {

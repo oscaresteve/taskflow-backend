@@ -1,6 +1,6 @@
 import { prisma } from "../../config/prisma.ts";
 import type { SignUpDto } from "./dtos/auth.dto.ts";
-import type { User } from "./types/auth.types.ts";
+import type { User } from "../../shared/types/prisma.types.ts";
 
 // Solo comunicarse con el ORM o DB
 

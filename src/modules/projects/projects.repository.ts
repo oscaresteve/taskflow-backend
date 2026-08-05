@@ -1,6 +1,6 @@
 import { prisma } from "../../config/prisma.ts";
 import type { CreateProjectDto, ProjectQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
-import type { Project } from "./types/projects.types.ts";
+import type { Project } from "../../shared/types/prisma.types.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 

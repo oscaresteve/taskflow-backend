@@ -2,7 +2,7 @@ import { prisma } from "../../config/prisma.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { CreateTaskDto, TaskQueryDto, UpdateTaskDto } from "./schemas/tasks.schema.ts";
-import type { Task } from "./types/tasks.types.ts";
+import type { Task } from "../../shared/types/prisma.types.ts";
 
 export async function getNextTaskPosition(projectId: string): Promise<number> {
   const lastPosition = await prisma.task.findFirst({

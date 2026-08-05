@@ -1,5 +1,5 @@
 import type { AuthResponseDto, UserResponseDto } from "../dtos/auth.dto.ts";
-import type { User } from "../types/auth.types.ts";
+import type { User } from "../../../shared/types/prisma.types.ts";
 
 interface ToAuthResponseDtoInput {
   user: User;

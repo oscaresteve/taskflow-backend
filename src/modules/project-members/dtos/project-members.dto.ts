@@ -1,4 +1,4 @@
-import type { ProjectRole } from "../types/project-members.types.ts";
+import type { ProjectRole } from "../../../shared/types/prisma.types.ts";
 
 export type ProjectMemberResponseDto = {
   id: string;

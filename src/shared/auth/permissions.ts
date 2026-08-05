@@ -1,9 +1,4 @@
-import {
-  ProjectRole,
-  WorkspaceRole,
-  type ProjectMember,
-  type WorkspaceMember,
-} from "../../prisma/generated/prisma/client.ts";
+import { ProjectRole, WorkspaceRole, type ProjectMember, type WorkspaceMember } from "../types/prisma.types.ts";
 import { ForbiddenError } from "../errors/forbidden-error.ts";
 
 export function requireWorkspaceManager(workspaceMember: WorkspaceMember): void {

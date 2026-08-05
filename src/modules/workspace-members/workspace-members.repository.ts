@@ -2,8 +2,7 @@ import { prisma } from "../../config/prisma.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { CreateWorkspaceMemberDto, WorkspaceMembersQueryDto } from "./schemas/workspace-members.schema.ts";
-import type { WorkspaceMember } from "./types/workspace-members.types.ts";
-import { WorkspaceMemberStatus, WorkspaceRole } from "./types/workspace-members.types.ts";
+import { WorkspaceMemberStatus, WorkspaceRole, type WorkspaceMember } from "../../shared/types/prisma.types.ts";
 
 export async function findWorkspaceMember({
   userId,

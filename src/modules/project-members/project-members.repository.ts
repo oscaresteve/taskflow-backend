@@ -6,7 +6,7 @@ import type {
   ProjectMembersQueryDto,
   UpdateProjectMemberDto,
 } from "./schemas/project-members.schema.ts";
-import type { ProjectMember } from "./types/project-members.types.ts";
+import type { ProjectMember } from "../../shared/types/prisma.types.ts";
 
 export async function findAll({
   projectId,
