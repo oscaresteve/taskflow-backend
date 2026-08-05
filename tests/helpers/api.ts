@@ -166,4 +166,34 @@ export async function createTask(
   return res.body as { id: string; taskNumber: number; status: string; assigneeId: string | null };
 }
 
+export async function createComment(
+  actorAccessToken: string,
+  workspaceSlug: string,
+  projectSlug: string,
+  taskNumber: number,
+  overrides: Partial<{ content: string }> = {},
+) {
+  const payload = {
+    content: overrides.content ?? "Test comment",
+  };
+
+  const res = await request(app)
+    .post(`/api/workspaces/${workspaceSlug}/projects/${projectSlug}/tasks/${taskNumber}/comments`)
+    .set("Authorization", `Bearer ${actorAccessToken}`)
+    .send(payload);
+
+  if (res.status !== 201) {
+    throw new Error(`createComment failed: ${res.status} ${JSON.stringify(res.body)}`);
+  }
+
+  return res.body as {
+    id: string;
+    taskId: string;
+    authorId: string;
+    content: string;
+    editedAt: string | null;
+    deletedAt: string | null;
+  };
+}
+
 export { app };
