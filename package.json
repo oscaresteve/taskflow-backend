@@ -8,7 +8,8 @@
     "test:watch": "vitest",
     "dev": "tsx watch src/server.ts",
     "db:up": "docker compose up -d --wait",
-    "db:down": "docker compose down"
+    "db:down": "docker compose down",
+    "db:seed": "prisma db seed"
   },
   "keywords": [],
   "author": "",

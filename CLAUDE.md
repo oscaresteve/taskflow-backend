@@ -18,6 +18,7 @@ This project uses **pnpm** exclusively (enforced via `devEngines` in `package.js
   - `pnpm dlx prisma migrate dev --name <name>` — create/apply a migration in dev.
   - `pnpm dlx prisma generate` — regenerate the client into `src/prisma/generated/prisma`.
   - `pnpm dlx prisma studio` — browse the dev DB.
+  - `pnpm db:seed` (= `prisma db seed`, configured via `migrations.seed` in `prisma.config.ts`) — wipes the dev DB (same table order as `tests/setup/db.ts`) and recreates a fixed set of demo data (`src/prisma/seed.ts`): 3 users (password `password123`), one workspace, two projects, a handful of tasks and comments. Re-runnable any time, not run automatically by migrations.
   - The `prisma-cli` and `prisma-client-api` skills cover the rest of the CLI/query surface in detail.
 
 ### Required environment variables (`src/config/env.ts`, validated with zod at startup)
