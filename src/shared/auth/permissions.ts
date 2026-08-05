@@ -1,4 +1,10 @@
-import { ProjectRole, WorkspaceRole, type ProjectMember, type WorkspaceMember } from "../types/prisma.types.ts";
+import {
+  ProjectRole,
+  WorkspaceRole,
+  type Comment,
+  type ProjectMember,
+  type WorkspaceMember,
+} from "../types/prisma.types.ts";
 import { ForbiddenError } from "../errors/forbidden-error.ts";
 
 export function requireWorkspaceManager(workspaceMember: WorkspaceMember): void {
@@ -52,4 +58,18 @@ export function requireCanAssignProjectRole({ actor, role }: { actor: ProjectMem
   if (actor.role === ProjectRole.ADMIN && role === ProjectRole.OWNER) {
     throw new ForbiddenError("Admins cannot assign the owner role");
   }
+}
+
+export function requireCanManageComment({
+  actor,
+  comment,
+  userId,
+}: {
+  actor: ProjectMember;
+  comment: Comment;
+  userId: string;
+}) {
+  if (comment.authorId === userId) return;
+
+  requireProjectManager(actor);
 }

@@ -33,6 +33,10 @@ export const taskParamsSchema = projectParamsSchema.extend({
   taskNumber: z.coerce.number().int().positive("Task number must be positive"),
 });
 
+export const commentParamsSchema = taskParamsSchema.extend({
+  commentId: z.cuid(),
+});
+
 export const workspaceMemberParamsSchema = workspaceParamsSchema.extend({
   userId: z.cuid(),
 });
@@ -44,5 +48,6 @@ export const projectMemberParamsSchema = projectParamsSchema.extend({
 export type WorkspaceParamsDto = z.infer<typeof workspaceParamsSchema>;
 export type ProjectParamsDto = z.infer<typeof projectParamsSchema>;
 export type TaskParamsDto = z.infer<typeof taskParamsSchema>;
+export type CommentParamsDto = z.infer<typeof commentParamsSchema>;
 export type WorkspaceMemberParamsDto = z.infer<typeof workspaceMemberParamsSchema>;
 export type ProjectMemberParamsDto = z.infer<typeof projectMemberParamsSchema>;

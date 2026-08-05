@@ -1,5 +1,5 @@
 import { prisma } from "../../config/prisma.ts";
-import type { Project, ProjectMember, Task, Workspace, WorkspaceMember } from "../types/prisma.types.ts";
+import type { Project, ProjectMember, Task, Workspace, WorkspaceMember, Comment } from "../types/prisma.types.ts";
 
 export async function findWorkspaceBySlug(slug: string): Promise<Workspace | null> {
   return prisma.workspace.findUnique({
@@ -75,6 +75,14 @@ export async function findTaskByNumber({
         projectId,
         taskNumber,
       },
+    },
+  });
+}
+
+export async function findComment(commentId: string): Promise<Comment | null> {
+  return prisma.comment.findUnique({
+    where: {
+      id: commentId,
     },
   });
 }

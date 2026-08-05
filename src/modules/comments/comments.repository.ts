@@ -2,7 +2,7 @@ import { prisma } from "../../config/prisma.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { Comment } from "../../shared/types/prisma.types.ts";
-import type { CommentQueryDto, CreateCommentDto } from "./schemas/comments.schema.ts";
+import type { CommentQueryDto, CreateCommentDto, UpdateCommentDto } from "./schemas/comments.schema.ts";
 
 export async function create({
   taskId,
@@ -68,4 +68,16 @@ export async function findAll({
     items,
     total,
   };
+}
+
+export async function update({ commentId, data }: { commentId: string; data: UpdateCommentDto }): Promise<Comment> {
+  return prisma.comment.update({
+    where: {
+      id: commentId,
+    },
+    data: {
+      content: data.content,
+      editedAt: new Date(),
+    },
+  });
 }

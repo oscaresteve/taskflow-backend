@@ -2,8 +2,8 @@ import { Router } from "express";
 import * as commentsController from "./comments.controller.ts";
 import { auth } from "../../shared/middlewares/auth.ts";
 import { validate } from "../../shared/middlewares/validate.ts";
-import { taskParamsSchema } from "../../shared/schemas/common.schema.ts";
-import { commentQuerySchema, createCommentSchema } from "./schemas/comments.schema.ts";
+import { commentParamsSchema, taskParamsSchema } from "../../shared/schemas/common.schema.ts";
+import { commentQuerySchema, createCommentSchema, updateCommentSchema } from "./schemas/comments.schema.ts";
 
 export const commentsRouter = Router();
 
@@ -31,6 +31,12 @@ commentsRouter.post(
 
 // 3. Actualizar un comenario
 // PATCH  /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/comments/:commentId
+commentsRouter.patch(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/comments/:commentId",
+  auth,
+  validate({ params: commentParamsSchema, body: updateCommentSchema }),
+  commentsController.update,
+);
 
 // Solo el autor
 

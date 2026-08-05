@@ -21,5 +21,10 @@ export const commentQuerySchema = z.object({
   order: sortOrderSchema,
 });
 
+export const updateCommentSchema = z.object({
+  content: z.string().trim().min(1).max(5000),
+});
+
 export type CreateCommentDto = z.infer<typeof createCommentSchema>;
 export type CommentQueryDto = z.infer<typeof commentQuerySchema>;
+export type UpdateCommentDto = z.infer<typeof updateCommentSchema>;

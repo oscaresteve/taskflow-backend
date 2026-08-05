@@ -1,8 +1,9 @@
-import type { CommentQueryDto, CreateCommentDto } from "./schemas/comments.schema.ts";
+import type { CommentQueryDto, CreateCommentDto, UpdateCommentDto } from "./schemas/comments.schema.ts";
 import type { Comment } from "../../shared/types/prisma.types.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import * as commentsRepository from "./comments.repository.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
+import { requireCanManageComment } from "../../shared/auth/permissions.ts";
 
 export async function create({
   userId,
@@ -42,4 +43,34 @@ export async function findAll({
   const comments = await commentsRepository.findAll({ taskId: task.id, query });
 
   return comments;
+}
+
+export async function update({
+  userId,
+  workspaceSlug,
+  projectSlug,
+  taskNumber,
+  commentId,
+  data,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  taskNumber: number;
+  commentId: string;
+  data: UpdateCommentDto;
+}): Promise<Comment> {
+  const { projectMember, comment } = await authorizationService.getCommentContext({
+    userId,
+    workspaceSlug,
+    projectSlug,
+    taskNumber,
+    commentId,
+  });
+
+  requireCanManageComment({ actor: projectMember, comment, userId });
+
+  const newComment = await commentsRepository.update({ data, commentId });
+
+  return newComment;
 }
