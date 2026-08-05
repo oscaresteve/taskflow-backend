@@ -8,8 +8,10 @@ TaskFlow backend: an Express 5 + TypeScript REST API (project/task management, w
 
 ## Commands
 
+This project uses **pnpm** exclusively (enforced via `devEngines` in `package.json`) — never suggest `npm`/`npx`/`yarn` commands, including for one-off package runs (`pnpm dlx` instead of `npx`).
+
 - `pnpm dev` — run the server with hot reload (`tsx watch src/server.ts`). There is no `build` or `start` script.
-- No test runner is configured yet (`pnpm test` is a stub that exits with an error).
+- `pnpm test` — run the integration test suite once (`vitest run`); `pnpm test:watch` for watch mode. See Testing below.
 - No lint/format script is configured.
 - Prisma (schema lives at `src/prisma/schema.prisma`, migrations at `src/prisma/migrations`, config in `prisma.config.ts`):
   - `pnpm dlx prisma migrate dev --name <name>` — create/apply a migration in dev.
@@ -61,6 +63,17 @@ All custom errors extend `AppError` (`src/shared/errors/app-error.ts`, carries `
 - Slugs are generated with `src/shared/utils/generate-unique-slug.ts` (base slug from `slugify.ts`, then a `-1`, `-2`, ... suffix loop against a repository-provided `exists` check) and are scoped per-workspace (e.g. project slug unique within a workspace, not globally).
 - Pagination: repositories return `{ items, total }` (`PaginatedResult<T>`, `src/shared/types/pagination.types.ts`); mappers wrap that into `{ data, pagination: { page, limit, total, pages } }` (`src/shared/dtos/pagination.dto.ts`).
 
+### Testing
+
+`tests/integration/<module>.test.ts` — one file per module (`auth`, `workspaces`, `workspace-members`, `projects`, `project-members`, `tasks`; `users` has no tests since that module isn't implemented). Tests run with Vitest + Supertest against the real Express `app` and a dedicated SQLite file (`test.db`, separate from `dev.db`):
+
+- `tests/setup/global-setup.ts` — provisions `test.db` once per run via `prisma migrate deploy` and removes it afterwards.
+- `tests/setup/db.ts` — `beforeEach` hook that deletes all rows from every table so each test starts from an empty database.
+- `vitest.config.ts` sets the required env vars directly (`test.env`) instead of a `.env.test` file, and disables file parallelism since every test file shares the same database.
+- `tests/helpers/api.ts` — small fixture builders (`signUp`, `createWorkspace`, `addActiveMember`, `createProject`, `addActiveProjectMember`, `createTask`, ...) that go through the real HTTP endpoints rather than writing to the DB directly, except where there's no endpoint for it (e.g. `deactivateUser`).
+
+Tests target real business rules from the service layer (permissions, state transitions, uniqueness checks) — not zod validation edge cases, which are generic and not worth asserting per module.
+
 ### Domain model (`src/prisma/schema.prisma`)
 
 `User` → `WorkspaceMember` → `Workspace` → `Project` → `ProjectMember` / `Task` → `Comment`. Workspace and project membership each have their own role enum (`WorkspaceRole`, `ProjectRole`: `OWNER`/`ADMIN`/`MEMBER`) and are checked independently — being a workspace admin does not imply project-level permissions. Tasks are numbered per-project (`Project.nextTaskNumber`, unique `[projectId, taskNumber]`), not globally.
@@ -69,4 +82,5 @@ All custom errors extend `AppError` (`src/shared/errors/app-error.ts`, carries `
 
 - Relative imports use explicit `.ts` extensions (enabled by `rewriteRelativeImportExtensions` in `tsconfig.json`); match existing files.
 - Repository/service functions take a single destructured options object, not positional args.
-- Code comments in this codebase are written in Spanish; match the existing style when editing nearby code rather than switching to English.
+- **Code comments must be written in natural Spanish** (not machine-translated-sounding), project-wide — this applies to new code and tests, not just existing files. Write comments only where the *why* isn't obvious from the code, same bar as usual; don't add a Spanish comment just to have one.
+- This is a junior/learning project — favor simple, direct code over abstractions, generic helpers, or configurability that isn't needed yet. Don't introduce patterns (factories, generic builders, extra indirection layers) beyond what the existing module structure already uses. When in doubt, match the simplest existing example rather than the most flexible one.
