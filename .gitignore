@@ -2,3 +2,7 @@ node_modules
 .env
 /generated/prisma
 dev.db
+test.db
+test.db-journal
+test.db-shm
+test.db-wal
