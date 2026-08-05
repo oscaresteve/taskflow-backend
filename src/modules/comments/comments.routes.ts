@@ -3,12 +3,18 @@ import * as commentsController from "./comments.controller.ts";
 import { auth } from "../../shared/middlewares/auth.ts";
 import { validate } from "../../shared/middlewares/validate.ts";
 import { taskParamsSchema } from "../../shared/schemas/common.schema.ts";
-import { createCommentSchema } from "./schemas/comments.schema.ts";
+import { commentQuerySchema, createCommentSchema } from "./schemas/comments.schema.ts";
 
 export const commentsRouter = Router();
 
 // 1. Obtener todos lo comentarios
 // GET    /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/comments
+commentsRouter.get(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/comments",
+  auth,
+  validate({ params: taskParamsSchema, query: commentQuerySchema }),
+  commentsController.findAll,
+);
 
 // Todos los miembros del proyecto
 
