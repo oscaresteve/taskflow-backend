@@ -220,7 +220,7 @@ model RefreshToken {
 
   userId      String
 
-  tokenHash   String
+  tokenHash   String    @unique
 
   expiresAt   DateTime
   revokedAt   DateTime?
