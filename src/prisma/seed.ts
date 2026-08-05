@@ -145,13 +145,13 @@ async function main() {
     });
   }
 
-  console.log("Seed completado.");
-  console.log("Usuarios (contraseña: password123):");
+  console.log("Seed completed.");
+  console.log("Users (password: password123):");
   console.log(`  - ${ada.email}`);
   console.log(`  - ${alan.email}`);
   console.log(`  - ${grace.email}`);
   console.log(`Workspace: ${workspace.slug}`);
-  console.log(`Proyectos: ${website.slug}, ${mobileApp.slug}`);
+  console.log(`Projects: ${website.slug}, ${mobileApp.slug}`);
 }
 
 main()
