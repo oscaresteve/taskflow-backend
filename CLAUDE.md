@@ -4,19 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-TaskFlow backend: an Express 5 + TypeScript REST API (project/task management, workspaces, members) backed by SQLite via Prisma 7 with the `better-sqlite3` driver adapter.
+TaskFlow backend: an Express 5 + TypeScript REST API (project/task management, workspaces, members) backed by PostgreSQL via Prisma 7 with the `pg` driver adapter.
 
 ## Commands
 
 This project uses **pnpm** exclusively (enforced via `devEngines` in `package.json`) — never suggest `npm`/`npx`/`yarn` commands, including for one-off package runs (`pnpm dlx` instead of `npx`).
 
+- `pnpm db:up` — start local Postgres via Docker Compose (`docker-compose.yml`: a `postgres` container for dev on `localhost:5432` and a `postgres-test` container on `localhost:5433`), waiting for both to be healthy. `pnpm db:down` stops them. Required before `pnpm dev` or `pnpm test`.
 - `pnpm dev` — run the server with hot reload (`tsx watch src/server.ts`). There is no `build` or `start` script.
 - `pnpm test` — run the integration test suite once (`vitest run`); `pnpm test:watch` for watch mode. See Testing below.
 - No lint/format script is configured.
 - Prisma (schema lives at `src/prisma/schema.prisma`, migrations at `src/prisma/migrations`, config in `prisma.config.ts`):
   - `pnpm dlx prisma migrate dev --name <name>` — create/apply a migration in dev.
   - `pnpm dlx prisma generate` — regenerate the client into `src/prisma/generated/prisma`.
-  - `pnpm dlx prisma studio` — browse the SQLite dev DB.
+  - `pnpm dlx prisma studio` — browse the dev DB.
   - The `prisma-cli` and `prisma-client-api` skills cover the rest of the CLI/query surface in detail.
 
 ### Required environment variables (`src/config/env.ts`, validated with zod at startup)
@@ -59,16 +60,17 @@ All custom errors extend `AppError` (`src/shared/errors/app-error.ts`, carries `
 
 ### Data layer
 
-- `src/config/prisma.ts` constructs the singleton `PrismaClient` using the `PrismaBetterSqlite3` adapter and `env.DATABASE_URL`; import `prisma` from here everywhere.
+- `src/config/prisma.ts` constructs the singleton `PrismaClient` using the `PrismaPg` adapter and `env.DATABASE_URL`; import `prisma` from here everywhere.
 - Multi-step writes that must be atomic (e.g. creating a `Project` + its owner `ProjectMember`) use `prisma.$transaction` inside the repository function.
 - Slugs are generated with `src/shared/utils/generate-unique-slug.ts` (base slug from `slugify.ts`, then a `-1`, `-2`, ... suffix loop against a repository-provided `exists` check) and are scoped per-workspace (e.g. project slug unique within a workspace, not globally).
 - Pagination: repositories return `{ items, total }` (`PaginatedResult<T>`, `src/shared/types/pagination.types.ts`); mappers wrap that into `{ data, pagination: { page, limit, total, pages } }` (`src/shared/dtos/pagination.dto.ts`).
 
 ### Testing
 
-`tests/integration/<module>.test.ts` — one file per module (`auth`, `workspaces`, `workspace-members`, `projects`, `project-members`, `tasks`; `users` has no tests since that module isn't implemented). Tests run with Vitest + Supertest against the real Express `app` and a dedicated SQLite file (`test.db`, separate from `dev.db`):
+`tests/integration/<module>.test.ts` — one file per module (`auth`, `workspaces`, `workspace-members`, `projects`, `project-members`, `tasks`; `users` has no tests since that module isn't implemented). Tests run with Vitest + Supertest against the real Express `app` and a dedicated local Postgres container (`postgres-test` in `docker-compose.yml`, `localhost:5433`, separate from the dev container on `5432`):
 
-- `tests/setup/global-setup.ts` — provisions `test.db` once per run via `prisma migrate deploy` and removes it afterwards.
+- `tests/setup/test-database-url.ts` — the shared `TEST_DATABASE_URL` constant pointing at the `postgres-test` container, imported by both `vitest.config.ts` and `global-setup.ts` so it lives in one place.
+- `tests/setup/global-setup.ts` — drops and recreates the `public` schema once per run via a raw `pg` client, then provisions it with `prisma migrate deploy`. Requires `pnpm db:up` to have been run first.
 - `tests/setup/db.ts` — `beforeEach` hook that deletes all rows from every table so each test starts from an empty database.
 - `vitest.config.ts` sets the required env vars directly (`test.env`) instead of a `.env.test` file, and disables file parallelism since every test file shares the same database.
 - `tests/helpers/api.ts` — small fixture builders (`signUp`, `createWorkspace`, `addActiveMember`, `createProject`, `addActiveProjectMember`, `createTask`, ...) that go through the real HTTP endpoints rather than writing to the DB directly, except where there's no endpoint for it (e.g. `deactivateUser`).

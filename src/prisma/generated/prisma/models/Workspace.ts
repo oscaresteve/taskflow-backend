@@ -1324,6 +1324,7 @@ export type WorkspaceCreateManyArgs<ExtArgs extends runtime.Types.Extensions.Int
    * The data used to create many Workspaces.
    */
   data: Prisma.WorkspaceCreateManyInput | Prisma.WorkspaceCreateManyInput[]
+  skipDuplicates?: boolean
 }
 
 /**
@@ -1342,6 +1343,7 @@ export type WorkspaceCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Exten
    * The data used to create many Workspaces.
    */
   data: Prisma.WorkspaceCreateManyInput | Prisma.WorkspaceCreateManyInput[]
+  skipDuplicates?: boolean
 }
 
 /**

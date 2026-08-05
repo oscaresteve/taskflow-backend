@@ -524,6 +524,7 @@ export type RefreshTokenCreateOrConnectWithoutUserInput = {
 
 export type RefreshTokenCreateManyUserInputEnvelope = {
   data: Prisma.RefreshTokenCreateManyUserInput | Prisma.RefreshTokenCreateManyUserInput[]
+  skipDuplicates?: boolean
 }
 
 export type RefreshTokenUpsertWithWhereUniqueWithoutUserInput = {
@@ -1369,6 +1370,7 @@ export type RefreshTokenCreateManyArgs<ExtArgs extends runtime.Types.Extensions.
    * The data used to create many RefreshTokens.
    */
   data: Prisma.RefreshTokenCreateManyInput | Prisma.RefreshTokenCreateManyInput[]
+  skipDuplicates?: boolean
 }
 
 /**
@@ -1387,6 +1389,7 @@ export type RefreshTokenCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Ex
    * The data used to create many RefreshTokens.
    */
   data: Prisma.RefreshTokenCreateManyInput | Prisma.RefreshTokenCreateManyInput[]
+  skipDuplicates?: boolean
   /**
    * Choose, which related nodes to fetch as well
    */
