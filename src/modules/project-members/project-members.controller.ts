@@ -34,7 +34,7 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user.id;
-    const data = req.validated.query as CreateProjectMemberDto;
+    const data = req.validated.body as CreateProjectMemberDto;
     const params = req.validated.params as ProjectParamsDto;
     const workspaceSlug = params.workspaceSlug;
     const projectSlug = params.projectSlug;
