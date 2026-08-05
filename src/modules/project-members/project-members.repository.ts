@@ -105,3 +105,19 @@ export async function update({
     },
   });
 }
+
+export async function deactivate({ projectId, userId }: { projectId: string; userId: string }): Promise<void> {
+  await prisma.projectMember.update({
+    where: {
+      projectId_userId: {
+        projectId,
+        userId,
+      },
+    },
+    data: {
+      role: "MEMBER",
+      isActive: false,
+      joinedAt: null,
+    },
+  });
+}

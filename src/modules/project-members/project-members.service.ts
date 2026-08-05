@@ -149,3 +149,51 @@ export async function update({
 
   return newProjectMember;
 }
+
+export async function deactivate({
+  userId,
+  workspaceSlug,
+  projectSlug,
+  projectMemberUserId,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  projectMemberUserId: string;
+}): Promise<void> {
+  // Obtener contexto
+  const { project, projectMember } = await authorizationService.getProjectContext({
+    userId,
+    workspaceSlug,
+    projectSlug,
+  });
+
+  // Comprobar permisos
+  requireProjectManager(projectMember);
+
+  // Obtener el miembro objetivo
+  const { projectMemberTarget } = await authorizationService.getProjectMemberTarget({
+    projectId: project.id,
+    projectMemberUserId,
+  });
+
+  if (projectMemberUserId === userId) {
+    throw new BadRequestError("You cannot deactivate yourself");
+  }
+
+  // ADMIN no puede administrar un OWNER
+  requireCanManageProjectMember({
+    actor: projectMember,
+    target: projectMemberTarget,
+  });
+
+  // No modificar inactivos
+  if (!projectMemberTarget.isActive) {
+    throw new BadRequestError("Project member is already inactive");
+  }
+
+  await projectMembersRepository.deactivate({
+    userId: projectMemberUserId,
+    projectId: project.id,
+  });
+}

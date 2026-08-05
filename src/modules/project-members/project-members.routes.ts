@@ -46,7 +46,13 @@ projectMembersRouter.patch(
 // Solo OWNER o ADMIN
 
 // 4. Eliminar miembro
-// DELETE /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId
+// PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId/deactivate
+projectMembersRouter.patch(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/members/:userId/deactivate",
+  auth,
+  validate({ params: projectMemberParamsSchema }),
+  projectMembersController.deactivate,
+);
 
 // No se puede eliminar OWNER
 // Solo OWNER o ADMIN

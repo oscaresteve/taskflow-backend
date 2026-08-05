@@ -73,3 +73,24 @@ export async function update(req: Request, res: Response, next: NextFunction) {
     next(error);
   }
 }
+
+export async function deactivate(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const params = req.validated.params as ProjectMemberParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const projectSlug = params.projectSlug;
+    const projectMemberUserId = params.userId;
+
+    await projectMembersService.deactivate({
+      userId,
+      workspaceSlug,
+      projectSlug,
+      projectMemberUserId,
+    });
+
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+}
