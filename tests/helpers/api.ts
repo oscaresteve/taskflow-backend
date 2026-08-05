@@ -1,9 +1,10 @@
 import request from "supertest";
 import app from "../../src/app.ts";
 import { prisma } from "../../src/config/prisma.ts";
-import { WorkspaceRole } from "../../src/prisma/generated/prisma/enums.ts";
+import type { ProjectRole, WorkspaceRole } from "../../src/prisma/generated/prisma/enums.ts";
 
 let userCounter = 0;
+let projectCounter = 0;
 
 export async function signUp(overrides: Partial<{ name: string; email: string; password: string }> = {}) {
   userCounter += 1;
@@ -36,8 +37,8 @@ export async function createWorkspace(ownerAccessToken: string, name = "Test Wor
   return res.body as { id: string; slug: string; name: string };
 }
 
-// Adds `targetUserId` as a workspace member and activates it in one step, using the
-// module's own endpoints (a manager actor is required for both calls).
+// Añade a `targetUserId` como miembro del workspace y lo activa en un solo paso,
+// usando los propios endpoints del módulo (el actor debe tener permisos de manager).
 export async function addActiveMember({
   managerAccessToken,
   workspaceSlug,
@@ -71,6 +72,80 @@ export async function addActiveMember({
 
 export async function deactivateUser(userId: string) {
   await prisma.user.update({ where: { id: userId }, data: { isActive: false } });
+}
+
+export async function createProject(
+  managerAccessToken: string,
+  workspaceSlug: string,
+  overrides: Partial<{ name: string; key: string }> = {},
+) {
+  projectCounter += 1;
+
+  const payload = {
+    name: overrides.name ?? `Test Project ${projectCounter}`,
+    key: overrides.key ?? `PRJ${projectCounter}`,
+  };
+
+  const res = await request(app)
+    .post(`/api/workspaces/${workspaceSlug}/projects`)
+    .set("Authorization", `Bearer ${managerAccessToken}`)
+    .send(payload);
+
+  if (res.status !== 201) {
+    throw new Error(`createProject failed: ${res.status} ${JSON.stringify(res.body)}`);
+  }
+
+  return res.body as { id: string; slug: string; key: string };
+}
+
+// El proyecto no tiene estado PENDING como el workspace: el miembro queda activo al crearlo.
+export async function addActiveProjectMember({
+  managerAccessToken,
+  workspaceSlug,
+  projectSlug,
+  targetUserId,
+  role,
+}: {
+  managerAccessToken: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  targetUserId: string;
+  role: "OWNER" | "ADMIN" | "MEMBER";
+}) {
+  const res = await request(app)
+    .post(`/api/workspaces/${workspaceSlug}/projects/${projectSlug}/members`)
+    .set("Authorization", `Bearer ${managerAccessToken}`)
+    .send({ userId: targetUserId, role });
+
+  if (res.status !== 201) {
+    throw new Error(`addActiveProjectMember failed: ${res.status} ${JSON.stringify(res.body)}`);
+  }
+
+  return res.body as { id: string; userId: string; role: ProjectRole };
+}
+
+export async function createTask(
+  actorAccessToken: string,
+  workspaceSlug: string,
+  projectSlug: string,
+  overrides: Partial<{ title: string; priority: string; assigneeId: string }> = {},
+) {
+  const payload = {
+    title: overrides.title ?? "Test Task",
+    priority: overrides.priority ?? "MEDIUM",
+    assigneeId: overrides.assigneeId,
+  };
+
+  const res = await request(app)
+    .post(`/api/workspaces/${workspaceSlug}/projects/${projectSlug}/tasks`)
+    .set("Authorization", `Bearer ${actorAccessToken}`)
+    .send(payload);
+
+  if (res.status !== 201) {
+    throw new Error(`createTask failed: ${res.status} ${JSON.stringify(res.body)}`);
+  }
+
+  return res.body as { id: string; taskNumber: number; status: string; assigneeId: string | null };
 }
 
 export { app };
