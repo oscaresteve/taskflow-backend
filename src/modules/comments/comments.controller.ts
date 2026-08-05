@@ -61,3 +61,20 @@ export async function update(req: Request, res: Response, next: NextFunction) {
     next(error);
   }
 }
+
+export async function remove(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const params = req.validated.params as CommentParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const projectSlug = params.projectSlug;
+    const taskNumber = params.taskNumber;
+    const commentId = params.commentId;
+
+    await commentsService.remove({ userId, workspaceSlug, projectSlug, taskNumber, commentId });
+
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+}

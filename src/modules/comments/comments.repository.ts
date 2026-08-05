@@ -81,3 +81,14 @@ export async function update({ commentId, data }: { commentId: string; data: Upd
     },
   });
 }
+
+export async function remove(commentId: string): Promise<void> {
+  await prisma.comment.update({
+    where: {
+      id: commentId,
+    },
+    data: {
+      deletedAt: new Date(),
+    },
+  });
+}

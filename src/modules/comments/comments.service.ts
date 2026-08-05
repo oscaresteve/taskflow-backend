@@ -4,6 +4,7 @@ import * as authorizationService from "../../shared/auth/authorization.service.t
 import * as commentsRepository from "./comments.repository.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import { requireCanManageComment } from "../../shared/auth/permissions.ts";
+import { ConflictError } from "../../shared/errors/conflict-error.ts";
 
 export async function create({
   userId,
@@ -73,4 +74,32 @@ export async function update({
   const newComment = await commentsRepository.update({ data, commentId });
 
   return newComment;
+}
+
+export async function remove({
+  userId,
+  workspaceSlug,
+  projectSlug,
+  taskNumber,
+  commentId,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  taskNumber: number;
+  commentId: string;
+}): Promise<void> {
+  const { projectMember, comment } = await authorizationService.getCommentContext({
+    userId,
+    workspaceSlug,
+    projectSlug,
+    taskNumber,
+    commentId,
+  });
+
+  requireCanManageComment({ actor: projectMember, comment, userId });
+
+  if (comment.deletedAt) throw new ConflictError("Comment is already deleted");
+
+  await commentsRepository.remove(commentId);
 }
