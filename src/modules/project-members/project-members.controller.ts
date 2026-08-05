@@ -41,7 +41,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
 
     const projectMemberResponse = toProjectMemberResponseDto(projectMember);
 
-    res.json(projectMemberResponse);
+    res.status(201).json(projectMemberResponse);
   } catch (error) {
     next(error);
   }
