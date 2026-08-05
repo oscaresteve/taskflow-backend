@@ -4,8 +4,10 @@ import { validate } from "../../shared/middlewares/validate.ts";
 import * as projectMembersController from "./project-members.controller.ts";
 import {
   createProjectMemberSchema,
+  projectMemberParamsSchema,
   projectMembersQuerySchema,
   projectParamsSchema,
+  updateProjectMemberSchema,
 } from "./schemas/project-members.schema.ts";
 
 export const projectMembersRouter = Router();
@@ -33,6 +35,12 @@ projectMembersRouter.post(
 
 // 3. Cambiar rol
 // PATCH  /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId
+projectMembersRouter.patch(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/members/:userId",
+  auth,
+  validate({ params: projectMemberParamsSchema, body: updateProjectMemberSchema }),
+  projectMembersController.update,
+);
 
 // No se puede modificar OWNER
 // Solo OWNER o ADMIN
