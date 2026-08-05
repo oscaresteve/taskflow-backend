@@ -1,10 +1,13 @@
 import z from "zod";
 import { TaskPriority, TaskStatus } from "../../../shared/types/prisma.types.ts";
-
-export const projectParamsSchema = z.object({
-  workspaceSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
-  projectSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
-});
+import {
+  booleanQueryParamSchema,
+  descriptionSchema,
+  limitSchema,
+  pageSchema,
+  searchSchema,
+  sortOrderSchema,
+} from "../../../shared/schemas/common.schema.ts";
 
 export const createTaskSchema = z.object({
   title: z
@@ -12,7 +15,7 @@ export const createTaskSchema = z.object({
     .trim()
     .min(2, "Title must be at least 2 characters long")
     .max(100, "Title cannot exceed 100 characters"),
-  description: z.string().trim().max(500, "Description cannot exceed 500 characters").optional(),
+  description: descriptionSchema,
   priority: z.enum(TaskPriority),
   assigneeId: z.cuid().optional(),
   dueDate: z.iso.datetime().optional(),
@@ -22,16 +25,13 @@ const sortableFields = ["position", "title", "status", "priority", "dueDate", "c
 
 export const taskQuerySchema = z.object({
   // Pagination
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(10),
+  page: pageSchema,
+  limit: limitSchema,
 
   // Filters
-  isArchived: z
-    .enum(["true", "false"])
-    .transform((value) => value === "true")
-    .optional(),
+  isArchived: booleanQueryParamSchema,
 
-  search: z.string().trim().min(1).optional(),
+  search: searchSchema,
 
   status: z.enum(TaskStatus).optional(),
 
@@ -41,13 +41,7 @@ export const taskQuerySchema = z.object({
 
   // Sorting
   sort: z.enum(sortableFields).default("position"),
-  order: z.enum(["asc", "desc"]).default("asc"),
-});
-
-export const taskParamsSchema = z.object({
-  workspaceSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
-  projectSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
-  taskNumber: z.coerce.number().int().positive("Task number must be positive"),
+  order: sortOrderSchema,
 });
 
 export const updateTaskSchema = z
@@ -58,7 +52,7 @@ export const updateTaskSchema = z
       .min(2, "Title must be at least 2 characters long")
       .max(100, "Title cannot exceed 100 characters")
       .optional(),
-    description: z.string().trim().max(500, "Description cannot exceed 500 characters").optional().nullable(),
+    description: descriptionSchema.nullable(),
     priority: z.enum(TaskPriority).optional(),
     status: z.enum(TaskStatus).optional(),
     assigneeId: z.cuid().optional().nullable(),
@@ -66,8 +60,6 @@ export const updateTaskSchema = z
   })
   .refine((data) => Object.keys(data).length > 0, "At least one field must be provided");
 
-export type ProjectParamsDto = z.infer<typeof projectParamsSchema>;
 export type CreateTaskDto = z.infer<typeof createTaskSchema>;
 export type TaskQueryDto = z.infer<typeof taskQuerySchema>;
-export type TaskParamsDto = z.infer<typeof taskParamsSchema>;
 export type UpdateTaskDto = z.infer<typeof updateTaskSchema>;

@@ -1,16 +1,13 @@
 import z from "zod";
 import { WorkspaceMemberStatus, WorkspaceRole } from "../../../shared/types/prisma.types.ts";
-
-export const workspaceParamsSchema = z.object({
-  workspaceSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
-});
+import { limitSchema, pageSchema, sortOrderSchema } from "../../../shared/schemas/common.schema.ts";
 
 const sortableFields = ["joinedAt", "createdAt", "updatedAt"] as const;
 
 export const workspaceMembersQuerySchema = z.object({
   // Pagination
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(10),
+  page: pageSchema,
+  limit: limitSchema,
 
   // Filters
   role: z.enum(WorkspaceRole).optional(),
@@ -18,7 +15,7 @@ export const workspaceMembersQuerySchema = z.object({
 
   // Sorting
   sort: z.enum(sortableFields).default("createdAt"),
-  order: z.enum(["asc", "desc"]).default("asc"),
+  order: sortOrderSchema,
 });
 
 export const createWorkspaceMemberSchema = z.object({
@@ -27,17 +24,10 @@ export const createWorkspaceMemberSchema = z.object({
   role: z.enum(WorkspaceRole).default("MEMBER"),
 });
 
-export const workspaceMemberParamsSchema = z.object({
-  workspaceSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
-  userId: z.cuid(),
-});
-
 export const updateWorkspaceMemberSchema = z.object({
   role: z.enum(WorkspaceRole),
 });
 
-export type WorkspaceParamsDto = z.infer<typeof workspaceParamsSchema>;
 export type WorkspaceMembersQueryDto = z.infer<typeof workspaceMembersQuerySchema>;
 export type CreateWorkspaceMemberDto = z.infer<typeof createWorkspaceMemberSchema>;
-export type WorkspaceMemberParamsDto = z.infer<typeof workspaceMemberParamsSchema>;
 export type UpdateWorkspaceMemberDto = z.infer<typeof updateWorkspaceMemberSchema>;

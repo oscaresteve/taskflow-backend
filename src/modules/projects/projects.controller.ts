@@ -1,13 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
-import type {
-  CreateProjectDto,
-  ProjectQueryDto,
-  UpdateProjectDto,
-  ProjectParamsDto,
-  WorkspaceParamsDto,
-} from "./schemas/projects.schema.ts";
+import type { CreateProjectDto, ProjectQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
 import * as projectService from "./projects.service.ts";
 import { toPaginatedProjectResponseDto, toProjectResponseDto } from "./mappers/projects.mapper.ts";
+import type { ProjectParamsDto, WorkspaceParamsDto } from "../../shared/schemas/common.schema.ts";
 
 // Llamar al servicio y mappear la respuesta.
 // Responder HTTP

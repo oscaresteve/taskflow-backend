@@ -2,13 +2,8 @@ import { Router } from "express";
 import { auth } from "../../shared/middlewares/auth.ts";
 import { validate } from "../../shared/middlewares/validate.ts";
 import * as projectsController from "./projects.controller.ts";
-import {
-  createProjectSchema,
-  projectQuerySchema,
-  updateProjectSchema,
-  projectParamsSchema,
-  workspaceParamsSchema,
-} from "./schemas/projects.schema.ts";
+import { createProjectSchema, projectQuerySchema, updateProjectSchema } from "./schemas/projects.schema.ts";
+import { projectParamsSchema, workspaceParamsSchema } from "../../shared/schemas/common.schema.ts";
 
 export const projectsRouter = Router();
 

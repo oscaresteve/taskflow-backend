@@ -2,13 +2,8 @@ import { Router } from "express";
 import { validate } from "../../shared/middlewares/validate.ts";
 import { auth } from "../../shared/middlewares/auth.ts";
 import * as tasksController from "./tasks.controller.ts";
-import {
-  createTaskSchema,
-  projectParamsSchema,
-  taskParamsSchema,
-  taskQuerySchema,
-  updateTaskSchema,
-} from "./schemas/tasks.schema.ts";
+import { createTaskSchema, taskQuerySchema, updateTaskSchema } from "./schemas/tasks.schema.ts";
+import { projectParamsSchema, taskParamsSchema } from "../../shared/schemas/common.schema.ts";
 
 export const tasksRouter = Router();
 

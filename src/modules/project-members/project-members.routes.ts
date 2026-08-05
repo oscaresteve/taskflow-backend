@@ -4,11 +4,10 @@ import { validate } from "../../shared/middlewares/validate.ts";
 import * as projectMembersController from "./project-members.controller.ts";
 import {
   createProjectMemberSchema,
-  projectMemberParamsSchema,
   projectMembersQuerySchema,
-  projectParamsSchema,
   updateProjectMemberSchema,
 } from "./schemas/project-members.schema.ts";
+import { projectMemberParamsSchema, projectParamsSchema } from "../../shared/schemas/common.schema.ts";
 
 export const projectMembersRouter = Router();
 

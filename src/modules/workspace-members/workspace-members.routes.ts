@@ -5,10 +5,9 @@ import * as workspaceMembersController from "./workspace-members.controller.ts";
 import {
   createWorkspaceMemberSchema,
   updateWorkspaceMemberSchema,
-  workspaceMemberParamsSchema,
   workspaceMembersQuerySchema,
-  workspaceParamsSchema,
 } from "./schemas/workspace-members.schema.ts";
+import { workspaceMemberParamsSchema, workspaceParamsSchema } from "../../shared/schemas/common.schema.ts";
 
 export const workspaceMembersRouter = Router();
 

@@ -2,12 +2,8 @@ import { Router } from "express";
 import { auth } from "../../shared/middlewares/auth.ts";
 import { validate } from "../../shared/middlewares/validate.ts";
 import * as workspacesController from "./workspaces.controller.ts";
-import {
-  createWorkspaceSchema,
-  workspaceParamsSchema,
-  workspaceQuerySchema,
-  updateWorkspaceSchema,
-} from "./schemas/workspaces.schema.ts";
+import { createWorkspaceSchema, workspaceQuerySchema, updateWorkspaceSchema } from "./schemas/workspaces.schema.ts";
+import { workspaceParamsSchema } from "../../shared/schemas/common.schema.ts";
 
 export const workspacesRouter = Router();
 
@@ -32,9 +28,9 @@ workspacesRouter.get("/workspaces", auth, validate({ query: workspaceQuerySchema
 // Solo aquellos en los que el usuario pertenece.
 
 // 3. Obtener un Workspace
-// GET /workspaces/:slug
+// GET /workspaces/:workspaceSlug
 workspacesRouter.get(
-  "/workspaces/:slug",
+  "/workspaces/:workspaceSlug",
   auth,
   validate({ params: workspaceParamsSchema }),
   workspacesController.findBySlug,
@@ -43,9 +39,9 @@ workspacesRouter.get(
 // Solo si el usuario pertenece a ese Workspace.
 
 // 4. Actualizar Workspace
-// PATCH /workspaces/:slug
+// PATCH /workspaces/:workspaceSlug
 workspacesRouter.patch(
-  "/workspaces/:slug",
+  "/workspaces/:workspaceSlug",
   auth,
   validate({ params: workspaceParamsSchema, body: updateWorkspaceSchema }),
   workspacesController.update,
@@ -55,9 +51,9 @@ workspacesRouter.patch(
 
 // 5. Archivar o eliminar
 // En lugar de implementar un DELETE físico, utilizar el campo isActive.
-// PATCH /workspaces/:slug/deactivate
+// PATCH /workspaces/:workspaceSlug/deactivate
 workspacesRouter.patch(
-  "/workspaces/:slug/deactivate",
+  "/workspaces/:workspaceSlug/deactivate",
   auth,
   validate({ params: workspaceParamsSchema }),
   workspacesController.deactivate,

@@ -1,13 +1,12 @@
 import type { Request, Response, NextFunction } from "express";
 import type {
   CreateProjectMemberDto,
-  ProjectMemberParamsDto,
   ProjectMembersQueryDto,
-  ProjectParamsDto,
   UpdateProjectMemberDto,
 } from "./schemas/project-members.schema.ts";
 import * as projectMembersService from "./project-members.service.ts";
 import { toPaginatedProjectMemberResponseDto, toProjectMemberResponseDto } from "./mappers/project-members.mapper.ts";
+import type { ProjectMemberParamsDto, ProjectParamsDto } from "../../shared/schemas/common.schema.ts";
 
 export async function findAll(req: Request, res: Response, next: NextFunction) {
   try {

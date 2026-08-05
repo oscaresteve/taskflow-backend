@@ -3,14 +3,13 @@ import * as workspaceMembersService from "./workspace-members.service.ts";
 import type {
   CreateWorkspaceMemberDto,
   UpdateWorkspaceMemberDto,
-  WorkspaceMemberParamsDto,
   WorkspaceMembersQueryDto,
-  WorkspaceParamsDto,
 } from "./schemas/workspace-members.schema.ts";
 import {
   toPaginatedWorkspaceMemberResponseDto,
   toWorkspaceMemberResponseDto,
 } from "./mappers/workspace-members.mapper.ts";
+import type { WorkspaceMemberParamsDto, WorkspaceParamsDto } from "../../shared/schemas/common.schema.ts";
 
 export async function findAll(req: Request, res: Response, next: NextFunction) {
   try {

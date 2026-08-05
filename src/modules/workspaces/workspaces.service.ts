@@ -36,26 +36,32 @@ export async function findAll({
   return workspaces;
 }
 
-export async function findBySlug({ userId, slug }: { userId: string; slug: string }): Promise<Workspace> {
+export async function findBySlug({
+  userId,
+  workspaceSlug,
+}: {
+  userId: string;
+  workspaceSlug: string;
+}): Promise<Workspace> {
   // Obterner contexto
-  const { workspace } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug: slug });
+  const { workspace } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
 
   return workspace;
 }
 
 export async function update({
   userId,
-  slug,
+  workspaceSlug,
   data,
 }: {
   userId: string;
-  slug: string;
+  workspaceSlug: string;
   data: UpdateWorkspaceDto;
 }): Promise<Workspace> {
   // Obterner contexto
   const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({
     userId,
-    workspaceSlug: slug,
+    workspaceSlug,
   });
 
   // Comprobar permisos
@@ -82,11 +88,11 @@ export async function update({
   return updatedWorkspace;
 }
 
-export async function deactivate({ userId, slug }: { userId: string; slug: string }): Promise<void> {
+export async function deactivate({ userId, workspaceSlug }: { userId: string; workspaceSlug: string }): Promise<void> {
   // Obterner contexto
   const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({
     userId,
-    workspaceSlug: slug,
+    workspaceSlug,
   });
 
   // Comprobar permisos

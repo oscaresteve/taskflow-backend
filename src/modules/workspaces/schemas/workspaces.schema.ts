@@ -1,4 +1,12 @@
 import z from "zod";
+import {
+  booleanQueryParamSchema,
+  descriptionSchema,
+  limitSchema,
+  pageSchema,
+  searchSchema,
+  sortOrderSchema,
+} from "../../../shared/schemas/common.schema.ts";
 
 export const createWorkspaceSchema = z.object({
   name: z
@@ -6,7 +14,7 @@ export const createWorkspaceSchema = z.object({
     .trim()
     .min(2, "Name must be at least 2 characters long")
     .max(100, "Name cannot exceed 100 characters"),
-  description: z.string().trim().max(500, "Description cannot exceed 500 characters").optional(),
+  description: descriptionSchema,
   logoUrl: z.url("Logo URL must be a valid URL").optional(),
 });
 
@@ -18,7 +26,7 @@ export const updateWorkspaceSchema = z
       .min(2, "Name must be at least 2 characters long")
       .max(100, "Name cannot exceed 100 characters")
       .optional(),
-    description: z.string().trim().max(500, "Description cannot exceed 500 characters").optional().nullable(),
+    description: descriptionSchema.nullable(),
     // Nullable para permitir borrar el contenido ya que este es opcional
     logoUrl: z.url("Logo URL must be a valid URL").optional().nullable(),
   })
@@ -29,26 +37,18 @@ const sortableFields = ["name", "createdAt", "updatedAt"] as const;
 
 export const workspaceQuerySchema = z.object({
   // Paginacion
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(10),
+  page: pageSchema,
+  limit: limitSchema,
 
   // Filtros
-  isActive: z // Necesitamos hacer esta transformacion porque la query viene en string, no como en el body, asi evitar falsos booleans
-    .enum(["true", "false"])
-    .transform((value) => value === "true")
-    .optional(),
-  search: z.string().trim().min(1).optional(),
+  isActive: booleanQueryParamSchema,
+  search: searchSchema,
 
   // Ordenacion
   sort: z.enum(sortableFields).default("createdAt"),
-  order: z.enum(["asc", "desc"]).default("asc"),
-});
-
-export const workspaceParamsSchema = z.object({
-  slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid"),
+  order: sortOrderSchema,
 });
 
 export type CreateWorkspaceDto = z.infer<typeof createWorkspaceSchema>;
 export type UpdateWorkspaceDto = z.infer<typeof updateWorkspaceSchema>;
 export type WorkspaceQueryDto = z.infer<typeof workspaceQuerySchema>;
-export type WorkspaceParamsDto = z.infer<typeof workspaceParamsSchema>;

@@ -5,8 +5,8 @@ import {
   type CreateWorkspaceDto,
   type UpdateWorkspaceDto,
   type WorkspaceQueryDto,
-  type WorkspaceParamsDto,
 } from "./schemas/workspaces.schema.ts";
+import type { WorkspaceParamsDto } from "../../shared/schemas/common.schema.ts";
 
 // Llamar al servicio y mappear la respuesta.
 // Responder HTTP
@@ -48,9 +48,9 @@ export async function findBySlug(req: Request, res: Response, next: NextFunction
   try {
     const params = req.validated.params as WorkspaceParamsDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
     const userId = req.user.id;
-    const slug = params.slug;
+    const workspaceSlug = params.workspaceSlug;
 
-    const workspace = await workspacesService.findBySlug({ userId, slug });
+    const workspace = await workspacesService.findBySlug({ userId, workspaceSlug });
 
     const workspaceResponse = toWorkspaceResponseDto(workspace);
 
@@ -64,10 +64,10 @@ export async function update(req: Request, res: Response, next: NextFunction) {
   try {
     const params = req.validated.params as WorkspaceParamsDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
     const userId = req.user.id;
-    const slug = params.slug;
+    const workspaceSlug = params.workspaceSlug;
     const data = req.validated.body as UpdateWorkspaceDto;
 
-    const workspace = await workspacesService.update({ userId, slug, data });
+    const workspace = await workspacesService.update({ userId, workspaceSlug, data });
 
     const workspaceResponse = toWorkspaceResponseDto(workspace);
 
@@ -80,9 +80,9 @@ export async function deactivate(req: Request, res: Response, next: NextFunction
   try {
     const params = req.validated.params as WorkspaceParamsDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
     const userId = req.user.id;
-    const slug = params.slug;
+    const workspaceSlug = params.workspaceSlug;
 
-    await workspacesService.deactivate({ userId, slug });
+    await workspacesService.deactivate({ userId, workspaceSlug });
 
     res.sendStatus(204);
   } catch (error) {

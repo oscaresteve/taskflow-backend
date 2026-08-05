@@ -1,13 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
-import type {
-  CreateTaskDto,
-  ProjectParamsDto,
-  TaskParamsDto,
-  TaskQueryDto,
-  UpdateTaskDto,
-} from "./schemas/tasks.schema.ts";
+import type { CreateTaskDto, TaskQueryDto, UpdateTaskDto } from "./schemas/tasks.schema.ts";
 import * as tasksService from "./tasks.service.ts";
 import { toPaginatedTaskResponseDto, toTaskResponseDto } from "./mappers/tasks.mapper.ts";
+import type { ProjectParamsDto, TaskParamsDto } from "../../shared/schemas/common.schema.ts";
 
 // Llamar al servicio y mappear la respuesta.
 // Responder HTTP
