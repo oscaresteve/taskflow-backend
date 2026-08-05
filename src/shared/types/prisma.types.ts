@@ -4,6 +4,7 @@ export type {
   Project,
   ProjectMember,
   Task,
+  Comment,
   User,
   RefreshToken,
 } from "../../prisma/generated/prisma/client.ts";
