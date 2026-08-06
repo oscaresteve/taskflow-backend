@@ -6,7 +6,7 @@ const isProduction = env.NODE_ENV !== "development";
 export function setAccessTokenCookie(res: Response, { token, expiresAt }: { token: string; expiresAt: Date }) {
   res.cookie("accessToken", token, {
     httpOnly: true,
-    secure: isProduction,
+    secure: isProduction, // En produccion las cookies solo se podran usar mediante HTTPS
     sameSite: "lax",
     path: "/",
     expires: expiresAt,

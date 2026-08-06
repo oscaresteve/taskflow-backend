@@ -41,7 +41,7 @@ export async function signUp(data: SignUpDto): Promise<AuthResult> {
     password: passwordHash,
   });
 
-  const accessToken = generateAccessToken({ sub: user.id });
+  const { token: accessToken } = generateAccessToken({ sub: user.id });
   const refreshToken = await issueRefreshToken(user.id);
 
   return { user, accessToken, refreshToken };
@@ -60,7 +60,7 @@ export async function signIn(data: SignInDto): Promise<AuthResult> {
     throw new SignInFailedError("Invalid credentials");
   }
 
-  const accessToken = generateAccessToken({ sub: user.id });
+  const { token: accessToken } = generateAccessToken({ sub: user.id });
   const refreshToken = await issueRefreshToken(user.id);
 
   return { user, accessToken, refreshToken };
@@ -85,7 +85,7 @@ export async function refresh(refreshToken: string): Promise<{ accessToken: stri
     throw new UnauthorizedError("Invalid or expired refresh token");
   }
 
-  const accessToken = generateAccessToken({ sub: payload.sub });
+  const { token: accessToken } = generateAccessToken({ sub: payload.sub });
 
   return { accessToken };
 }
