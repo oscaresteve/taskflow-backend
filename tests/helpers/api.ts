@@ -6,6 +6,18 @@ import type { ProjectRole, WorkspaceRole } from "../../src/prisma/generated/pris
 let userCounter = 0;
 let projectCounter = 0;
 
+// httpOnly solo bloquea document.cookie en el navegador; el header Set-Cookie
+// sigue siendo legible por supertest, así que podemos extraer el JWT igual.
+function extractCookieValue(setCookieHeader: string[] | undefined, name: string): string {
+  const raw = setCookieHeader?.find((cookie) => cookie.startsWith(`${name}=`));
+
+  if (!raw) {
+    throw new Error(`Cookie ${name} not found in Set-Cookie header`);
+  }
+
+  return raw.split(";")[0].split("=")[1];
+}
+
 export async function signUp(overrides: Partial<{ name: string; email: string; password: string }> = {}) {
   userCounter += 1;
 
@@ -21,10 +33,13 @@ export async function signUp(overrides: Partial<{ name: string; email: string; p
     throw new Error(`signUp failed: ${res.status} ${JSON.stringify(res.body)}`);
   }
 
+  // supertest tipa este header como string, pero Node siempre lo entrega como string[].
+  const setCookie = res.headers["set-cookie"] as unknown as string[];
+
   return {
     user: res.body.user as { id: string; email: string },
-    accessToken: res.body.accessToken as string,
-    refreshToken: res.body.refreshToken as string,
+    accessToken: extractCookieValue(setCookie, "accessToken"),
+    refreshToken: extractCookieValue(setCookie, "refreshToken"),
   };
 }
 
@@ -35,17 +50,19 @@ export async function signIn(overrides: { email: string; password: string }) {
     throw new Error(`signIn failed: ${res.status} ${JSON.stringify(res.body)}`);
   }
 
+  const setCookie = res.headers["set-cookie"] as unknown as string[];
+
   return {
     user: res.body.user as { id: string; email: string },
-    accessToken: res.body.accessToken as string,
-    refreshToken: res.body.refreshToken as string,
+    accessToken: extractCookieValue(setCookie, "accessToken"),
+    refreshToken: extractCookieValue(setCookie, "refreshToken"),
   };
 }
 
 export async function createWorkspace(ownerAccessToken: string, name = "Test Workspace") {
   const res = await request(app)
     .post("/api/workspaces")
-    .set("Authorization", `Bearer ${ownerAccessToken}`)
+    .set("Cookie", `accessToken=${ownerAccessToken}`)
     .send({ name });
 
   if (res.status !== 201) {
@@ -70,7 +87,7 @@ export async function addActiveMember({
 }) {
   const createRes = await request(app)
     .post(`/api/workspaces/${workspaceSlug}/members`)
-    .set("Authorization", `Bearer ${managerAccessToken}`)
+    .set("Cookie", `accessToken=${managerAccessToken}`)
     .send({ userId: targetUserId, role });
 
   if (createRes.status !== 201) {
@@ -79,7 +96,7 @@ export async function addActiveMember({
 
   const activateRes = await request(app)
     .patch(`/api/workspaces/${workspaceSlug}/members/${targetUserId}/activate`)
-    .set("Authorization", `Bearer ${managerAccessToken}`);
+    .set("Cookie", `accessToken=${managerAccessToken}`);
 
   if (activateRes.status !== 204) {
     throw new Error(`addActiveMember (activate) failed: ${activateRes.status} ${JSON.stringify(activateRes.body)}`);
@@ -106,7 +123,7 @@ export async function createProject(
 
   const res = await request(app)
     .post(`/api/workspaces/${workspaceSlug}/projects`)
-    .set("Authorization", `Bearer ${managerAccessToken}`)
+    .set("Cookie", `accessToken=${managerAccessToken}`)
     .send(payload);
 
   if (res.status !== 201) {
@@ -132,7 +149,7 @@ export async function addActiveProjectMember({
 }) {
   const res = await request(app)
     .post(`/api/workspaces/${workspaceSlug}/projects/${projectSlug}/members`)
-    .set("Authorization", `Bearer ${managerAccessToken}`)
+    .set("Cookie", `accessToken=${managerAccessToken}`)
     .send({ userId: targetUserId, role });
 
   if (res.status !== 201) {
@@ -156,7 +173,7 @@ export async function createTask(
 
   const res = await request(app)
     .post(`/api/workspaces/${workspaceSlug}/projects/${projectSlug}/tasks`)
-    .set("Authorization", `Bearer ${actorAccessToken}`)
+    .set("Cookie", `accessToken=${actorAccessToken}`)
     .send(payload);
 
   if (res.status !== 201) {
@@ -179,7 +196,7 @@ export async function createComment(
 
   const res = await request(app)
     .post(`/api/workspaces/${workspaceSlug}/projects/${projectSlug}/tasks/${taskNumber}/comments`)
-    .set("Authorization", `Bearer ${actorAccessToken}`)
+    .set("Cookie", `accessToken=${actorAccessToken}`)
     .send(payload);
 
   if (res.status !== 201) {

@@ -29,7 +29,7 @@ describe("POST /workspaces/:workspaceSlug/projects/:projectSlug/members", () => 
 
     const res = await request(app)
       .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ userId: invitee.user.id, role: "MEMBER" });
 
     expect(res.status).toBe(201);
@@ -42,12 +42,12 @@ describe("POST /workspaces/:workspaceSlug/projects/:projectSlug/members", () => 
     const invitee = await signUp();
     await request(app)
       .post(`/api/workspaces/${workspace.slug}/members`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ userId: invitee.user.id, role: "MEMBER" }); // se queda en PENDING, sin activar
 
     const res = await request(app)
       .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ userId: invitee.user.id, role: "MEMBER" });
 
     expect(res.status).toBe(400);
@@ -59,7 +59,7 @@ describe("POST /workspaces/:workspaceSlug/projects/:projectSlug/members", () => 
 
     const res = await request(app)
       .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ userId: outsider.user.id, role: "MEMBER" });
 
     expect(res.status).toBe(404);
@@ -84,7 +84,7 @@ describe("POST /workspaces/:workspaceSlug/projects/:projectSlug/members", () => 
 
     const res = await request(app)
       .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ userId: invitee.user.id, role: "MEMBER" });
 
     expect(res.status).toBe(400);
@@ -116,7 +116,7 @@ describe("POST /workspaces/:workspaceSlug/projects/:projectSlug/members", () => 
 
     const res = await request(app)
       .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members`)
-      .set("Authorization", `Bearer ${memberUser.accessToken}`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`)
       .send({ userId: invitee.user.id, role: "MEMBER" });
 
     expect(res.status).toBe(403);
@@ -148,7 +148,7 @@ describe("POST /workspaces/:workspaceSlug/projects/:projectSlug/members", () => 
 
     const res = await request(app)
       .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members`)
-      .set("Authorization", `Bearer ${adminUser.accessToken}`)
+      .set("Cookie", `accessToken=${adminUser.accessToken}`)
       .send({ userId: invitee.user.id, role: "OWNER" });
 
     expect(res.status).toBe(403);
@@ -174,11 +174,11 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/members", () => {
     });
     await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${memberUser.user.id}/deactivate`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     const res = await request(app)
       .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     const userIds = res.body.data.map((m: { userId: string }) => m.userId);
     expect(userIds).toContain(owner.user.id);
@@ -206,7 +206,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${memberUser.user.id}`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ role: "ADMIN" });
 
     expect(res.status).toBe(200);
@@ -218,7 +218,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${owner.user.id}`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ role: "ADMIN" });
 
     expect(res.status).toBe(400);
@@ -242,11 +242,11 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId
     });
     await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${memberUser.user.id}/deactivate`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${memberUser.user.id}`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ role: "ADMIN" });
 
     expect(res.status).toBe(400);
@@ -271,7 +271,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${owner.user.id}`)
-      .set("Authorization", `Bearer ${adminUser.accessToken}`)
+      .set("Cookie", `accessToken=${adminUser.accessToken}`)
       .send({ role: "MEMBER" });
 
     expect(res.status).toBe(403);
@@ -296,7 +296,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${memberUser.user.id}`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ role: "MEMBER" });
 
     expect(res.status).toBe(400);
@@ -323,14 +323,14 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${memberUser.user.id}/deactivate`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(204);
 
     const list = await request(app)
       .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members`)
       .query({ isActive: "false" })
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
     const deactivated = list.body.data.find((m: { userId: string }) => m.userId === memberUser.user.id);
     expect(deactivated).toMatchObject({ role: "MEMBER", isActive: false });
     expect(deactivated.joinedAt).toBeNull();
@@ -341,7 +341,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${owner.user.id}/deactivate`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(400);
   });
@@ -365,7 +365,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${owner.user.id}/deactivate`)
-      .set("Authorization", `Bearer ${adminUser.accessToken}`);
+      .set("Cookie", `accessToken=${adminUser.accessToken}`);
 
     expect(res.status).toBe(403);
   });
@@ -388,11 +388,11 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId
     });
     await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${memberUser.user.id}/deactivate`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${memberUser.user.id}/deactivate`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(400);
   });

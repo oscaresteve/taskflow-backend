@@ -48,7 +48,7 @@ describe("POST /workspaces/:workspaceSlug/projects/:projectSlug/tasks", () => {
 
     const res = await request(app)
       .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ title: "Task", priority: "MEDIUM", assigneeId: outsider.user.id });
 
     expect(res.status).toBe(404);
@@ -61,11 +61,11 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/tasks", () => {
     const task = await createTask(owner.accessToken, workspace.slug, project.slug);
     await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/archive`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     const res = await request(app)
       .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.body.data).toHaveLength(0);
   });
@@ -85,7 +85,7 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber
 
     const res = await request(app)
       .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
-      .set("Authorization", `Bearer ${outsider.accessToken}`);
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
 
     expect(res.status).toBe(403);
   });
@@ -95,7 +95,7 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber
 
     const res = await request(app)
       .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/999`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(404);
   });
@@ -122,7 +122,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
-      .set("Authorization", `Bearer ${memberUser.accessToken}`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`)
       .send({ title: "Updated title" });
 
     expect(res.status).toBe(200);
@@ -135,13 +135,13 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
 
     const done = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ status: "DONE" });
     expect(done.body.completedAt).not.toBeNull();
 
     const reopened = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ status: "IN_PROGRESS" });
     expect(reopened.body.completedAt).toBeNull();
   });
@@ -151,11 +151,11 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
     const task = await createTask(owner.accessToken, workspace.slug, project.slug);
     await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/archive`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ title: "Should not work" });
 
     expect(res.status).toBe(400);
@@ -168,7 +168,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ assigneeId: outsider.user.id });
 
     expect(res.status).toBe(404);
@@ -196,7 +196,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/archive`)
-      .set("Authorization", `Bearer ${memberUser.accessToken}`);
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
 
     expect(res.status).toBe(403);
   });
@@ -207,7 +207,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/archive`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(204);
   });
@@ -217,11 +217,11 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
     const task = await createTask(owner.accessToken, workspace.slug, project.slug);
     await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/archive`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/archive`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(400);
   });

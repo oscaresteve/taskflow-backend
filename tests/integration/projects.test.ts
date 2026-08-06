@@ -21,7 +21,7 @@ describe("POST /workspaces/:workspaceSlug/projects", () => {
 
     const res = await request(app)
       .post(`/api/workspaces/${workspace.slug}/projects`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ name: "Website Redesign", key: "WEB" });
 
     expect(res.status).toBe(201);
@@ -29,7 +29,7 @@ describe("POST /workspaces/:workspaceSlug/projects", () => {
 
     const members = await request(app)
       .get(`/api/workspaces/${workspace.slug}/projects/${res.body.slug}/members`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
     expect(members.body.data).toContainEqual(expect.objectContaining({ userId: owner.user.id, role: "OWNER" }));
   });
 
@@ -45,7 +45,7 @@ describe("POST /workspaces/:workspaceSlug/projects", () => {
 
     const res = await request(app)
       .post(`/api/workspaces/${workspace.slug}/projects`)
-      .set("Authorization", `Bearer ${memberUser.accessToken}`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`)
       .send({ name: "Some Project", key: "SOME" });
 
     expect(res.status).toBe(403);
@@ -57,7 +57,7 @@ describe("POST /workspaces/:workspaceSlug/projects", () => {
 
     const res = await request(app)
       .post(`/api/workspaces/${workspace.slug}/projects`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ name: "Another Project", key: "DUP" });
 
     expect(res.status).toBe(409);
@@ -87,7 +87,7 @@ describe("GET /workspaces/:workspaceSlug/projects", () => {
 
     const res = await request(app)
       .get(`/api/workspaces/${workspace.slug}/projects`)
-      .set("Authorization", `Bearer ${memberUser.accessToken}`);
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
 
     const slugs = res.body.data.map((p: { slug: string }) => p.slug);
     expect(slugs).toEqual([mine.slug]);
@@ -108,7 +108,7 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug", () => {
 
     const res = await request(app)
       .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
-      .set("Authorization", `Bearer ${memberUser.accessToken}`);
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
 
     expect(res.status).toBe(403);
   });
@@ -135,7 +135,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug", () => {
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
-      .set("Authorization", `Bearer ${memberUser.accessToken}`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`)
       .send({ name: "New Name" });
 
     expect(res.status).toBe(403);
@@ -161,7 +161,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug", () => {
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
-      .set("Authorization", `Bearer ${adminUser.accessToken}`)
+      .set("Cookie", `accessToken=${adminUser.accessToken}`)
       .send({ name: "New Name" });
 
     expect(res.status).toBe(200);
@@ -175,7 +175,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/archive", () =>
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/archive`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(204);
   });
@@ -185,11 +185,11 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/archive", () =>
     const project = await createProject(owner.accessToken, workspace.slug);
     await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/archive`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/archive`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(404);
   });

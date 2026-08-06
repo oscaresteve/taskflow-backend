@@ -25,7 +25,7 @@ describe("POST /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumbe
 
     const res = await request(app)
       .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ content: "First comment" });
 
     expect(res.status).toBe(201);
@@ -45,7 +45,7 @@ describe("POST /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumbe
 
     const res = await request(app)
       .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments`)
-      .set("Authorization", `Bearer ${outsider.accessToken}`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`)
       .send({ content: "Should not work" });
 
     expect(res.status).toBe(403);
@@ -60,7 +60,7 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber
 
     const res = await request(app)
       .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
@@ -75,11 +75,11 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber
       .patch(
         `/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments/${comment.id}/delete`,
       )
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     const res = await request(app)
       .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments`)
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.body.data).toHaveLength(1);
   });
@@ -92,7 +92,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments/${comment.id}`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ content: "Updated content" });
 
     expect(res.status).toBe(200);
@@ -120,7 +120,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
 
     const res = await request(app)
       .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments/${comment.id}`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ content: "Owner trying to edit" });
 
     expect(res.status).toBe(403);
@@ -135,7 +135,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
       .patch(
         `/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${otherTask.taskNumber}/comments/${comment.id}`,
       )
-      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
       .send({ content: "Should not resolve" });
 
     expect(res.status).toBe(404);
@@ -151,7 +151,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
       .patch(
         `/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments/${comment.id}/delete`,
       )
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(204);
   });
@@ -178,7 +178,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
       .patch(
         `/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments/${comment.id}/delete`,
       )
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(204);
   });
@@ -203,7 +203,7 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
       .patch(
         `/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments/${comment.id}/delete`,
       )
-      .set("Authorization", `Bearer ${outsiderMember.accessToken}`);
+      .set("Cookie", `accessToken=${outsiderMember.accessToken}`);
 
     expect(res.status).toBe(403);
   });
@@ -215,13 +215,13 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
       .patch(
         `/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments/${comment.id}/delete`,
       )
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     const res = await request(app)
       .patch(
         `/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments/${comment.id}/delete`,
       )
-      .set("Authorization", `Bearer ${owner.accessToken}`);
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(409);
   });
