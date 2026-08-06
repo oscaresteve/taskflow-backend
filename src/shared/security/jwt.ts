@@ -15,8 +15,10 @@ interface RefreshTokenPayload {
   sub: string;
 }
 
-export function generateAccessToken(payload: AccessTokenPayload): string {
-  return jwt.sign(payload, env.JWT_ACCESS_SECRET, { expiresIn: accessExpiresIn });
+export function generateAccessToken(payload: AccessTokenPayload): { token: string; expiresAt: Date } {
+  const token = jwt.sign(payload, env.JWT_ACCESS_SECRET, { expiresIn: accessExpiresIn });
+  const { exp } = jwt.decode(token) as { exp: number };
+  return { token, expiresAt: new Date(exp * 1000) };
 }
 
 export function verifyAccessToken(token: string): AccessTokenPayload {
