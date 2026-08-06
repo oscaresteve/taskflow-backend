@@ -5,16 +5,10 @@ import { getAuthenticatedUser } from "../../modules/auth/auth.service.ts";
 
 export async function auth(req: Request, res: Response, next: NextFunction) {
   try {
-    const authorization = req.headers.authorization;
+    const token = req.cookies.accessToken as string | undefined;
 
-    if (!authorization) {
+    if (!token) {
       throw new UnauthorizedError("Authentication required");
-    }
-
-    const [type, token] = authorization.split(" ");
-
-    if (type !== "Bearer" || !token) {
-      throw new UnauthorizedError("Invalid authorization header");
     }
 
     const payload = verifyAccessToken(token);

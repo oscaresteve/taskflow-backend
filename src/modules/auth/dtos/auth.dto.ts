@@ -14,10 +14,4 @@ export interface UserResponseDto {
 
 export interface AuthResponseDto {
   user: UserResponseDto;
-  accessToken: string;
-  refreshToken: string;
-}
-
-export interface RefreshResponseDto {
-  accessToken: string;
 }

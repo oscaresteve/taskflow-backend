@@ -1,11 +1,15 @@
 import { type NextFunction, type Request, type Response } from "express";
 import * as authService from "./auth.service.ts";
 import { toAuthResponseDto, toUserResponseDto } from "./mappers/auth.mapper.ts";
-import type { RefreshTokenDto } from "./schemas/auth.schema.ts";
+import { setAccessTokenCookie, setRefreshTokenCookie, clearAuthCookies } from "../../shared/security/cookies.ts";
+import { UnauthorizedError } from "../../shared/errors/unauthorized-error.ts";
 
 export async function signUp(req: Request, res: Response, next: NextFunction) {
   try {
     const result = await authService.signUp(req.body);
+
+    setAccessTokenCookie(res, { token: result.accessToken, expiresAt: result.accessTokenExpiresAt });
+    setRefreshTokenCookie(res, { token: result.refreshToken, expiresAt: result.refreshTokenExpiresAt });
 
     const authResponse = toAuthResponseDto(result);
     res.status(201).json(authResponse);
@@ -17,6 +21,9 @@ export async function signUp(req: Request, res: Response, next: NextFunction) {
 export async function signIn(req: Request, res: Response, next: NextFunction) {
   try {
     const result = await authService.signIn(req.body);
+
+    setAccessTokenCookie(res, { token: result.accessToken, expiresAt: result.accessTokenExpiresAt });
+    setRefreshTokenCookie(res, { token: result.refreshToken, expiresAt: result.refreshTokenExpiresAt });
 
     const authResponse = toAuthResponseDto(result);
     res.status(200).json(authResponse);
@@ -36,11 +43,17 @@ export async function me(req: Request, res: Response, next: NextFunction) {
 
 export async function refresh(req: Request, res: Response, next: NextFunction) {
   try {
-    const { refreshToken } = req.validated.body as RefreshTokenDto;
+    const refreshToken = req.cookies.refreshToken as string | undefined;
+
+    if (!refreshToken) {
+      throw new UnauthorizedError("Refresh token required");
+    }
 
     const result = await authService.refresh(refreshToken);
 
-    res.status(200).json(result);
+    setAccessTokenCookie(res, { token: result.accessToken, expiresAt: result.accessTokenExpiresAt });
+
+    res.status(204).send();
   } catch (error) {
     next(error);
   }
@@ -48,9 +61,13 @@ export async function refresh(req: Request, res: Response, next: NextFunction) {
 
 export async function signOut(req: Request, res: Response, next: NextFunction) {
   try {
-    const { refreshToken } = req.validated.body as RefreshTokenDto;
+    const refreshToken = req.cookies.refreshToken as string | undefined;
 
-    await authService.signOut(refreshToken);
+    if (refreshToken) {
+      await authService.signOut(refreshToken);
+    }
+
+    clearAuthCookies(res);
 
     res.status(204).send();
   } catch (error) {

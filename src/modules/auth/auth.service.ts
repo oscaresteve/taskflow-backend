@@ -12,10 +12,12 @@ import { UnauthorizedError } from "../../shared/errors/unauthorized-error.ts";
 interface AuthResult {
   user: User;
   accessToken: string;
+  accessTokenExpiresAt: Date;
   refreshToken: string;
+  refreshTokenExpiresAt: Date;
 }
 
-async function issueRefreshToken(userId: string): Promise<string> {
+async function issueRefreshToken(userId: string): Promise<{ token: string; expiresAt: Date }> {
   const { token, expiresAt } = generateRefreshToken({ sub: userId });
 
   await authRepository.createRefreshToken({
@@ -24,7 +26,7 @@ async function issueRefreshToken(userId: string): Promise<string> {
     expiresAt,
   });
 
-  return token;
+  return { token, expiresAt };
 }
 
 export async function signUp(data: SignUpDto): Promise<AuthResult> {
@@ -41,10 +43,10 @@ export async function signUp(data: SignUpDto): Promise<AuthResult> {
     password: passwordHash,
   });
 
-  const { token: accessToken } = generateAccessToken({ sub: user.id });
-  const refreshToken = await issueRefreshToken(user.id);
+  const { token: accessToken, expiresAt: accessTokenExpiresAt } = generateAccessToken({ sub: user.id });
+  const { token: refreshToken, expiresAt: refreshTokenExpiresAt } = await issueRefreshToken(user.id);
 
-  return { user, accessToken, refreshToken };
+  return { user, accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt };
 }
 
 export async function signIn(data: SignInDto): Promise<AuthResult> {
@@ -60,10 +62,10 @@ export async function signIn(data: SignInDto): Promise<AuthResult> {
     throw new SignInFailedError("Invalid credentials");
   }
 
-  const { token: accessToken } = generateAccessToken({ sub: user.id });
-  const refreshToken = await issueRefreshToken(user.id);
+  const { token: accessToken, expiresAt: accessTokenExpiresAt } = generateAccessToken({ sub: user.id });
+  const { token: refreshToken, expiresAt: refreshTokenExpiresAt } = await issueRefreshToken(user.id);
 
-  return { user, accessToken, refreshToken };
+  return { user, accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt };
 }
 
 export async function getAuthenticatedUser(userId: string): Promise<User> {
@@ -76,7 +78,7 @@ export async function getAuthenticatedUser(userId: string): Promise<User> {
   return user;
 }
 
-export async function refresh(refreshToken: string): Promise<{ accessToken: string }> {
+export async function refresh(refreshToken: string): Promise<{ accessToken: string; accessTokenExpiresAt: Date }> {
   const payload = verifyRefreshToken(refreshToken);
 
   const record = await authRepository.findRefreshTokenByHash(hashToken(refreshToken));
@@ -85,9 +87,9 @@ export async function refresh(refreshToken: string): Promise<{ accessToken: stri
     throw new UnauthorizedError("Invalid or expired refresh token");
   }
 
-  const { token: accessToken } = generateAccessToken({ sub: payload.sub });
+  const { token: accessToken, expiresAt: accessTokenExpiresAt } = generateAccessToken({ sub: payload.sub });
 
-  return { accessToken };
+  return { accessToken, accessTokenExpiresAt };
 }
 
 export async function signOut(refreshToken: string): Promise<void> {
