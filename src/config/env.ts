@@ -11,6 +11,7 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRES_IN: z.string(),
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_REFRESH_EXPIRES_IN: z.string(),
+  CORS_ORIGIN: z.string().min(1),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

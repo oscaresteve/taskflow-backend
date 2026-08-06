@@ -1,12 +1,14 @@
 import express from "express";
 import { router } from "./routes/index.ts";
 import { errorHandler } from "./shared/middlewares/error-handler.ts";
+import { env } from "./config/env.ts";
+import cors from "cors";
 
 const app = express();
 
 app.use(express.json());
 
-// TODO: CORS
+app.use(cors({ origin: env.CORS_ORIGIN }));
 // TODO: Helmet
 // TODO: Logger
 
