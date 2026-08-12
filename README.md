@@ -68,11 +68,20 @@ pnpm dlx prisma migrate deploy
 pnpm db:seed
 ```
 
-Esto vacía la base de datos de dev y crea un workspace con 3 usuarios, 2 proyectos y varias tareas y comentarios de ejemplo, para poder probar la API sin tener que crear todo a mano. Los 3 usuarios usan la contraseña `password123`:
+Esto vacía la base de datos de dev y la rellena con datos de ejemplo pensados para cubrir casos reales: 3 workspaces, 5 proyectos, 18 tareas y varios comentarios. Todos los usuarios usan la contraseña `password123`:
 
-- `ada@taskflow.dev`
-- `alan@taskflow.dev`
-- `grace@taskflow.dev`
+| Usuario               | Situación                                                          |
+| --------------------- | ------------------------------------------------------------------- |
+| `ada@taskflow.dev`      | Owner de Acme Inc, activa                                          |
+| `alan@taskflow.dev`     | Admin de Acme Inc, activo                                          |
+| `grace@taskflow.dev`    | Miembro de Acme Inc y owner de su propio workspace, Freelance Studio |
+| `margaret@taskflow.dev` | Miembro activa, pero retirada de uno de los proyectos              |
+| `katherine@taskflow.dev`| Aceptó la invitación al workspace pero nunca ha iniciado sesión    |
+| `linus@taskflow.dev`    | Registrado pero con el email sin verificar, invitación pendiente   |
+| `tim@taskflow.dev`      | Cuenta desactivada, expulsada del workspace                        |
+| `dennis@taskflow.dev`   | Recién registrado, no pertenece a ningún workspace                 |
+
+Los datos también incluyen otros casos límite habituales: un workspace desactivado (`legacy-co`), un proyecto archivado (`marketing-site`), tareas archivadas, tareas vencidas (incluida una urgente), una tarea asignada a alguien ya retirado del proyecto, y comentarios editados o borrados (soft delete). También hay dos proyectos con el mismo slug (`website-redesign`) en workspaces distintos, para comprobar que el slug solo es único dentro de cada workspace.
 
 ### 6. Arrancar el servidor
 
