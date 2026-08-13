@@ -99,11 +99,12 @@ export async function findAll({
   // Construimos los filtros
   const where: Prisma.ProjectWhereInput = {};
 
-  // Proyectos de un workspace de los cuales es miembro
+  // Proyectos de un workspace de los cuales es miembro activo
   where.workspaceId = workspaceId;
   where.members = {
     some: {
       userId: userId,
+      isActive: true,
     },
   };
 

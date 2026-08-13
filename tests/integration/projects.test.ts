@@ -92,6 +92,34 @@ describe("GET /workspaces/:workspaceSlug/projects", () => {
     const slugs = res.body.data.map((p: { slug: string }) => p.slug);
     expect(slugs).toEqual([mine.slug]);
   });
+
+  it("excludes projects where the user's membership was deactivated", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug, { key: "GONE" });
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${memberUser.user.id}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.body.data).toEqual([]);
+  });
 });
 
 describe("GET /workspaces/:workspaceSlug/projects/:projectSlug", () => {
@@ -105,6 +133,34 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug", () => {
       targetUserId: memberUser.user.id,
       role: "MEMBER",
     });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("403s when the user's project membership was deactivated", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${memberUser.user.id}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     const res = await request(app)
       .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)

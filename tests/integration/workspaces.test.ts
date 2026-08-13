@@ -31,6 +31,39 @@ describe("GET /workspaces", () => {
     const names = res.body.data.map((w: { name: string }) => w.name);
     expect(names).toEqual(["Mine"]);
   });
+
+  it("excludes workspaces where membership is still PENDING (not yet activated)", async () => {
+    const owner = await signUp();
+    const invitee = await signUp();
+    const workspace = await createWorkspace(owner.accessToken, "Invite Only");
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" }); // se queda en PENDING, sin activar
+
+    const res = await request(app).get("/api/workspaces").set("Cookie", `accessToken=${invitee.accessToken}`);
+
+    expect(res.body.data).toEqual([]);
+  });
+
+  it("excludes workspaces where membership was REMOVED", async () => {
+    const owner = await signUp();
+    const memberUser = await signUp();
+    const workspace = await createWorkspace(owner.accessToken, "Left Already");
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${memberUser.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app).get("/api/workspaces").set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.body.data).toEqual([]);
+  });
 });
 
 describe("GET /workspaces/:slug", () => {
@@ -54,6 +87,43 @@ describe("GET /workspaces/:slug", () => {
       .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(404);
+  });
+
+  it("403s when the user's membership is still PENDING (not yet activated)", async () => {
+    const owner = await signUp();
+    const invitee = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" }); // se queda en PENDING, sin activar
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${invitee.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("403s when the user's membership was REMOVED", async () => {
+    const owner = await signUp();
+    const memberUser = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${memberUser.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(403);
   });
 });
 

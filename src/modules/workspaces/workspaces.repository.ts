@@ -65,10 +65,11 @@ export async function findAllByUserId({
   // Construimos los filtros
   const where: Prisma.WorkspaceWhereInput = {};
 
-  // Añadimos primero el filtro por usuario
+  // Añadimos primero el filtro por usuario, solo membresias activas
   where.members = {
     some: {
       userId: userId,
+      status: WorkspaceMemberStatus.ACTIVE,
     },
   };
 

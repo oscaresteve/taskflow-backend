@@ -1,3 +1,4 @@
+import { WorkspaceMemberStatus } from "../types/prisma.types.ts";
 import type { Project, ProjectMember, Task, Workspace, WorkspaceMember, Comment } from "../types/prisma.types.ts";
 import * as authorizationRepository from "../../shared/auth/authorization.repository.ts";
 import { ForbiddenError } from "../errors/forbidden-error.ts";
@@ -20,6 +21,11 @@ export async function getWorkspaceContext({
   // El usuario es miembro
   const workspaceMember = await authorizationRepository.findWorkspaceMember({ userId, workspaceId: workspace.id });
   if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
+
+  // Los miembros pendientes o eliminados no tienen acceso al workspace
+  if (workspaceMember.status !== WorkspaceMemberStatus.ACTIVE) {
+    throw new ForbiddenError("You are not an active member of this workspace");
+  }
 
   return {
     workspace,
@@ -71,6 +77,11 @@ export async function getProjectContext({
   const workspaceMember = await authorizationRepository.findWorkspaceMember({ userId, workspaceId: workspace.id });
   if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
 
+  // Los miembros pendientes o eliminados no tienen acceso al workspace
+  if (workspaceMember.status !== WorkspaceMemberStatus.ACTIVE) {
+    throw new ForbiddenError("You are not an active member of this workspace");
+  }
+
   // Proyecto existe
   const project = await authorizationRepository.findProjectBySlug({ workspaceId: workspace.id, slug: projectSlug });
   if (!project) throw new NotFoundError("Project not found");
@@ -79,6 +90,11 @@ export async function getProjectContext({
   const projectMember = await authorizationRepository.findProjectMember({ userId, projectId: project.id });
   if (!projectMember) {
     throw new ForbiddenError("You are not a member of this project");
+  }
+
+  // Los miembros desactivados no tienen acceso al proyecto
+  if (!projectMember.isActive) {
+    throw new ForbiddenError("You are not an active member of this project");
   }
 
   return {
@@ -135,6 +151,11 @@ export async function getTaskContext({
   const workspaceMember = await authorizationRepository.findWorkspaceMember({ userId, workspaceId: workspace.id });
   if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
 
+  // Los miembros pendientes o eliminados no tienen acceso al workspace
+  if (workspaceMember.status !== WorkspaceMemberStatus.ACTIVE) {
+    throw new ForbiddenError("You are not an active member of this workspace");
+  }
+
   // Proyecto existe
   const project = await authorizationRepository.findProjectBySlug({ workspaceId: workspace.id, slug: projectSlug });
   if (!project) throw new NotFoundError("Project not found");
@@ -143,6 +164,11 @@ export async function getTaskContext({
   const projectMember = await authorizationRepository.findProjectMember({ userId, projectId: project.id });
   if (!projectMember) {
     throw new ForbiddenError("You are not a member of this project");
+  }
+
+  // Los miembros desactivados no tienen acceso al proyecto
+  if (!projectMember.isActive) {
+    throw new ForbiddenError("You are not an active member of this project");
   }
 
   // La tarea existe
@@ -187,6 +213,11 @@ export async function getCommentContext({
   const workspaceMember = await authorizationRepository.findWorkspaceMember({ userId, workspaceId: workspace.id });
   if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
 
+  // Los miembros pendientes o eliminados no tienen acceso al workspace
+  if (workspaceMember.status !== WorkspaceMemberStatus.ACTIVE) {
+    throw new ForbiddenError("You are not an active member of this workspace");
+  }
+
   // Proyecto existe
   const project = await authorizationRepository.findProjectBySlug({ workspaceId: workspace.id, slug: projectSlug });
   if (!project) throw new NotFoundError("Project not found");
@@ -195,6 +226,11 @@ export async function getCommentContext({
   const projectMember = await authorizationRepository.findProjectMember({ userId, projectId: project.id });
   if (!projectMember) {
     throw new ForbiddenError("You are not a member of this project");
+  }
+
+  // Los miembros desactivados no tienen acceso al proyecto
+  if (!projectMember.isActive) {
+    throw new ForbiddenError("You are not an active member of this project");
   }
 
   // La tarea existe

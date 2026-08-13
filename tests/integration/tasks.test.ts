@@ -99,6 +99,34 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber
 
     expect(res.status).toBe(404);
   });
+
+  it("403s when the user's project membership was deactivated", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${memberUser.user.id}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
 });
 
 describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber", () => {
