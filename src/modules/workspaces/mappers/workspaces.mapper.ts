@@ -1,7 +1,9 @@
 import type { PaginatedResponseDto } from "../../../shared/dtos/pagination.dto.ts";
 import type { PaginatedResult } from "../../../shared/types/pagination.types.ts";
-import type { WorkspaceResponseDto } from "../dtos/workspaces.dto.ts";
-import type { Workspace } from "../../../shared/types/prisma.types.ts";
+import type { WorkspaceDetailResponseDto, WorkspaceResponseDto } from "../dtos/workspaces.dto.ts";
+import type { Project, User, Workspace, WorkspaceMember } from "../../../shared/types/prisma.types.ts";
+import { toProjectResponseDtoList } from "../../projects/mappers/projects.mapper.ts";
+import { toWorkspaceMemberWithUserResponseDtoList } from "../../workspace-members/mappers/workspace-members.mapper.ts";
 
 export function toWorkspaceResponseDto(workspace: Workspace): WorkspaceResponseDto {
   return {
@@ -17,6 +19,22 @@ export function toWorkspaceResponseDto(workspace: Workspace): WorkspaceResponseD
 
     createdAt: workspace.createdAt,
     updatedAt: workspace.updatedAt,
+  };
+}
+
+export function toWorkspaceDetailResponseDto({
+  workspace,
+  projects,
+  members,
+}: {
+  workspace: Workspace;
+  projects: Project[];
+  members: (WorkspaceMember & { user: User })[];
+}): WorkspaceDetailResponseDto {
+  return {
+    ...toWorkspaceResponseDto(workspace),
+    projects: toProjectResponseDtoList(projects),
+    members: toWorkspaceMemberWithUserResponseDtoList(members),
   };
 }
 

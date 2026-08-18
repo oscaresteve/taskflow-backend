@@ -1,6 +1,10 @@
 import { type NextFunction, type Request, type Response } from "express";
 import * as workspacesService from "./workspaces.service.ts";
-import { toPaginatedWorkspaceResponseDto, toWorkspaceResponseDto } from "./mappers/workspaces.mapper.ts";
+import {
+  toPaginatedWorkspaceResponseDto,
+  toWorkspaceDetailResponseDto,
+  toWorkspaceResponseDto,
+} from "./mappers/workspaces.mapper.ts";
 import {
   type CreateWorkspaceDto,
   type UpdateWorkspaceDto,
@@ -50,9 +54,9 @@ export async function findBySlug(req: Request, res: Response, next: NextFunction
     const userId = req.user.id;
     const workspaceSlug = params.workspaceSlug;
 
-    const workspace = await workspacesService.findBySlug({ userId, workspaceSlug });
+    const { workspace, projects, members } = await workspacesService.findBySlug({ userId, workspaceSlug });
 
-    const workspaceResponse = toWorkspaceResponseDto(workspace);
+    const workspaceResponse = toWorkspaceDetailResponseDto({ workspace, projects, members });
 
     res.json(workspaceResponse);
   } catch (error) {
