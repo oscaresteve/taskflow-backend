@@ -1,6 +1,6 @@
 import { prisma } from "../../config/prisma.ts";
 import type { CreateProjectDto, ProjectQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
-import type { Project } from "../../shared/types/prisma.types.ts";
+import type { Project, ProjectMember, Task, User } from "../../shared/types/prisma.types.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 
@@ -150,6 +150,30 @@ export async function findAll({
     items,
     total,
   };
+}
+
+export async function findActiveMembersByProjectId(projectId: string): Promise<(ProjectMember & { user: User })[]> {
+  return prisma.projectMember.findMany({
+    where: {
+      projectId,
+      isActive: true,
+    },
+    include: {
+      user: true,
+    },
+  });
+}
+
+export async function findActiveTasksByProjectId(projectId: string): Promise<Task[]> {
+  return prisma.task.findMany({
+    where: {
+      projectId,
+      isArchived: false,
+    },
+    orderBy: {
+      position: "asc",
+    },
+  });
 }
 
 export async function update({

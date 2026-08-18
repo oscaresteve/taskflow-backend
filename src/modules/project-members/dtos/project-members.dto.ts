@@ -1,4 +1,5 @@
 import type { ProjectRole } from "../../../shared/types/prisma.types.ts";
+import type { UserResponseDto } from "../../auth/dtos/auth.dto.ts";
 
 export type ProjectMemberResponseDto = {
   id: string;
@@ -14,4 +15,8 @@ export type ProjectMemberResponseDto = {
 
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type ProjectMemberWithUserResponseDto = ProjectMemberResponseDto & {
+  user: UserResponseDto;
 };

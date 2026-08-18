@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import type { CreateProjectDto, ProjectQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
 import * as projectService from "./projects.service.ts";
-import { toPaginatedProjectResponseDto, toProjectResponseDto } from "./mappers/projects.mapper.ts";
+import { toPaginatedProjectResponseDto, toProjectDetailResponseDto, toProjectResponseDto } from "./mappers/projects.mapper.ts";
 import type { ProjectParamsDto, WorkspaceParamsDto } from "../../shared/schemas/common.schema.ts";
 
 // Llamar al servicio y mappear la respuesta.
@@ -50,9 +50,13 @@ export async function findBySlug(req: Request, res: Response, next: NextFunction
     const workspaceSlug = params.workspaceSlug;
     const projectSlug = params.projectSlug;
 
-    const project = await projectService.findBySlug({ workspaceSlug, userId, projectSlug });
+    const { project, workspace, members, tasks } = await projectService.findBySlug({
+      workspaceSlug,
+      userId,
+      projectSlug,
+    });
 
-    const projectResponse = toProjectResponseDto(project);
+    const projectResponse = toProjectDetailResponseDto({ project, workspace, members, tasks });
 
     res.json(projectResponse);
   } catch (error) {

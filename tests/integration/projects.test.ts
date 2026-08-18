@@ -5,6 +5,7 @@ import {
   addActiveProjectMember,
   app,
   createProject,
+  createTask,
   createWorkspace,
   signUp,
 } from "../helpers/api.ts";
@@ -123,6 +124,54 @@ describe("GET /workspaces/:workspaceSlug/projects", () => {
 });
 
 describe("GET /workspaces/:workspaceSlug/projects/:projectSlug", () => {
+  it("includes the parent workspace, the project's active members and its active tasks", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    const archivedTask = await createTask(owner.accessToken, workspace.slug, project.slug);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${archivedTask.taskNumber}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.workspace).toEqual(expect.objectContaining({ id: workspace.id, slug: workspace.slug }));
+    expect(res.body.members).toContainEqual(
+      expect.objectContaining({
+        userId: owner.user.id,
+        role: "OWNER",
+        user: expect.objectContaining({ id: owner.user.id, email: owner.user.email }),
+      }),
+    );
+    expect(res.body.members).toContainEqual(
+      expect.objectContaining({
+        userId: memberUser.user.id,
+        role: "MEMBER",
+        user: expect.objectContaining({ id: memberUser.user.id, email: memberUser.user.email }),
+      }),
+    );
+    const taskIds = res.body.tasks.map((t: { id: string }) => t.id);
+    expect(taskIds).toContain(task.id);
+    expect(taskIds).not.toContain(archivedTask.id);
+  });
+
   it("403s when the user is a workspace member but not a project member", async () => {
     const { owner, workspace } = await setupOwnerWorkspace();
     const project = await createProject(owner.accessToken, workspace.slug);

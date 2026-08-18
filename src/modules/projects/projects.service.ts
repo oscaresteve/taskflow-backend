@@ -1,5 +1,11 @@
 import type { CreateProjectDto, ProjectQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
-import { type Project } from "../../shared/types/prisma.types.ts";
+import {
+  type Project,
+  type ProjectMember,
+  type Task,
+  type User,
+  type Workspace,
+} from "../../shared/types/prisma.types.ts";
 import * as projectsRepository from "./projects.repository.ts";
 import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
 import { ConflictError } from "../../shared/errors/conflict-error.ts";
@@ -66,11 +72,22 @@ export async function findBySlug({
   userId: string;
   workspaceSlug: string;
   projectSlug: string;
-}): Promise<Project> {
+}): Promise<{
+  project: Project;
+  workspace: Workspace;
+  members: (ProjectMember & { user: User })[];
+  tasks: Task[];
+}> {
   // Obtener el contexto
-  const { project } = await authorizationService.getProjectContext({ userId, workspaceSlug, projectSlug });
+  const { project, workspace } = await authorizationService.getProjectContext({ userId, workspaceSlug, projectSlug });
 
-  return project;
+  // Incluir los miembros y las tareas activas del proyecto
+  const [members, tasks] = await Promise.all([
+    projectsRepository.findActiveMembersByProjectId(project.id),
+    projectsRepository.findActiveTasksByProjectId(project.id),
+  ]);
+
+  return { project, workspace, members, tasks };
 }
 
 export async function update({
