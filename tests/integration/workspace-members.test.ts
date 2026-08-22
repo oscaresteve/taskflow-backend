@@ -174,6 +174,22 @@ describe("GET /workspaces/:workspaceSlug/members", () => {
     const userIds = res.body.data.map((m: { userId: string }) => m.userId);
     expect(userIds).toEqual([invitee.user.id]);
   });
+
+  it("includes the user data for each member", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    const ownerEntry = res.body.data.find((m: { userId: string }) => m.userId === owner.user.id);
+    expect(ownerEntry.user).toMatchObject({
+      id: owner.user.id,
+      name: owner.user.name,
+      email: owner.user.email,
+    });
+  });
 });
 
 describe("PATCH /workspaces/:workspaceSlug/members/:userId/activate", () => {

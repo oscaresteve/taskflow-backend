@@ -58,3 +58,24 @@ export function toPaginatedWorkspaceMemberResponseDto({
     },
   };
 }
+
+export function toPaginatedWorkspaceMemberWithUserResponseDto({
+  workspaceMembers,
+  page,
+  limit,
+}: {
+  workspaceMembers: PaginatedResult<WorkspaceMember & { user: User }>;
+  page: number;
+  limit: number;
+}): PaginatedResponseDto<WorkspaceMemberWithUserResponseDto> {
+  return {
+    data: toWorkspaceMemberWithUserResponseDtoList(workspaceMembers.items),
+
+    pagination: {
+      page,
+      limit,
+      total: workspaceMembers.total,
+      pages: Math.ceil(workspaceMembers.total / limit),
+    },
+  };
+}

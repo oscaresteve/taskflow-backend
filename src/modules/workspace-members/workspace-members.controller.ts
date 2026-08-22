@@ -6,7 +6,7 @@ import type {
   WorkspaceMembersQueryDto,
 } from "./schemas/workspace-members.schema.ts";
 import {
-  toPaginatedWorkspaceMemberResponseDto,
+  toPaginatedWorkspaceMemberWithUserResponseDto,
   toWorkspaceMemberResponseDto,
 } from "./mappers/workspace-members.mapper.ts";
 import type { WorkspaceMemberParamsDto, WorkspaceParamsDto } from "../../shared/schemas/common.schema.ts";
@@ -20,7 +20,7 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
 
     const workspaceMembers = await workspaceMembersService.findAll({ query, userId, workspaceSlug });
 
-    const workspaceMemberResponse = toPaginatedWorkspaceMemberResponseDto({
+    const workspaceMemberResponse = toPaginatedWorkspaceMemberWithUserResponseDto({
       workspaceMembers,
       page: query.page,
       limit: query.limit,
