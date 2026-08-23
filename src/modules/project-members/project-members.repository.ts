@@ -6,7 +6,7 @@ import type {
   ProjectMembersQueryDto,
   UpdateProjectMemberDto,
 } from "./schemas/project-members.schema.ts";
-import type { ProjectMember } from "../../shared/types/prisma.types.ts";
+import type { ProjectMember, User } from "../../shared/types/prisma.types.ts";
 
 export async function findAll({
   projectId,
@@ -14,7 +14,7 @@ export async function findAll({
 }: {
   projectId: string;
   query: ProjectMembersQueryDto;
-}): Promise<PaginatedResult<ProjectMember>> {
+}): Promise<PaginatedResult<ProjectMember & { user: User }>> {
   const where: Prisma.ProjectMemberWhereInput = {};
 
   where.projectId = projectId;
@@ -37,6 +37,9 @@ export async function findAll({
       orderBy,
       skip,
       take: query.limit,
+      include: {
+        user: true,
+      },
     }),
 
     prisma.projectMember.count({

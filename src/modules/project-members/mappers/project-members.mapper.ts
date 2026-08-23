@@ -59,3 +59,24 @@ export function toPaginatedProjectMemberResponseDto({
     },
   };
 }
+
+export function toPaginatedProjectMemberWithUserResponseDto({
+  projectMembers,
+  page,
+  limit,
+}: {
+  projectMembers: PaginatedResult<ProjectMember & { user: User }>;
+  page: number;
+  limit: number;
+}): PaginatedResponseDto<ProjectMemberWithUserResponseDto> {
+  return {
+    data: toProjectMemberWithUserResponseDtoList(projectMembers.items),
+
+    pagination: {
+      page,
+      limit,
+      total: projectMembers.total,
+      pages: Math.ceil(projectMembers.total / limit),
+    },
+  };
+}

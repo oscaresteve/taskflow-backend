@@ -5,7 +5,10 @@ import type {
   UpdateProjectMemberDto,
 } from "./schemas/project-members.schema.ts";
 import * as projectMembersService from "./project-members.service.ts";
-import { toPaginatedProjectMemberResponseDto, toProjectMemberResponseDto } from "./mappers/project-members.mapper.ts";
+import {
+  toPaginatedProjectMemberWithUserResponseDto,
+  toProjectMemberResponseDto,
+} from "./mappers/project-members.mapper.ts";
 import type { ProjectMemberParamsDto, ProjectParamsDto } from "../../shared/schemas/common.schema.ts";
 
 export async function findAll(req: Request, res: Response, next: NextFunction) {
@@ -18,7 +21,7 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
 
     const projectMembers = await projectMembersService.findAll({ query, userId, workspaceSlug, projectSlug });
 
-    const projectMemberResponse = toPaginatedProjectMemberResponseDto({
+    const projectMemberResponse = toPaginatedProjectMemberWithUserResponseDto({
       projectMembers,
       page: query.page,
       limit: query.limit,

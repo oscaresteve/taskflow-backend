@@ -11,7 +11,7 @@ import {
   requireCanManageProjectMember,
   requireProjectManager,
 } from "../../shared/auth/permissions.ts";
-import { WorkspaceMemberStatus, type ProjectMember } from "../../shared/types/prisma.types.ts";
+import { WorkspaceMemberStatus, type ProjectMember, type User } from "../../shared/types/prisma.types.ts";
 import { BadRequestError } from "../../shared/errors/bad-request-error.ts";
 
 export async function findAll({
@@ -24,7 +24,7 @@ export async function findAll({
   userId: string;
   workspaceSlug: string;
   projectSlug: string;
-}): Promise<PaginatedResult<ProjectMember>> {
+}): Promise<PaginatedResult<ProjectMember & { user: User }>> {
   // Obtener contexto
   const { project } = await authorizationService.getProjectContext({ userId, workspaceSlug, projectSlug });
 
