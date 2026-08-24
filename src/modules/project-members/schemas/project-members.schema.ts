@@ -1,13 +1,10 @@
 import z from "zod";
 import { ProjectRole } from "../../../shared/types/prisma.types.ts";
-import {
-  booleanQueryParamSchema,
-  limitSchema,
-  pageSchema,
-  sortOrderSchema,
-} from "../../../shared/schemas/common.schema.ts";
+import { limitSchema, pageSchema, sortOrderSchema } from "../../../shared/schemas/common.schema.ts";
 
 const sortableFields = ["joinedAt", "createdAt", "updatedAt"] as const;
+
+const isActiveQueryParamSchema = z.enum(["true", "false"]).transform((value) => value === "true");
 
 export const projectMembersQuerySchema = z.object({
   // Pagination
@@ -15,7 +12,8 @@ export const projectMembersQuerySchema = z.object({
   limit: limitSchema,
 
   // Filters
-  isActive: booleanQueryParamSchema,
+  // Acepta un isActive ("?isActive=true") o varios ("?isActive=true&isActive=false").
+  isActive: z.union([isActiveQueryParamSchema, z.array(isActiveQueryParamSchema)]).optional(),
 
   role: z.enum(ProjectRole).optional(),
 

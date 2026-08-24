@@ -18,7 +18,19 @@ export async function findAll({
   const where: Prisma.ProjectMemberWhereInput = {};
 
   where.projectId = projectId;
-  where.isActive = query.isActive ?? true; // Por defecto solo los que esten activos
+
+  // Por defecto solo los que esten activos
+  if (query.isActive === undefined) {
+    where.isActive = true;
+  } else if (Array.isArray(query.isActive)) {
+    // Boolean no soporta "in": si vienen ambos valores no filtramos (se devuelven todos).
+    const uniqueValues = [...new Set(query.isActive)];
+    if (uniqueValues.length === 1) {
+      where.isActive = uniqueValues[0];
+    }
+  } else {
+    where.isActive = query.isActive;
+  }
 
   if (query.role) {
     where.role = query.role;

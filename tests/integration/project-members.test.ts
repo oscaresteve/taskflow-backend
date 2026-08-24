@@ -184,6 +184,36 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/members", () => {
     expect(userIds).toContain(owner.user.id);
     expect(userIds).not.toContain(memberUser.user.id);
   });
+
+  it("lists both active and inactive members when isActive is passed twice", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${memberUser.user.id}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members`)
+      .query({ isActive: ["true", "false"] })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const userIds = res.body.data.map((m: { userId: string }) => m.userId);
+    expect(userIds).toContain(owner.user.id);
+    expect(userIds).toContain(memberUser.user.id);
+  });
 });
 
 describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId", () => {
