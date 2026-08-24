@@ -6,6 +6,6 @@ import { usersQuerySchema } from "./schemas/users.schema.ts";
 
 export const usersRouter = Router();
 
-// 1. Buscar usuarios (por nombre o email), p.ej. para invitarlos a un workspace/proyecto
+// 1. Buscar usuarios (por nombre o email), p.ej. para añadirlos a un workspace/proyecto
 // GET    /users
 usersRouter.get("/users", auth, validate({ query: usersQuerySchema }), usersController.findAll);

@@ -7,14 +7,24 @@ import type { User } from "../../shared/types/prisma.types.ts";
 export async function findAll({
   query,
   excludeUserId,
+  excludeWorkspaceId,
 }: {
   query: UsersQueryDto;
   excludeUserId: string;
+  excludeWorkspaceId?: string;
 }): Promise<PaginatedResult<User>> {
   const where: Prisma.UserWhereInput = {};
 
   where.isActive = true;
   where.id = { not: excludeUserId };
+
+  if (excludeWorkspaceId) {
+    where.workspaceMembers = {
+      none: {
+        workspaceId: excludeWorkspaceId,
+      },
+    };
+  }
 
   if (query.search) {
     where.OR = [
