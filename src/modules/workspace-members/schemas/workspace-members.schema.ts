@@ -11,7 +11,8 @@ export const workspaceMembersQuerySchema = z.object({
 
   // Filters
   role: z.enum(WorkspaceRole).optional(),
-  status: z.enum(WorkspaceMemberStatus).optional(),
+  // Acepta un status ("?status=PENDING") o varios ("?status=ACTIVE&status=PENDING").
+  status: z.union([z.enum(WorkspaceMemberStatus), z.array(z.enum(WorkspaceMemberStatus))]).optional(),
 
   // Sorting
   sort: z.enum(sortableFields).default("createdAt"),

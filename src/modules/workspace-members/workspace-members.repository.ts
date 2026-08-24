@@ -31,7 +31,15 @@ export async function findAll({
   const where: Prisma.WorkspaceMemberWhereInput = {};
 
   where.workspaceId = workspaceId;
-  where.status = query.status ?? WorkspaceMemberStatus.ACTIVE; // Por defecto solo los que esten activos
+
+  // Por defecto solo los que esten activos
+  if (!query.status) {
+    where.status = WorkspaceMemberStatus.ACTIVE;
+  } else if (Array.isArray(query.status)) {
+    where.status = { in: query.status };
+  } else {
+    where.status = query.status;
+  }
 
   if (query.role) {
     where.role = query.role;
