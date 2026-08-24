@@ -45,6 +45,16 @@ export async function findAll({
     where.role = query.role;
   }
 
+  if (query.excludeProjectSlug) {
+    where.user = {
+      projectMembers: {
+        none: {
+          project: { slug: query.excludeProjectSlug },
+        },
+      },
+    };
+  }
+
   // Construimos la ordenacion
   const orderBy: Prisma.WorkspaceMemberOrderByWithRelationInput = {
     [query.sort]: query.order,
