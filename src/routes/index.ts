@@ -6,6 +6,7 @@ import { tasksRouter } from "../modules/tasks/index.ts";
 import { workspaceMembersRouter } from "../modules/workspace-members/index.ts";
 import { projectMembersRouter } from "../modules/project-members/index.ts";
 import { commentsRouter } from "../modules/comments/index.ts";
+import { usersRouter } from "../modules/users/index.ts";
 
 export const router = Router();
 
@@ -16,3 +17,4 @@ router.use(tasksRouter);
 router.use(workspaceMembersRouter);
 router.use(projectMembersRouter);
 router.use(commentsRouter);
+router.use(usersRouter);
