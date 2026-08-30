@@ -81,7 +81,18 @@ export async function findAllByUserId({
   };
 
   // Luego los filtros de la paginacion
-  where.isActive = query.isActive ?? true; // Por defecto solo activos
+  // Por defecto solo activos
+  if (query.isActive === undefined) {
+    where.isActive = true;
+  } else if (Array.isArray(query.isActive)) {
+    // Boolean no soporta "in": si vienen ambos valores no filtramos (se devuelven todos).
+    const uniqueValues = [...new Set(query.isActive)];
+    if (uniqueValues.length === 1) {
+      where.isActive = uniqueValues[0];
+    }
+  } else {
+    where.isActive = query.isActive;
+  }
 
   if (query.search) {
     where.OR = [

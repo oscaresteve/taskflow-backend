@@ -64,6 +64,24 @@ describe("GET /workspaces", () => {
 
     expect(res.body.data).toEqual([]);
   });
+
+  it("lists both active and inactive workspaces when isActive is passed twice", async () => {
+    const owner = await signUp();
+    const active = await createWorkspace(owner.accessToken, "Active One");
+    const inactive = await createWorkspace(owner.accessToken, "Inactive One");
+    await request(app)
+      .patch(`/api/workspaces/${inactive.slug}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get("/api/workspaces")
+      .query({ isActive: ["true", "false"] })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const names = res.body.data.map((w: { name: string }) => w.name);
+    expect(names).toContain(active.name);
+    expect(names).toContain(inactive.name);
+  });
 });
 
 describe("GET /workspaces/:slug", () => {

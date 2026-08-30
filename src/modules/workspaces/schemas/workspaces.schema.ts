@@ -1,6 +1,5 @@
 import z from "zod";
 import {
-  booleanQueryParamSchema,
   descriptionSchema,
   limitSchema,
   pageSchema,
@@ -35,13 +34,16 @@ export const updateWorkspaceSchema = z
 
 const sortableFields = ["name", "createdAt", "updatedAt"] as const;
 
+const isActiveQueryParamSchema = z.enum(["true", "false"]).transform((value) => value === "true");
+
 export const workspaceQuerySchema = z.object({
   // Paginacion
   page: pageSchema,
   limit: limitSchema,
 
   // Filtros
-  isActive: booleanQueryParamSchema,
+  // Acepta un isActive ("?isActive=true") o varios ("?isActive=true&isActive=false").
+  isActive: z.union([isActiveQueryParamSchema, z.array(isActiveQueryParamSchema)]).optional(),
   search: searchSchema,
 
   // Ordenacion
