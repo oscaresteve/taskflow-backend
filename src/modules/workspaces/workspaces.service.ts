@@ -1,6 +1,6 @@
 import * as workspacesRepository from "./workspaces.repository.ts";
 import type { CreateWorkspaceDto, UpdateWorkspaceDto, WorkspaceQueryDto } from "./schemas/workspaces.schema.ts";
-import { type Project, type User, type Workspace, type WorkspaceMember } from "../../shared/types/prisma.types.ts";
+import { type Workspace } from "../../shared/types/prisma.types.ts";
 import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import { ConflictError } from "../../shared/errors/conflict-error.ts";
@@ -42,17 +42,11 @@ export async function findBySlug({
 }: {
   userId: string;
   workspaceSlug: string;
-}): Promise<{ workspace: Workspace; projects: Project[]; members: (WorkspaceMember & { user: User })[] }> {
+}): Promise<Workspace> {
   // Obterner contexto
   const { workspace } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
 
-  // Incluir los proyectos activos y los miembros activos del workspace
-  const [projects, members] = await Promise.all([
-    workspacesRepository.findProjectsByWorkspaceId(workspace.id),
-    workspacesRepository.findActiveMembersByWorkspaceId(workspace.id),
-  ]);
-
-  return { workspace, projects, members };
+  return workspace;
 }
 
 export async function update({

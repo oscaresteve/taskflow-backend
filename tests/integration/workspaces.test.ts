@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
-import { addActiveMember, app, createProject, createWorkspace, signUp } from "../helpers/api.ts";
+import { addActiveMember, app, createWorkspace, signUp } from "../helpers/api.ts";
 
 describe("POST /workspaces", () => {
   it("creates the workspace and makes the creator an active OWNER", async () => {
@@ -85,40 +85,18 @@ describe("GET /workspaces", () => {
 });
 
 describe("GET /workspaces/:slug", () => {
-  it("includes the workspace's active projects and members", async () => {
+  it("returns the workspace's own fields, without embedding projects or members", async () => {
     const owner = await signUp();
-    const memberUser = await signUp();
     const workspace = await createWorkspace(owner.accessToken);
-    const project = await createProject(owner.accessToken, workspace.slug);
-    await addActiveMember({
-      managerAccessToken: owner.accessToken,
-      workspaceSlug: workspace.slug,
-      targetUserId: memberUser.user.id,
-      role: "MEMBER",
-    });
 
     const res = await request(app)
       .get(`/api/workspaces/${workspace.slug}`)
       .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.projects).toContainEqual(expect.objectContaining({ id: project.id, slug: project.slug }));
-    expect(res.body.members).toContainEqual(
-      expect.objectContaining({
-        userId: owner.user.id,
-        role: "OWNER",
-        status: "ACTIVE",
-        user: expect.objectContaining({ id: owner.user.id, email: owner.user.email }),
-      }),
-    );
-    expect(res.body.members).toContainEqual(
-      expect.objectContaining({
-        userId: memberUser.user.id,
-        role: "MEMBER",
-        status: "ACTIVE",
-        user: expect.objectContaining({ id: memberUser.user.id, email: memberUser.user.email }),
-      }),
-    );
+    expect(res.body).toEqual(expect.objectContaining({ id: workspace.id, slug: workspace.slug }));
+    expect(res.body.projects).toBeUndefined();
+    expect(res.body.members).toBeUndefined();
   });
 
   it("403s when the user is not a member", async () => {
