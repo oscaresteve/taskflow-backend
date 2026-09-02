@@ -1,6 +1,6 @@
 import z from "zod";
 import { ProjectRole } from "../../../shared/types/prisma.types.ts";
-import { limitSchema, pageSchema, sortOrderSchema } from "../../../shared/schemas/common.schema.ts";
+import { limitSchema, pageSchema, searchSchema, sortOrderSchema } from "../../../shared/schemas/common.schema.ts";
 
 const sortableFields = ["joinedAt", "createdAt", "updatedAt"] as const;
 
@@ -16,6 +16,9 @@ export const projectMembersQuerySchema = z.object({
   isActive: z.union([isActiveQueryParamSchema, z.array(isActiveQueryParamSchema)]).optional(),
 
   role: z.enum(ProjectRole).optional(),
+
+  // Busca por nombre o email del usuario miembro.
+  search: searchSchema,
 
   // Sorting
   sort: z.enum(sortableFields).default("createdAt"),

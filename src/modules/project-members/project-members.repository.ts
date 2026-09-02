@@ -36,6 +36,15 @@ export async function findAll({
     where.role = query.role;
   }
 
+  if (query.search) {
+    where.user = {
+      OR: [
+        { name: { contains: query.search, mode: "insensitive" } },
+        { email: { contains: query.search, mode: "insensitive" } },
+      ],
+    };
+  }
+
   // Construimos la ordenacion
   const orderBy: Prisma.ProjectMemberOrderByWithRelationInput = {
     [query.sort]: query.order,

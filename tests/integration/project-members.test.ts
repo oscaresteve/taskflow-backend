@@ -214,6 +214,32 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/members", () => {
     expect(userIds).toContain(owner.user.id);
     expect(userIds).toContain(memberUser.user.id);
   });
+
+  it("filters members by the user's name via search", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const memberUser = await signUp({ name: "Zendaya Ocampo" });
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members`)
+      .query({ search: "zendaya" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const userIds = res.body.data.map((m: { userId: string }) => m.userId);
+    expect(userIds).toEqual([memberUser.user.id]);
+  });
 });
 
 describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId", () => {

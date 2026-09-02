@@ -190,6 +190,26 @@ describe("GET /workspaces/:workspaceSlug/members", () => {
       email: owner.user.email,
     });
   });
+
+  it("filters members by the user's name via search", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const member = await signUp({ name: "Zendaya Ocampo" });
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .query({ search: "zendaya" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    const userIds = res.body.data.map((m: { userId: string }) => m.userId);
+    expect(userIds).toEqual([member.user.id]);
+  });
 });
 
 describe("PATCH /workspaces/:workspaceSlug/members/:userId/activate", () => {

@@ -45,14 +45,25 @@ export async function findAll({
     where.role = query.role;
   }
 
+  const userWhere: Prisma.UserWhereInput = {};
+
   if (query.excludeProjectSlug) {
-    where.user = {
-      projectMembers: {
-        none: {
-          project: { slug: query.excludeProjectSlug },
-        },
+    userWhere.projectMembers = {
+      none: {
+        project: { slug: query.excludeProjectSlug },
       },
     };
+  }
+
+  if (query.search) {
+    userWhere.OR = [
+      { name: { contains: query.search, mode: "insensitive" } },
+      { email: { contains: query.search, mode: "insensitive" } },
+    ];
+  }
+
+  if (Object.keys(userWhere).length > 0) {
+    where.user = userWhere;
   }
 
   // Construimos la ordenacion
