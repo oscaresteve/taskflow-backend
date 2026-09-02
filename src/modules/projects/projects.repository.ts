@@ -116,11 +116,13 @@ export async function findAll({
       {
         name: {
           contains: query.search,
+          mode: "insensitive",
         },
       },
       {
         description: {
           contains: query.search,
+          mode: "insensitive",
         },
       },
     ];

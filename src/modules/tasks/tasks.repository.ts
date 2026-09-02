@@ -87,11 +87,13 @@ export async function findAll({
       {
         title: {
           contains: query.search,
+          mode: "insensitive",
         },
       },
       {
         description: {
           contains: query.search,
+          mode: "insensitive",
         },
       },
     ];

@@ -92,11 +92,13 @@ export async function findAllByUserId({
       {
         name: {
           contains: query.search,
+          mode: "insensitive",
         },
       },
       {
         description: {
           contains: query.search,
+          mode: "insensitive",
         },
       },
     ];
