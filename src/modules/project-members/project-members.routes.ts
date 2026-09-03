@@ -20,6 +20,15 @@ projectMembersRouter.get(
   projectMembersController.findAll,
 );
 
+// Obtener mi membership en el proyecto (para resolver mi rol sin paginar la lista completa)
+// GET    /workspaces/:workspaceSlug/projects/:projectSlug/members/me
+projectMembersRouter.get(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/members/me",
+  auth,
+  validate({ params: projectParamsSchema }),
+  projectMembersController.findMe,
+);
+
 // 2. Añadir miembro
 // POST   /workspaces/:workspaceSlug/projects/:projectSlug/members
 projectMembersRouter.post(

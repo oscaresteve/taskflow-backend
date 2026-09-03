@@ -33,6 +33,21 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+export async function findMe(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const params = req.validated.params as ProjectParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const projectSlug = params.projectSlug;
+
+    const projectMember = await projectMembersService.findMe({ userId, workspaceSlug, projectSlug });
+
+    res.json(toProjectMemberResponseDto(projectMember));
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user.id;

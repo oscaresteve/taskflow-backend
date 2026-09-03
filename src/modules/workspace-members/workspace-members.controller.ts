@@ -32,6 +32,20 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+export async function findMe(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const params = req.validated.params as WorkspaceParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+
+    const workspaceMember = await workspaceMembersService.findMe({ userId, workspaceSlug });
+
+    res.json(toWorkspaceMemberResponseDto(workspaceMember));
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user.id;

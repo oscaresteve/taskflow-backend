@@ -20,6 +20,15 @@ workspaceMembersRouter.get(
   workspaceMembersController.findAll,
 );
 
+// Obtener mi membership en el workspace (para resolver mi rol sin paginar la lista completa)
+// GET    /workspaces/:workspaceSlug/members/me
+workspaceMembersRouter.get(
+  "/workspaces/:workspaceSlug/members/me",
+  auth,
+  validate({ params: workspaceParamsSchema }),
+  workspaceMembersController.findMe,
+);
+
 // 2. Añadir miembro
 // POST   /workspaces/:workspaceSlug/members
 workspaceMembersRouter.post(

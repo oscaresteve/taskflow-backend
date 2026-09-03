@@ -14,6 +14,21 @@ import {
 import { WorkspaceMemberStatus, type ProjectMember, type User } from "../../shared/types/prisma.types.ts";
 import { BadRequestError } from "../../shared/errors/bad-request-error.ts";
 
+export async function findMe({
+  userId,
+  workspaceSlug,
+  projectSlug,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+}): Promise<ProjectMember> {
+  // Obtener contexto (ya resuelve mi membership y valida que este activo)
+  const { projectMember } = await authorizationService.getProjectContext({ userId, workspaceSlug, projectSlug });
+
+  return projectMember;
+}
+
 export async function findAll({
   query,
   userId,

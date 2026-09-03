@@ -32,6 +32,19 @@ export async function findAll({
   return workspaceMembers;
 }
 
+export async function findMe({
+  userId,
+  workspaceSlug,
+}: {
+  userId: string;
+  workspaceSlug: string;
+}): Promise<WorkspaceMember> {
+  // Obtener contexto (ya resuelve mi membership y valida que este activo)
+  const { workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  return workspaceMember;
+}
+
 export async function create({
   data,
   userId,
