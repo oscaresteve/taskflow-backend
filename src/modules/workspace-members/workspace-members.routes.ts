@@ -5,6 +5,7 @@ import * as workspaceMembersController from "./workspace-members.controller.ts";
 import {
   createWorkspaceMemberSchema,
   updateWorkspaceMemberSchema,
+  workspaceMembersAllQuerySchema,
   workspaceMembersQuerySchema,
 } from "./schemas/workspace-members.schema.ts";
 import { workspaceMemberParamsSchema, workspaceParamsSchema } from "../../shared/schemas/common.schema.ts";
@@ -18,6 +19,15 @@ workspaceMembersRouter.get(
   auth,
   validate({ params: workspaceParamsSchema, query: workspaceMembersQuerySchema }),
   workspaceMembersController.findAll,
+);
+
+// Listar miembros sin paginar
+// GET    /workspaces/:workspaceSlug/members/all
+workspaceMembersRouter.get(
+  "/workspaces/:workspaceSlug/members/all",
+  auth,
+  validate({ params: workspaceParamsSchema, query: workspaceMembersAllQuerySchema }),
+  workspaceMembersController.findAllUnpaginated,
 );
 
 // Obtener mi membership en el workspace (para resolver mi rol sin paginar la lista completa)

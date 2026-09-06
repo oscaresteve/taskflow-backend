@@ -1,7 +1,11 @@
 import { prisma } from "../../config/prisma.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
-import type { CreateWorkspaceMemberDto, WorkspaceMembersQueryDto } from "./schemas/workspace-members.schema.ts";
+import type {
+  CreateWorkspaceMemberDto,
+  WorkspaceMembersAllQueryDto,
+  WorkspaceMembersQueryDto,
+} from "./schemas/workspace-members.schema.ts";
 import { WorkspaceMemberStatus, WorkspaceRole, type User, type WorkspaceMember } from "../../shared/types/prisma.types.ts";
 
 export async function findWorkspaceMember({
@@ -21,13 +25,7 @@ export async function findWorkspaceMember({
   });
 }
 
-export async function findAll({
-  workspaceId,
-  query,
-}: {
-  workspaceId: string;
-  query: WorkspaceMembersQueryDto;
-}): Promise<PaginatedResult<WorkspaceMember & { user: User }>> {
+function buildWhere(workspaceId: string, query: WorkspaceMembersAllQueryDto): Prisma.WorkspaceMemberWhereInput {
   const where: Prisma.WorkspaceMemberWhereInput = {};
 
   where.workspaceId = workspaceId;
@@ -66,6 +64,18 @@ export async function findAll({
     where.user = userWhere;
   }
 
+  return where;
+}
+
+export async function findAll({
+  workspaceId,
+  query,
+}: {
+  workspaceId: string;
+  query: WorkspaceMembersQueryDto;
+}): Promise<PaginatedResult<WorkspaceMember & { user: User }>> {
+  const where = buildWhere(workspaceId, query);
+
   // Construimos la ordenacion
   const orderBy: Prisma.WorkspaceMemberOrderByWithRelationInput = {
     [query.sort]: query.order,
@@ -93,6 +103,30 @@ export async function findAll({
     items,
     total,
   };
+}
+
+// Misma logica que findAll pero sin paginar, para listas acotadas (miembros de un workspace)
+// donde forzar al cliente a encadenar paginas solo añade complejidad sin proteger de nada.
+export async function findAllUnpaginated({
+  workspaceId,
+  query,
+}: {
+  workspaceId: string;
+  query: WorkspaceMembersAllQueryDto;
+}): Promise<(WorkspaceMember & { user: User })[]> {
+  const where = buildWhere(workspaceId, query);
+
+  const orderBy: Prisma.WorkspaceMemberOrderByWithRelationInput = {
+    [query.sort]: query.order,
+  };
+
+  return prisma.workspaceMember.findMany({
+    where,
+    orderBy,
+    include: {
+      user: true,
+    },
+  });
 }
 
 export async function findUserActive(id: string): Promise<{ id: string; isActive: boolean } | null> {

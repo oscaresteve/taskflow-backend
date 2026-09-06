@@ -25,6 +25,9 @@ export const projectMembersQuerySchema = z.object({
   order: sortOrderSchema,
 });
 
+// Mismos filtros que projectMembersQuerySchema pero sin paginacion, para el endpoint /members/all.
+export const projectMembersAllQuerySchema = projectMembersQuerySchema.omit({ page: true, limit: true });
+
 export const createProjectMemberSchema = z.object({
   userId: z.cuid(),
 
@@ -36,5 +39,6 @@ export const updateProjectMemberSchema = z.object({
 });
 
 export type ProjectMembersQueryDto = z.infer<typeof projectMembersQuerySchema>;
+export type ProjectMembersAllQueryDto = z.infer<typeof projectMembersAllQuerySchema>;
 export type CreateProjectMemberDto = z.infer<typeof createProjectMemberSchema>;
 export type UpdateProjectMemberDto = z.infer<typeof updateProjectMemberSchema>;

@@ -4,6 +4,7 @@ import { validate } from "../../shared/middlewares/validate.ts";
 import * as projectMembersController from "./project-members.controller.ts";
 import {
   createProjectMemberSchema,
+  projectMembersAllQuerySchema,
   projectMembersQuerySchema,
   updateProjectMemberSchema,
 } from "./schemas/project-members.schema.ts";
@@ -18,6 +19,15 @@ projectMembersRouter.get(
   auth,
   validate({ params: projectParamsSchema, query: projectMembersQuerySchema }),
   projectMembersController.findAll,
+);
+
+// Listar miembros sin paginar
+// GET    /workspaces/:workspaceSlug/projects/:projectSlug/members/all
+projectMembersRouter.get(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/members/all",
+  auth,
+  validate({ params: projectParamsSchema, query: projectMembersAllQuerySchema }),
+  projectMembersController.findAllUnpaginated,
 );
 
 // Obtener mi membership en el proyecto (para resolver mi rol sin paginar la lista completa)

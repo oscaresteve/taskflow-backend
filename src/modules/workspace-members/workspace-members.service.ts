@@ -3,6 +3,7 @@ import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type {
   CreateWorkspaceMemberDto,
   UpdateWorkspaceMemberDto,
+  WorkspaceMembersAllQueryDto,
   WorkspaceMembersQueryDto,
 } from "./schemas/workspace-members.schema.ts";
 import * as workspaceMembersRepository from "./workspace-members.repository.ts";
@@ -30,6 +31,21 @@ export async function findAll({
   const workspaceMembers = await workspaceMembersRepository.findAll({ workspaceId: workspace.id, query });
 
   return workspaceMembers;
+}
+
+export async function findAllUnpaginated({
+  query,
+  userId,
+  workspaceSlug,
+}: {
+  query: WorkspaceMembersAllQueryDto;
+  userId: string;
+  workspaceSlug: string;
+}): Promise<(WorkspaceMember & { user: User })[]> {
+  // Obtener contexto
+  const { workspace } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  return workspaceMembersRepository.findAllUnpaginated({ workspaceId: workspace.id, query });
 }
 
 export async function findMe({

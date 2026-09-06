@@ -3,18 +3,13 @@ import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type {
   CreateProjectMemberDto,
+  ProjectMembersAllQueryDto,
   ProjectMembersQueryDto,
   UpdateProjectMemberDto,
 } from "./schemas/project-members.schema.ts";
 import type { ProjectMember, User } from "../../shared/types/prisma.types.ts";
 
-export async function findAll({
-  projectId,
-  query,
-}: {
-  projectId: string;
-  query: ProjectMembersQueryDto;
-}): Promise<PaginatedResult<ProjectMember & { user: User }>> {
+function buildWhere(projectId: string, query: ProjectMembersAllQueryDto): Prisma.ProjectMemberWhereInput {
   const where: Prisma.ProjectMemberWhereInput = {};
 
   where.projectId = projectId;
@@ -45,6 +40,18 @@ export async function findAll({
     };
   }
 
+  return where;
+}
+
+export async function findAll({
+  projectId,
+  query,
+}: {
+  projectId: string;
+  query: ProjectMembersQueryDto;
+}): Promise<PaginatedResult<ProjectMember & { user: User }>> {
+  const where = buildWhere(projectId, query);
+
   // Construimos la ordenacion
   const orderBy: Prisma.ProjectMemberOrderByWithRelationInput = {
     [query.sort]: query.order,
@@ -72,6 +79,30 @@ export async function findAll({
     items,
     total,
   };
+}
+
+// Misma logica que findAll pero sin paginar, para listas acotadas (roster de un proyecto) donde
+// forzar al cliente a encadenar paginas solo añade complejidad sin proteger de nada.
+export async function findAllUnpaginated({
+  projectId,
+  query,
+}: {
+  projectId: string;
+  query: ProjectMembersAllQueryDto;
+}): Promise<(ProjectMember & { user: User })[]> {
+  const where = buildWhere(projectId, query);
+
+  const orderBy: Prisma.ProjectMemberOrderByWithRelationInput = {
+    [query.sort]: query.order,
+  };
+
+  return prisma.projectMember.findMany({
+    where,
+    orderBy,
+    include: {
+      user: true,
+    },
+  });
 }
 
 export async function findProjectMember({

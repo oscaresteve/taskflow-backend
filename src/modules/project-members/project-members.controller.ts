@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import type {
   CreateProjectMemberDto,
+  ProjectMembersAllQueryDto,
   ProjectMembersQueryDto,
   UpdateProjectMemberDto,
 } from "./schemas/project-members.schema.ts";
@@ -8,6 +9,7 @@ import * as projectMembersService from "./project-members.service.ts";
 import {
   toPaginatedProjectMemberWithUserResponseDto,
   toProjectMemberResponseDto,
+  toProjectMemberWithUserResponseDtoList,
 } from "./mappers/project-members.mapper.ts";
 import type { ProjectMemberParamsDto, ProjectParamsDto } from "../../shared/schemas/common.schema.ts";
 
@@ -28,6 +30,27 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
     });
 
     res.json(projectMemberResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function findAllUnpaginated(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const query = req.validated.query as ProjectMembersAllQueryDto;
+    const params = req.validated.params as ProjectParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const projectSlug = params.projectSlug;
+
+    const projectMembers = await projectMembersService.findAllUnpaginated({
+      query,
+      userId,
+      workspaceSlug,
+      projectSlug,
+    });
+
+    res.json(toProjectMemberWithUserResponseDtoList(projectMembers));
   } catch (error) {
     next(error);
   }

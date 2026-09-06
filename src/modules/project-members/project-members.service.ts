@@ -1,6 +1,7 @@
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type {
   CreateProjectMemberDto,
+  ProjectMembersAllQueryDto,
   ProjectMembersQueryDto,
   UpdateProjectMemberDto,
 } from "./schemas/project-members.schema.ts";
@@ -46,6 +47,23 @@ export async function findAll({
   const projectMembers = await projectMembersRepository.findAll({ projectId: project.id, query });
 
   return projectMembers;
+}
+
+export async function findAllUnpaginated({
+  query,
+  userId,
+  workspaceSlug,
+  projectSlug,
+}: {
+  query: ProjectMembersAllQueryDto;
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+}): Promise<(ProjectMember & { user: User })[]> {
+  // Obtener contexto
+  const { project } = await authorizationService.getProjectContext({ userId, workspaceSlug, projectSlug });
+
+  return projectMembersRepository.findAllUnpaginated({ projectId: project.id, query });
 }
 
 export async function create({

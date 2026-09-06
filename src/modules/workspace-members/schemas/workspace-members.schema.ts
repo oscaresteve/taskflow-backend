@@ -32,6 +32,9 @@ export const workspaceMembersQuerySchema = z.object({
   order: sortOrderSchema,
 });
 
+// Mismos filtros que workspaceMembersQuerySchema pero sin paginacion, para el endpoint /members/all.
+export const workspaceMembersAllQuerySchema = workspaceMembersQuerySchema.omit({ page: true, limit: true });
+
 export const createWorkspaceMemberSchema = z.object({
   userId: z.cuid(),
 
@@ -43,5 +46,6 @@ export const updateWorkspaceMemberSchema = z.object({
 });
 
 export type WorkspaceMembersQueryDto = z.infer<typeof workspaceMembersQuerySchema>;
+export type WorkspaceMembersAllQueryDto = z.infer<typeof workspaceMembersAllQuerySchema>;
 export type CreateWorkspaceMemberDto = z.infer<typeof createWorkspaceMemberSchema>;
 export type UpdateWorkspaceMemberDto = z.infer<typeof updateWorkspaceMemberSchema>;
