@@ -18,7 +18,7 @@ export type TaskResponseDto = {
   dueDate: Date | null;
   completedAt: Date | null;
 
-  position: number;
+  rank: string;
 
   isArchived: boolean;
 

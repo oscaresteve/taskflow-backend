@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
-import type { CreateTaskDto, TaskQueryDto, UpdateTaskDto } from "./schemas/tasks.schema.ts";
+import type { CreateTaskDto, MoveTaskDto, TaskQueryDto, UpdateTaskDto } from "./schemas/tasks.schema.ts";
 import * as tasksService from "./tasks.service.ts";
-import { toPaginatedTaskResponseDto, toTaskResponseDto } from "./mappers/tasks.mapper.ts";
+import { toPaginatedTaskResponseDto, toTaskResponseDto, toTaskResponseDtoList } from "./mappers/tasks.mapper.ts";
 import type { ProjectParamsDto, TaskParamsDto } from "../../shared/schemas/common.schema.ts";
 
 // Llamar al servicio y mappear la respuesta.
@@ -44,6 +44,21 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+export async function findBoard(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const params = req.validated.params as ProjectParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const projectSlug = params.projectSlug;
+
+    const tasks = await tasksService.findBoard({ userId, workspaceSlug, projectSlug });
+
+    res.json(toTaskResponseDtoList(tasks));
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function findByTaskNumber(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user.id;
@@ -76,6 +91,25 @@ export async function update(req: Request, res: Response, next: NextFunction) {
     const projectResponse = toTaskResponseDto(project);
 
     res.json(projectResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function move(req: Request, res: Response, next: NextFunction) {
+  try {
+    const data = req.validated.body as MoveTaskDto;
+    const userId = req.user.id;
+    const params = req.validated.params as TaskParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const projectSlug = params.projectSlug;
+    const taskNumber = params.taskNumber;
+
+    const task = await tasksService.move({ data, userId, workspaceSlug, projectSlug, taskNumber });
+
+    const taskResponse = toTaskResponseDto(task);
+
+    res.json(taskResponse);
   } catch (error) {
     next(error);
   }

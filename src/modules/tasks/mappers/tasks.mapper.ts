@@ -22,7 +22,7 @@ export function toTaskResponseDto(task: Task): TaskResponseDto {
     dueDate: task.dueDate,
     completedAt: task.completedAt,
 
-    position: task.position,
+    rank: task.rank,
 
     isArchived: task.isArchived,
 

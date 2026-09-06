@@ -80,11 +80,11 @@ export type PrismaVersion = {
 }
 
 /**
- * Prisma Client JS version: 7.9.1
+ * Prisma Client JS version: 7.9.0
  * Query Engine version: e922089b7d7502aff4249d5da3420f6fa55fc6ad
  */
 export const prismaVersion: PrismaVersion = {
-  client: "7.9.1",
+  client: "7.9.0",
   engine: "e922089b7d7502aff4249d5da3420f6fa55fc6ad"
 }
 
@@ -1143,7 +1143,7 @@ export const TaskScalarFieldEnum = {
   priority: 'priority',
   dueDate: 'dueDate',
   completedAt: 'completedAt',
-  position: 'position',
+  rank: 'rank',
   isArchived: 'isArchived',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

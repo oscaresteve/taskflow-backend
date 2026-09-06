@@ -1,6 +1,7 @@
 import { prisma } from "../config/prisma.ts";
 import { hashPassword } from "../shared/security/password.ts";
 import slugify from "../shared/utils/slugify.ts";
+import { rankBetween } from "../shared/utils/lexorank.ts";
 import {
   WorkspaceRole,
   WorkspaceMemberStatus,
@@ -54,7 +55,14 @@ async function seedTasks({
 }): Promise<Task[]> {
   const createdTasks: Task[] = [];
 
+  // El rank ordena dentro de cada columna, asi que se encadena por estado: cada tarea entra detras
+  // de la ultima creada con ese mismo status.
+  const lastRankByStatus = new Map<TaskStatus, string>();
+
   for (const [index, task] of tasks.entries()) {
+    const rank = rankBetween(lastRankByStatus.get(task.status) ?? null, null);
+    lastRankByStatus.set(task.status, rank);
+
     const createdTask = await prisma.task.create({
       data: {
         projectId,
@@ -68,7 +76,7 @@ async function seedTasks({
         dueDate: task.dueDate,
         completedAt: task.completedAt,
         isArchived: task.isArchived ?? false,
-        position: index + 1,
+        rank,
         createdAt: task.createdAt,
       },
     });

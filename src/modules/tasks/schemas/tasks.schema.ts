@@ -21,7 +21,7 @@ export const createTaskSchema = z.object({
   dueDate: z.iso.datetime().optional(),
 });
 
-const sortableFields = ["position", "title", "status", "priority", "dueDate", "createdAt", "updatedAt"] as const;
+const sortableFields = ["rank", "title", "status", "priority", "dueDate", "createdAt", "updatedAt"] as const;
 
 export const taskQuerySchema = z.object({
   // Pagination
@@ -40,7 +40,7 @@ export const taskQuerySchema = z.object({
   assigneeId: z.cuid().optional(),
 
   // Sorting
-  sort: z.enum(sortableFields).default("position"),
+  sort: z.enum(sortableFields).default("rank"),
   order: sortOrderSchema,
 });
 
@@ -60,6 +60,12 @@ export const updateTaskSchema = z
   })
   .refine((data) => Object.keys(data).length > 0, "At least one field must be provided");
 
+export const moveTaskSchema = z.object({
+  status: z.enum(TaskStatus),
+  afterTaskId: z.cuid().nullable(),
+});
+
 export type CreateTaskDto = z.infer<typeof createTaskSchema>;
 export type TaskQueryDto = z.infer<typeof taskQuerySchema>;
 export type UpdateTaskDto = z.infer<typeof updateTaskSchema>;
+export type MoveTaskDto = z.infer<typeof moveTaskSchema>;

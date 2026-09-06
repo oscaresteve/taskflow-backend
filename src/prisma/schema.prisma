@@ -171,7 +171,9 @@ model Task {
   dueDate       DateTime?
   completedAt   DateTime?
 
-  position      Int
+  // Orden dentro de su columna del tablero (LexoRank). Se compara lexicograficamente, y la
+  // migracion le fija COLLATE "C" para que Postgres lo haga byte a byte igual que JavaScript.
+  rank          String
 
   isArchived    Boolean        @default(false)
 
@@ -191,6 +193,9 @@ model Task {
   @@index([projectId])
   @@index([createdById])
   @@index([assigneeId])
+
+  // Consulta principal del tablero: filtra por proyecto y ordena cada columna por su rank.
+  @@index([projectId, status, rank])
 }
 
 model Comment {

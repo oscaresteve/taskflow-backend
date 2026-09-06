@@ -2,7 +2,7 @@ import { Router } from "express";
 import { validate } from "../../shared/middlewares/validate.ts";
 import { auth } from "../../shared/middlewares/auth.ts";
 import * as tasksController from "./tasks.controller.ts";
-import { createTaskSchema, taskQuerySchema, updateTaskSchema } from "./schemas/tasks.schema.ts";
+import { createTaskSchema, moveTaskSchema, taskQuerySchema, updateTaskSchema } from "./schemas/tasks.schema.ts";
 import { projectParamsSchema, taskParamsSchema } from "../../shared/schemas/common.schema.ts";
 
 export const tasksRouter = Router();
@@ -31,7 +31,18 @@ tasksRouter.get(
   tasksController.findAll,
 );
 
-// 3. Obtener una tarea
+// 3. Obtener el tablero completo (todas las tareas vivas, ordenadas por rank)
+// GET    /workspaces/:workspaceSlug/projects/:projectSlug/tasks/board
+// Va antes que /tasks/:taskNumber: Express resuelve por orden de registro y si no, "board" entraria
+// por la ruta del detalle y fallaria la validacion del parametro numerico.
+tasksRouter.get(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/tasks/board",
+  auth,
+  validate({ params: projectParamsSchema }),
+  tasksController.findBoard,
+);
+
+// 4. Obtener una tarea
 // GET    /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber
 tasksRouter.get(
   "/workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber",
@@ -52,7 +63,19 @@ tasksRouter.patch(
   tasksController.update,
 );
 
-// 5. Archivar tarea
+// 5. Mover tarea (columna y/o posicion dentro de la columna)
+// PATCH  /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/move
+tasksRouter.patch(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/move",
+  auth,
+  validate({
+    params: taskParamsSchema,
+    body: moveTaskSchema,
+  }),
+  tasksController.move,
+);
+
+// 6. Archivar tarea
 // PATCH  /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/archive
 tasksRouter.patch(
   "/workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/archive",
