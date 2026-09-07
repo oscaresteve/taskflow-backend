@@ -186,7 +186,6 @@ describe("GET /workspaces/:workspaceSlug/members", () => {
     const ownerEntry = res.body.data.find((m: { userId: string }) => m.userId === owner.user.id);
     expect(ownerEntry.user).toMatchObject({
       id: owner.user.id,
-      name: owner.user.name,
       email: owner.user.email,
     });
   });

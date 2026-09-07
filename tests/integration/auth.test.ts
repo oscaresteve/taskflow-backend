@@ -4,12 +4,18 @@ import { app, signUp } from "../helpers/api.ts";
 
 describe("POST /auth/sign-up", () => {
   it("creates a user and sets httpOnly auth cookies", async () => {
-    const res = await request(app)
-      .post("/api/auth/sign-up")
-      .send({ name: "Alice", email: "alice@example.com", password: "Password123" });
+    const res = await request(app).post("/api/auth/sign-up").send({
+      firstName: "Alice",
+      lastName: "Doe",
+      email: "alice@example.com",
+      password: "Password123",
+      confirmPassword: "Password123",
+      timezone: "UTC",
+      locale: "en-US",
+    });
 
     expect(res.status).toBe(201);
-    expect(res.body.user).toMatchObject({ name: "Alice", email: "alice@example.com" });
+    expect(res.body.user).toMatchObject({ firstName: "Alice", lastName: "Doe", email: "alice@example.com" });
     expect(res.body.accessToken).toBeUndefined();
     expect(res.body.refreshToken).toBeUndefined();
 
@@ -25,9 +31,15 @@ describe("POST /auth/sign-up", () => {
   it("409s when the email is already registered", async () => {
     await signUp({ email: "duplicate@example.com" });
 
-    const res = await request(app)
-      .post("/api/auth/sign-up")
-      .send({ name: "Bob", email: "duplicate@example.com", password: "Password123" });
+    const res = await request(app).post("/api/auth/sign-up").send({
+      firstName: "Bob",
+      lastName: "Doe",
+      email: "duplicate@example.com",
+      password: "Password123",
+      confirmPassword: "Password123",
+      timezone: "UTC",
+      locale: "en-US",
+    });
 
     expect(res.status).toBe(409);
   });

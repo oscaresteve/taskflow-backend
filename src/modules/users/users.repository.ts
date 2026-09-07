@@ -29,7 +29,13 @@ export async function findAll({
   if (query.search) {
     where.OR = [
       {
-        name: {
+        firstName: {
+          contains: query.search,
+          mode: "insensitive",
+        },
+      },
+      {
+        lastName: {
           contains: query.search,
           mode: "insensitive",
         },
@@ -48,7 +54,7 @@ export async function findAll({
   const [items, total] = await Promise.all([
     prisma.user.findMany({
       where,
-      orderBy: { name: "asc" },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
       skip,
       take: query.limit,
     }),

@@ -118,7 +118,8 @@ async function seedBulkUsers(passwordHash: string): Promise<User[]> {
     const createdAt = daysAgo(BULK_USER_COUNT - i); // Escalonados en el tiempo, para probar el orden por fecha.
 
     return {
-      name: `${firstName} ${lastName}`,
+      firstName,
+      lastName,
       email: `${toEmailLocalPart(firstName)}.${toEmailLocalPart(lastName)}@taskflow.dev`,
       createdAt,
     };
@@ -129,7 +130,8 @@ async function seedBulkUsers(passwordHash: string): Promise<User[]> {
     seeds.map((seed) =>
       prisma.user.create({
         data: {
-          name: seed.name,
+          firstName: seed.firstName,
+          lastName: seed.lastName,
           email: seed.email,
           passwordHash,
           avatarUrl: `https://i.pravatar.cc/150?u=${seed.email}`,
@@ -152,7 +154,8 @@ async function main() {
   const [ada, alan, grace, margaret, katherine, linus, tim, dennis] = await Promise.all([
     prisma.user.create({
       data: {
-        name: "Ada Lovelace",
+        firstName: "Ada",
+        lastName: "Lovelace",
         email: "ada@taskflow.dev",
         passwordHash,
         avatarUrl: "https://i.pravatar.cc/150?u=ada",
@@ -163,7 +166,8 @@ async function main() {
     }),
     prisma.user.create({
       data: {
-        name: "Alan Turing",
+        firstName: "Alan",
+        lastName: "Turing",
         email: "alan@taskflow.dev",
         passwordHash,
         avatarUrl: "https://i.pravatar.cc/150?u=alan",
@@ -174,7 +178,8 @@ async function main() {
     }),
     prisma.user.create({
       data: {
-        name: "Grace Hopper",
+        firstName: "Grace",
+        lastName: "Hopper",
         email: "grace@taskflow.dev",
         passwordHash,
         avatarUrl: "https://i.pravatar.cc/150?u=grace",
@@ -185,7 +190,8 @@ async function main() {
     }),
     prisma.user.create({
       data: {
-        name: "Margaret Hamilton",
+        firstName: "Margaret",
+        lastName: "Hamilton",
         email: "margaret@taskflow.dev",
         passwordHash,
         avatarUrl: "https://i.pravatar.cc/150?u=margaret",
@@ -197,7 +203,8 @@ async function main() {
     // Aceptó la invitación al workspace hace poco pero todavía no ha iniciado sesión.
     prisma.user.create({
       data: {
-        name: "Katherine Johnson",
+        firstName: "Katherine",
+        lastName: "Johnson",
         email: "katherine@taskflow.dev",
         passwordHash,
         emailVerifiedAt: daysAgo(5),
@@ -208,7 +215,8 @@ async function main() {
     // Se registró pero aún no ha verificado su email.
     prisma.user.create({
       data: {
-        name: "Linus Torvalds",
+        firstName: "Linus",
+        lastName: "Torvalds",
         email: "linus@taskflow.dev",
         passwordHash,
         emailVerifiedAt: null,
@@ -219,7 +227,8 @@ async function main() {
     // Cuenta desactivada: ya no puede autenticarse ni ser añadido a nada nuevo.
     prisma.user.create({
       data: {
-        name: "Tim Berners-Lee",
+        firstName: "Tim",
+        lastName: "Berners-Lee",
         email: "tim@taskflow.dev",
         passwordHash,
         isActive: false,
@@ -232,7 +241,8 @@ async function main() {
     // Usuario recién registrado, sin pertenecer todavía a ningún workspace.
     prisma.user.create({
       data: {
-        name: "Dennis Ritchie",
+        firstName: "Dennis",
+        lastName: "Ritchie",
         email: "dennis@taskflow.dev",
         passwordHash,
         emailVerifiedAt: daysAgo(1),

@@ -13,13 +13,16 @@ export function toAuthResponseDto({ user }: ToAuthResponseDtoInput): AuthRespons
 
 export function toUserResponseDto(user: User): UserResponseDto {
   return {
-    name: user.name,
+    firstName: user.firstName,
+    lastName: user.lastName,
     email: user.email,
     id: user.id,
     avatarUrl: user.avatarUrl,
     isActive: user.isActive,
     emailVerifiedAt: user.emailVerifiedAt,
     lastLoginAt: user.lastLoginAt,
+    timezone: user.timezone,
+    locale: user.locale,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };

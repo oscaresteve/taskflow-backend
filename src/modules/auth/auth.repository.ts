@@ -19,7 +19,10 @@ export async function create(data: SignUpDto): Promise<User> {
     data: {
       email: data.email,
       passwordHash: data.password,
-      name: data.name,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      timezone: data.timezone,
+      locale: data.locale,
     },
   });
 }

@@ -21,10 +21,19 @@ function extractCookieValue(setCookieHeader: string[] | undefined, name: string)
 export async function signUp(overrides: Partial<{ name: string; email: string; password: string }> = {}) {
   userCounter += 1;
 
+  const name = overrides.name ?? `Test User ${userCounter}`;
+  const [firstName, ...rest] = name.split(" ");
+  const lastName = rest.join(" ") || "User";
+  const password = overrides.password ?? "Password123";
+
   const payload = {
-    name: overrides.name ?? `Test User ${userCounter}`,
+    firstName,
+    lastName,
     email: overrides.email ?? `user${userCounter}@example.com`,
-    password: overrides.password ?? "Password123",
+    password,
+    confirmPassword: password,
+    timezone: "UTC",
+    locale: "en-US",
   };
 
   const res = await request(app).post("/api/auth/sign-up").send(payload);
