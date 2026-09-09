@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { localeSchema } from "../../../shared/schemas/common.schema.ts";
 
 export const signUpSchema = z
   .object({
@@ -28,7 +29,7 @@ export const signUpSchema = z
 
     timezone: z.string().min(1, "Timezone is required"),
 
-    locale: z.string().min(1, "Locale is required"),
+    locale: localeSchema,
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -41,5 +42,13 @@ export const signInSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+export const updateMeSchema = z
+  .object({
+    locale: localeSchema.optional(),
+    timezone: z.string().min(1, "Timezone is required").optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, "At least one field must be provided");
+
 export type SignUpDto = z.infer<typeof signUpSchema>;
 export type SignInDto = z.infer<typeof signInSchema>;
+export type UpdateMeDto = z.infer<typeof updateMeSchema>;

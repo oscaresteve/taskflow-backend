@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma.ts";
 import type { SignUpDto } from "./dtos/auth.dto.ts";
+import type { UpdateMeDto } from "./schemas/auth.schema.ts";
 import type { RefreshToken, User } from "../../shared/types/prisma.types.ts";
 
 // Solo comunicarse con el ORM o DB
@@ -32,6 +33,15 @@ export async function findById(id: string): Promise<User | null> {
     where: {
       id,
     },
+  });
+}
+
+export async function update({ id, data }: { id: string; data: UpdateMeDto }): Promise<User> {
+  return prisma.user.update({
+    where: {
+      id,
+    },
+    data,
   });
 }
 

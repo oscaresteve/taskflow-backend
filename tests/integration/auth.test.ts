@@ -11,7 +11,7 @@ describe("POST /auth/sign-up", () => {
       password: "Password123",
       confirmPassword: "Password123",
       timezone: "UTC",
-      locale: "en-US",
+      locale: "en",
     });
 
     expect(res.status).toBe(201);
@@ -38,10 +38,24 @@ describe("POST /auth/sign-up", () => {
       password: "Password123",
       confirmPassword: "Password123",
       timezone: "UTC",
-      locale: "en-US",
+      locale: "en",
     });
 
     expect(res.status).toBe(409);
+  });
+
+  it("400s with an unsupported locale", async () => {
+    const res = await request(app).post("/api/auth/sign-up").send({
+      firstName: "Carol",
+      lastName: "Doe",
+      email: "carol@example.com",
+      password: "Password123",
+      confirmPassword: "Password123",
+      timezone: "UTC",
+      locale: "fr",
+    });
+
+    expect(res.status).toBe(400);
   });
 });
 
@@ -90,6 +104,68 @@ describe("GET /auth/me", () => {
 
   it("401s without a token", async () => {
     const res = await request(app).get("/api/auth/me");
+
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("PATCH /auth/me", () => {
+  it("updates the authenticated user's locale", async () => {
+    const { accessToken } = await signUp();
+
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Cookie", `accessToken=${accessToken}`)
+      .send({ locale: "es" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.locale).toBe("es");
+  });
+
+  it("updates the authenticated user's timezone", async () => {
+    const { accessToken } = await signUp();
+
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Cookie", `accessToken=${accessToken}`)
+      .send({ timezone: "America/New_York" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.timezone).toBe("America/New_York");
+  });
+
+  it("400s with an empty timezone", async () => {
+    const { accessToken } = await signUp();
+
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Cookie", `accessToken=${accessToken}`)
+      .send({ timezone: "" });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("400s with an unsupported locale", async () => {
+    const { accessToken } = await signUp();
+
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Cookie", `accessToken=${accessToken}`)
+      .send({ locale: "fr" });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("400s with an empty body", async () => {
+    const { accessToken } = await signUp();
+
+    const res = await request(app).patch("/api/auth/me").set("Cookie", `accessToken=${accessToken}`).send({});
+
+    expect(res.status).toBe(400);
+  });
+
+  it("401s without a token", async () => {
+    const res = await request(app).patch("/api/auth/me").send({ locale: "es" });
 
     expect(res.status).toBe(401);
   });

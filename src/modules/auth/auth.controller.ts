@@ -3,6 +3,7 @@ import * as authService from "./auth.service.ts";
 import { toAuthResponseDto, toUserResponseDto } from "./mappers/auth.mapper.ts";
 import { setAccessTokenCookie, setRefreshTokenCookie, clearAuthCookies } from "../../shared/security/cookies.ts";
 import { UnauthorizedError } from "../../shared/errors/unauthorized-error.ts";
+import type { UpdateMeDto } from "./schemas/auth.schema.ts";
 
 export async function signUp(req: Request, res: Response, next: NextFunction) {
   try {
@@ -35,6 +36,20 @@ export async function signIn(req: Request, res: Response, next: NextFunction) {
 export async function me(req: Request, res: Response, next: NextFunction) {
   try {
     const userResponse = toUserResponseDto(req.user);
+    res.json(userResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateMe(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const data = req.validated.body as UpdateMeDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
+
+    const user = await authService.updateMe({ userId, data });
+
+    const userResponse = toUserResponseDto(user);
     res.json(userResponse);
   } catch (error) {
     next(error);

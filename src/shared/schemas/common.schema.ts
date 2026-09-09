@@ -13,6 +13,11 @@ export const searchSchema = z.string().trim().min(1).optional();
 
 export const descriptionSchema = z.string().trim().max(500, "Description cannot exceed 500 characters").optional();
 
+// Locales soportados por la app; unica fuente para no repetir el enum en cada schema que
+// use locale (sign-up, update me, ...).
+export const locales = ["en", "es"] as const;
+export const localeSchema = z.enum(locales);
+
 // Paginacion
 export const pageSchema = z.coerce.number().int().positive().default(1);
 export const limitSchema = z.coerce.number().int().positive().max(100).default(10);

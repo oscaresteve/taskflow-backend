@@ -33,7 +33,7 @@ export async function signUp(overrides: Partial<{ name: string; email: string; p
     password,
     confirmPassword: password,
     timezone: "UTC",
-    locale: "en-US",
+    locale: "en",
   };
 
   const res = await request(app).post("/api/auth/sign-up").send(payload);

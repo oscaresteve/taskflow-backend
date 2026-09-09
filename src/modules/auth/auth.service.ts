@@ -5,7 +5,7 @@ import { comparePassword, hashPassword } from "../../shared/security/password.ts
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../shared/security/jwt.ts";
 import { hashToken } from "../../shared/security/hash-token.ts";
 import type { User } from "../../shared/types/prisma.types.ts";
-import type { SignInDto } from "./schemas/auth.schema.ts";
+import type { SignInDto, UpdateMeDto } from "./schemas/auth.schema.ts";
 import { SignInFailedError } from "../../shared/errors/sign-in-failed-error.ts";
 import { UnauthorizedError } from "../../shared/errors/unauthorized-error.ts";
 
@@ -74,6 +74,12 @@ export async function getAuthenticatedUser(userId: string): Promise<User> {
   if (!user) {
     throw new UnauthorizedError("Authentication required");
   }
+
+  return user;
+}
+
+export async function updateMe({ userId, data }: { userId: string; data: UpdateMeDto }): Promise<User> {
+  const user = await authRepository.update({ id: userId, data });
 
   return user;
 }
