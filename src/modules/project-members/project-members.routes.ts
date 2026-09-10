@@ -39,6 +39,15 @@ projectMembersRouter.get(
   projectMembersController.findMe,
 );
 
+// Obtener un miembro puntual (para resolver su nombre/avatar sin paginar la lista completa)
+// GET    /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId
+projectMembersRouter.get(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/members/:userId",
+  auth,
+  validate({ params: projectMemberParamsSchema }),
+  projectMembersController.findOne,
+);
+
 // 2. Añadir miembro
 // POST   /workspaces/:workspaceSlug/projects/:projectSlug/members
 projectMembersRouter.post(

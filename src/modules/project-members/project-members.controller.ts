@@ -9,9 +9,31 @@ import * as projectMembersService from "./project-members.service.ts";
 import {
   toPaginatedProjectMemberWithUserResponseDto,
   toProjectMemberResponseDto,
+  toProjectMemberWithUserResponseDto,
   toProjectMemberWithUserResponseDtoList,
 } from "./mappers/project-members.mapper.ts";
 import type { ProjectMemberParamsDto, ProjectParamsDto } from "../../shared/schemas/common.schema.ts";
+
+export async function findOne(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const params = req.validated.params as ProjectMemberParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const projectSlug = params.projectSlug;
+    const projectMemberUserId = params.userId;
+
+    const projectMember = await projectMembersService.findOne({
+      userId,
+      workspaceSlug,
+      projectSlug,
+      projectMemberUserId,
+    });
+
+    res.json(toProjectMemberWithUserResponseDto(projectMember));
+  } catch (error) {
+    next(error);
+  }
+}
 
 export async function findAll(req: Request, res: Response, next: NextFunction) {
   try {

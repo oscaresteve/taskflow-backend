@@ -14,6 +14,33 @@ import {
 } from "../../shared/auth/permissions.ts";
 import { WorkspaceMemberStatus, type ProjectMember, type User } from "../../shared/types/prisma.types.ts";
 import { BadRequestError } from "../../shared/errors/bad-request-error.ts";
+import { NotFoundError } from "../../shared/errors/not-found-error.ts";
+
+export async function findOne({
+  userId,
+  workspaceSlug,
+  projectSlug,
+  projectMemberUserId,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  projectMemberUserId: string;
+}): Promise<ProjectMember & { user: User }> {
+  // Obtener contexto (valida que quien pregunta sea miembro activo del proyecto)
+  const { project } = await authorizationService.getProjectContext({ userId, workspaceSlug, projectSlug });
+
+  const projectMember = await projectMembersRepository.findProjectMemberWithUser({
+    projectId: project.id,
+    userId: projectMemberUserId,
+  });
+
+  if (!projectMember) {
+    throw new NotFoundError("Project member not found");
+  }
+
+  return projectMember;
+}
 
 export async function findMe({
   userId,

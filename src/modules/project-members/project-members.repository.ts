@@ -123,6 +123,26 @@ export async function findProjectMember({
   });
 }
 
+export async function findProjectMemberWithUser({
+  projectId,
+  userId,
+}: {
+  projectId: string;
+  userId: string;
+}): Promise<(ProjectMember & { user: User }) | null> {
+  return await prisma.projectMember.findUnique({
+    where: {
+      projectId_userId: {
+        userId,
+        projectId,
+      },
+    },
+    include: {
+      user: true,
+    },
+  });
+}
+
 export async function create({
   data,
   projectId,
