@@ -18,12 +18,14 @@ export function setRefreshTokenCookie(res: Response, { token, expiresAt }: { tok
     httpOnly: true,
     secure: isProduction,
     sameSite: "lax",
-    path: "/api/auth", // El refresh token solo se envia en /auth
+    // El proxy de Next necesita recibir esta cookie en cualquier navegacion para poder renovar
+    // el access token en el servidor, asi que no se puede acotar a /api/auth.
+    path: "/",
     expires: expiresAt,
   });
 }
 
 export function clearAuthCookies(res: Response) {
   res.clearCookie("accessToken", { path: "/" });
-  res.clearCookie("refreshToken", { path: "/api/auth" });
+  res.clearCookie("refreshToken", { path: "/" });
 }
