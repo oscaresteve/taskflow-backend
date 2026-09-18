@@ -68,20 +68,17 @@ pnpm dlx prisma migrate deploy
 pnpm db:seed
 ```
 
-Esto vacía la base de datos de dev y la rellena con datos de ejemplo pensados para cubrir casos reales: 3 workspaces, 5 proyectos, 18 tareas y varios comentarios. Todos los usuarios usan la contraseña `password123`:
+Esto vacía la base de datos de dev y la rellena con datos de ejemplo. No usa ninguna librería de datos falsos: la seed tiene dos mitades escritas de forma distinta, porque hacen cosas distintas.
 
-| Usuario               | Situación                                                          |
-| --------------------- | ------------------------------------------------------------------- |
-| `ada@taskflow.dev`      | Owner de Acme Inc, activa                                          |
-| `alan@taskflow.dev`     | Admin de Acme Inc, activo                                          |
-| `grace@taskflow.dev`    | Miembro de Acme Inc y owner de su propio workspace, Freelance Studio |
-| `margaret@taskflow.dev` | Miembro activa, pero retirada de uno de los proyectos              |
-| `katherine@taskflow.dev`| Aceptó la invitación al workspace pero nunca ha iniciado sesión    |
-| `linus@taskflow.dev`    | Registrado pero con el email sin verificar, invitación pendiente   |
-| `tim@taskflow.dev`      | Cuenta desactivada, expulsada del workspace                        |
-| `dennis@taskflow.dev`   | Recién registrado, no pertenece a ningún workspace                 |
+**Acceso:** `demo@taskflow.dev` / `Password123` (misma contraseña para todos los usuarios).
 
-Los datos también incluyen otros casos límite habituales: un workspace desactivado (`legacy-co`), un proyecto archivado (`marketing-site`), tareas archivadas, tareas vencidas (incluida una urgente), una tarea asignada a alguien ya retirado del proyecto, y comentarios editados o borrados (soft delete). También hay dos proyectos con el mismo slug (`website-redesign`) en workspaces distintos, para comprobar que el slug solo es único dentro de cada workspace.
+**1. Nimbus Studio — escrito a mano.** Un estudio de producto digital con 8 personas y 4 proyectos. Es el workspace que se enseña, así que las tareas están escritas una a una y se leen como las de un proyecto real, con un hilo de comentarios que es una conversación de verdad. Los casos límite están puestos a conciencia y se ven leyendo el fichero: una tarea vencida y urgente, otra asignada a alguien que ya dejó el estudio, otra sin responsable, una archivada, un comentario editado y otro borrado, una invitación `PENDING`, un miembro `REMOVED` con la cuenta desactivada, un proyecto archivado y otro recién creado sin ninguna tarea.
+
+**2. Logística Peninsular — generado por iteración.** 120 usuarios y 110 proyectos, creados en bucle a partir del índice. Solo existe para tener listados largos: su contenido da igual. Uno de sus proyectos (`madrid-norte`) tiene 120 tareas y 125 comentarios en su primera tarea. Esas cifras pasan de 100, que es el `limit` máximo que acepta la API, así que es donde se ven la paginación y el recorte del límite. El demo es ADMIN aquí, no dueño, que es lo que permite comprobar que un admin no puede tocar al OWNER.
+
+Hay además un tercer workspace mínimo, `herrera-vidal`, dado de baja (`isActive=false`): no aparece en el listado por defecto, solo al filtrar por ese estado. Repite el slug y la key `WEB` de un proyecto de Nimbus, que es la forma de comprobar que ambos son únicos por workspace y no globalmente.
+
+Las fechas son relativas al momento de ejecutarla, así que **cada vez que la relanzas el dataset vuelve a estar "al día"**: hay trabajo vencido, trabajo que vence esta semana y trabajo cerrado en los últimos 7 días, que es lo que miran las pantallas de resumen. Si la base se queda meses sin regenerar, esos contadores acaban a cero.
 
 ### 6. Arrancar el servidor
 
