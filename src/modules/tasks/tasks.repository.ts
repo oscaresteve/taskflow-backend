@@ -68,6 +68,7 @@ export async function create({
       data: {
         title: data.title,
         priority: data.priority,
+        status: data.status,
         assigneeId: data.assigneeId,
         dueDate: data.dueDate,
         description: data.description,
