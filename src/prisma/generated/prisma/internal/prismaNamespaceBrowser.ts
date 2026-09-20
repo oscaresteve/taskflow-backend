@@ -53,10 +53,13 @@ export const AnyNull = runtime.AnyNull
 export const ModelName = {
   User: 'User',
   Workspace: 'Workspace',
+  WorkspaceFavorite: 'WorkspaceFavorite',
   WorkspaceMember: 'WorkspaceMember',
   Project: 'Project',
+  ProjectFavorite: 'ProjectFavorite',
   ProjectMember: 'ProjectMember',
   Task: 'Task',
+  TaskFavorite: 'TaskFavorite',
   Comment: 'Comment',
   RefreshToken: 'RefreshToken'
 } as const
@@ -110,6 +113,16 @@ export const WorkspaceScalarFieldEnum = {
 export type WorkspaceScalarFieldEnum = (typeof WorkspaceScalarFieldEnum)[keyof typeof WorkspaceScalarFieldEnum]
 
 
+export const WorkspaceFavoriteScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  workspaceId: 'workspaceId',
+  createdAt: 'createdAt'
+} as const
+
+export type WorkspaceFavoriteScalarFieldEnum = (typeof WorkspaceFavoriteScalarFieldEnum)[keyof typeof WorkspaceFavoriteScalarFieldEnum]
+
+
 export const WorkspaceMemberScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -140,6 +153,16 @@ export const ProjectScalarFieldEnum = {
 } as const
 
 export type ProjectScalarFieldEnum = (typeof ProjectScalarFieldEnum)[keyof typeof ProjectScalarFieldEnum]
+
+
+export const ProjectFavoriteScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  projectId: 'projectId',
+  createdAt: 'createdAt'
+} as const
+
+export type ProjectFavoriteScalarFieldEnum = (typeof ProjectFavoriteScalarFieldEnum)[keyof typeof ProjectFavoriteScalarFieldEnum]
 
 
 export const ProjectMemberScalarFieldEnum = {
@@ -175,6 +198,16 @@ export const TaskScalarFieldEnum = {
 } as const
 
 export type TaskScalarFieldEnum = (typeof TaskScalarFieldEnum)[keyof typeof TaskScalarFieldEnum]
+
+
+export const TaskFavoriteScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  taskId: 'taskId',
+  createdAt: 'createdAt'
+} as const
+
+export type TaskFavoriteScalarFieldEnum = (typeof TaskFavoriteScalarFieldEnum)[keyof typeof TaskFavoriteScalarFieldEnum]
 
 
 export const CommentScalarFieldEnum = {

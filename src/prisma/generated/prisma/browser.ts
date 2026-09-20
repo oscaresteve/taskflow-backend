@@ -28,6 +28,11 @@ export type User = Prisma.UserModel
  */
 export type Workspace = Prisma.WorkspaceModel
 /**
+ * Model WorkspaceFavorite
+ * 
+ */
+export type WorkspaceFavorite = Prisma.WorkspaceFavoriteModel
+/**
  * Model WorkspaceMember
  * 
  */
@@ -38,6 +43,11 @@ export type WorkspaceMember = Prisma.WorkspaceMemberModel
  */
 export type Project = Prisma.ProjectModel
 /**
+ * Model ProjectFavorite
+ * 
+ */
+export type ProjectFavorite = Prisma.ProjectFavoriteModel
+/**
  * Model ProjectMember
  * 
  */
@@ -47,6 +57,11 @@ export type ProjectMember = Prisma.ProjectMemberModel
  * 
  */
 export type Task = Prisma.TaskModel
+/**
+ * Model TaskFavorite
+ * 
+ */
+export type TaskFavorite = Prisma.TaskFavoriteModel
 /**
  * Model Comment
  * 

@@ -89,3 +89,31 @@ export async function deactivate(req: Request, res: Response, next: NextFunction
     next(error);
   }
 }
+
+export async function favorite(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = req.validated.params as WorkspaceParamsDto;
+    const userId = req.user.id;
+    const workspaceSlug = params.workspaceSlug;
+
+    await workspacesService.favorite({ userId, workspaceSlug });
+
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function unfavorite(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = req.validated.params as WorkspaceParamsDto;
+    const userId = req.user.id;
+    const workspaceSlug = params.workspaceSlug;
+
+    await workspacesService.unfavorite({ userId, workspaceSlug });
+
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+}

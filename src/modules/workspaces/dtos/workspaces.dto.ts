@@ -8,6 +8,7 @@ export type WorkspaceResponseDto = {
   logoUrl: string | null;
 
   isActive: boolean;
+  isFavorite: boolean;
 
   createdAt: Date;
   updatedAt: Date;

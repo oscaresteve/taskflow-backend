@@ -3,7 +3,7 @@ import type { PaginatedResult } from "../../../shared/types/pagination.types.ts"
 import type { WorkspaceResponseDto } from "../dtos/workspaces.dto.ts";
 import type { Workspace } from "../../../shared/types/prisma.types.ts";
 
-export function toWorkspaceResponseDto(workspace: Workspace): WorkspaceResponseDto {
+export function toWorkspaceResponseDto(workspace: Workspace & { isFavorite: boolean }): WorkspaceResponseDto {
   return {
     id: workspace.id,
 
@@ -14,13 +14,14 @@ export function toWorkspaceResponseDto(workspace: Workspace): WorkspaceResponseD
     logoUrl: workspace.logoUrl,
 
     isActive: workspace.isActive,
+    isFavorite: workspace.isFavorite,
 
     createdAt: workspace.createdAt,
     updatedAt: workspace.updatedAt,
   };
 }
 
-export function toWorkspaceResponseDtoList(workspaces: Workspace[]) {
+export function toWorkspaceResponseDtoList(workspaces: (Workspace & { isFavorite: boolean })[]) {
   return workspaces.map(toWorkspaceResponseDto);
 }
 
@@ -29,7 +30,7 @@ export function toPaginatedWorkspaceResponseDto({
   page,
   limit,
 }: {
-  workspaces: PaginatedResult<Workspace>;
+  workspaces: PaginatedResult<Workspace & { isFavorite: boolean }>;
   page: number;
   limit: number;
 }): PaginatedResponseDto<WorkspaceResponseDto> {

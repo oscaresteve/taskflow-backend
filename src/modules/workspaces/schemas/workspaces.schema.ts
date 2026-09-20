@@ -1,5 +1,6 @@
 import z from "zod";
 import {
+  booleanQueryParamSchema,
   descriptionSchema,
   limitSchema,
   pageSchema,
@@ -44,6 +45,7 @@ export const workspaceQuerySchema = z.object({
   // Filtros
   // Acepta un isActive ("?isActive=true") o varios ("?isActive=true&isActive=false").
   isActive: z.union([isActiveQueryParamSchema, z.array(isActiveQueryParamSchema)]).optional(),
+  isFavorite: booleanQueryParamSchema,
   search: searchSchema,
 
   // Ordenacion

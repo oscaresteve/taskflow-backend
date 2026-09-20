@@ -4,12 +4,19 @@ import { type Workspace } from "../../shared/types/prisma.types.ts";
 import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import { ConflictError } from "../../shared/errors/conflict-error.ts";
+import { NotFoundError } from "../../shared/errors/not-found-error.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import { requireWorkspaceManager } from "../../shared/auth/permissions.ts";
 
 // LLamar al repository y realizar toda la lógica necesaria
 
-export async function create({ data, userId }: { data: CreateWorkspaceDto; userId: string }): Promise<Workspace> {
+export async function create({
+  data,
+  userId,
+}: {
+  data: CreateWorkspaceDto;
+  userId: string;
+}): Promise<Workspace & { isFavorite: boolean }> {
   const text = data.name;
   const exists = workspacesRepository.existsBySlug;
 
@@ -21,7 +28,8 @@ export async function create({ data, userId }: { data: CreateWorkspaceDto; userI
     userId,
   });
 
-  return workspace;
+  // Un workspace recien creado no puede estar marcado como favorito todavia
+  return { ...workspace, isFavorite: false };
 }
 
 export async function findAll({
@@ -30,10 +38,18 @@ export async function findAll({
 }: {
   userId: string;
   query: WorkspaceQueryDto;
-}): Promise<PaginatedResult<Workspace>> {
+}): Promise<PaginatedResult<Workspace & { isFavorite: boolean }>> {
   const workspaces = await workspacesRepository.findAllByUserId({ query, userId });
 
-  return workspaces;
+  const favoritedIds = await workspacesRepository.findFavoritedIds({
+    userId,
+    workspaceIds: workspaces.items.map((workspace) => workspace.id),
+  });
+
+  return {
+    items: workspaces.items.map((workspace) => ({ ...workspace, isFavorite: favoritedIds.has(workspace.id) })),
+    total: workspaces.total,
+  };
 }
 
 export async function findBySlug({
@@ -42,11 +58,37 @@ export async function findBySlug({
 }: {
   userId: string;
   workspaceSlug: string;
-}): Promise<Workspace> {
+}): Promise<Workspace & { isFavorite: boolean }> {
   // Obterner contexto
   const { workspace } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
 
-  return workspace;
+  const isFavorite = await workspacesRepository.isFavorited({ userId, workspaceId: workspace.id });
+
+  return { ...workspace, isFavorite };
+}
+
+export async function favorite({ userId, workspaceSlug }: { userId: string; workspaceSlug: string }): Promise<void> {
+  // Obterner contexto
+  const { workspace } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  // Comprobar que no este ya marcado como favorito
+  if (await workspacesRepository.isFavorited({ userId, workspaceId: workspace.id })) {
+    throw new ConflictError("Workspace is already favorited");
+  }
+
+  await workspacesRepository.createFavorite({ userId, workspaceId: workspace.id });
+}
+
+export async function unfavorite({ userId, workspaceSlug }: { userId: string; workspaceSlug: string }): Promise<void> {
+  // Obterner contexto
+  const { workspace } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  // Comprobar que este marcado como favorito
+  if (!(await workspacesRepository.isFavorited({ userId, workspaceId: workspace.id }))) {
+    throw new NotFoundError("Workspace is not favorited");
+  }
+
+  await workspacesRepository.deleteFavorite({ userId, workspaceId: workspace.id });
 }
 
 export async function update({
@@ -57,7 +99,7 @@ export async function update({
   userId: string;
   workspaceSlug: string;
   data: UpdateWorkspaceDto;
-}): Promise<Workspace> {
+}): Promise<Workspace & { isFavorite: boolean }> {
   // Obterner contexto
   const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({
     userId,
@@ -77,15 +119,18 @@ export async function update({
     });
   }
 
-  const updatedWorkspace = await workspacesRepository.update({
-    workspaceId: workspace.id,
-    data: {
-      ...data,
-      slug: newSlug,
-    },
-  });
+  const [updatedWorkspace, isFavorite] = await Promise.all([
+    workspacesRepository.update({
+      workspaceId: workspace.id,
+      data: {
+        ...data,
+        slug: newSlug,
+      },
+    }),
+    workspacesRepository.isFavorited({ userId, workspaceId: workspace.id }),
+  ]);
 
-  return updatedWorkspace;
+  return { ...updatedWorkspace, isFavorite };
 }
 
 export async function deactivate({ userId, workspaceSlug }: { userId: string; workspaceSlug: string }): Promise<void> {

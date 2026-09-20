@@ -104,6 +104,12 @@ export async function findAllByUserId({
     ];
   }
 
+  if (query.isFavorite === true) {
+    where.favorites = { some: { userId } };
+  } else if (query.isFavorite === false) {
+    where.favorites = { none: { userId } };
+  }
+
   // Construimos la ordenacion
   const orderBy: Prisma.WorkspaceOrderByWithRelationInput = {
     [query.sort]: query.order,
@@ -160,6 +166,62 @@ export async function deactivate(workspaceId: string): Promise<void> {
     },
     data: {
       isActive: false,
+    },
+  });
+}
+
+export async function isFavorited({ userId, workspaceId }: { userId: string; workspaceId: string }): Promise<boolean> {
+  const favorite = await prisma.workspaceFavorite.findUnique({
+    where: {
+      userId_workspaceId: {
+        userId,
+        workspaceId,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  return !!favorite;
+}
+
+export async function findFavoritedIds({
+  userId,
+  workspaceIds,
+}: {
+  userId: string;
+  workspaceIds: string[];
+}): Promise<Set<string>> {
+  const favorites = await prisma.workspaceFavorite.findMany({
+    where: {
+      userId,
+      workspaceId: { in: workspaceIds },
+    },
+    select: {
+      workspaceId: true,
+    },
+  });
+
+  return new Set(favorites.map((favorite) => favorite.workspaceId));
+}
+
+export async function createFavorite({ userId, workspaceId }: { userId: string; workspaceId: string }): Promise<void> {
+  await prisma.workspaceFavorite.create({
+    data: {
+      userId,
+      workspaceId,
+    },
+  });
+}
+
+export async function deleteFavorite({ userId, workspaceId }: { userId: string; workspaceId: string }): Promise<void> {
+  await prisma.workspaceFavorite.delete({
+    where: {
+      userId_workspaceId: {
+        userId,
+        workspaceId,
+      },
     },
   });
 }

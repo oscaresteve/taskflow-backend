@@ -58,3 +58,20 @@ workspacesRouter.patch(
   validate({ params: workspaceParamsSchema }),
   workspacesController.deactivate,
 );
+
+// 6. Marcar/desmarcar como favorito (por usuario)
+// POST   /workspaces/:workspaceSlug/favorite
+// DELETE /workspaces/:workspaceSlug/favorite
+workspacesRouter.post(
+  "/workspaces/:workspaceSlug/favorite",
+  auth,
+  validate({ params: workspaceParamsSchema }),
+  workspacesController.favorite,
+);
+
+workspacesRouter.delete(
+  "/workspaces/:workspaceSlug/favorite",
+  auth,
+  validate({ params: workspaceParamsSchema }),
+  workspacesController.unfavorite,
+);

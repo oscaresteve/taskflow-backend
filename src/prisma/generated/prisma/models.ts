@@ -10,10 +10,13 @@
  */
 export type * from './models/User.ts'
 export type * from './models/Workspace.ts'
+export type * from './models/WorkspaceFavorite.ts'
 export type * from './models/WorkspaceMember.ts'
 export type * from './models/Project.ts'
+export type * from './models/ProjectFavorite.ts'
 export type * from './models/ProjectMember.ts'
 export type * from './models/Task.ts'
+export type * from './models/TaskFavorite.ts'
 export type * from './models/Comment.ts'
 export type * from './models/RefreshToken.ts'
 export type * from './commonInputTypes.ts'
