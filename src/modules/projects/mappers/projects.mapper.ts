@@ -3,7 +3,7 @@ import type { PaginatedResult } from "../../../shared/types/pagination.types.ts"
 import type { ProjectResponseDto } from "../dtos/projects.dto.ts";
 import type { Project } from "../../../shared/types/prisma.types.ts";
 
-export function toProjectResponseDto(project: Project): ProjectResponseDto {
+export function toProjectResponseDto(project: Project & { isFavorite: boolean }): ProjectResponseDto {
   return {
     id: project.id,
 
@@ -16,13 +16,14 @@ export function toProjectResponseDto(project: Project): ProjectResponseDto {
     color: project.color,
 
     isArchived: project.isArchived,
+    isFavorite: project.isFavorite,
 
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
   };
 }
 
-export function toProjectResponseDtoList(projects: Project[]) {
+export function toProjectResponseDtoList(projects: (Project & { isFavorite: boolean })[]) {
   return projects.map(toProjectResponseDto);
 }
 
@@ -31,7 +32,7 @@ export function toPaginatedProjectResponseDto({
   page,
   limit,
 }: {
-  projects: PaginatedResult<Project>;
+  projects: PaginatedResult<Project & { isFavorite: boolean }>;
   page: number;
   limit: number;
 }): PaginatedResponseDto<ProjectResponseDto> {

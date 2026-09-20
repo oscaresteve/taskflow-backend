@@ -3,6 +3,7 @@ import { type Project } from "../../shared/types/prisma.types.ts";
 import * as projectsRepository from "./projects.repository.ts";
 import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
 import { ConflictError } from "../../shared/errors/conflict-error.ts";
+import { NotFoundError } from "../../shared/errors/not-found-error.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import { requireWorkspaceManager } from "../../shared/auth/permissions.ts";
@@ -17,7 +18,7 @@ export async function create({
   data: CreateProjectDto;
   userId: string;
   workspaceSlug: string;
-}): Promise<Project> {
+}): Promise<Project & { isFavorite: boolean }> {
   // Obtener contexto
   const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
 
@@ -38,7 +39,8 @@ export async function create({
 
   const project = await projectsRepository.create({ data, slug, workspaceId: workspace.id, userId });
 
-  return project;
+  // Un proyecto recien creado no puede estar marcado como favorito todavia
+  return { ...project, isFavorite: false };
 }
 
 export async function findAll({
@@ -49,13 +51,21 @@ export async function findAll({
   workspaceSlug: string;
   userId: string;
   query: ProjectQueryDto;
-}): Promise<PaginatedResult<Project>> {
+}): Promise<PaginatedResult<Project & { isFavorite: boolean }>> {
   // Obtener contexto
   const { workspace } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
 
   const projects = await projectsRepository.findAll({ query, userId, workspaceId: workspace.id });
 
-  return projects;
+  const favoritedIds = await projectsRepository.findFavoritedIds({
+    userId,
+    projectIds: projects.items.map((project) => project.id),
+  });
+
+  return {
+    items: projects.items.map((project) => ({ ...project, isFavorite: favoritedIds.has(project.id) })),
+    total: projects.total,
+  };
 }
 
 export async function findBySlug({
@@ -66,11 +76,13 @@ export async function findBySlug({
   userId: string;
   workspaceSlug: string;
   projectSlug: string;
-}): Promise<Project> {
+}): Promise<Project & { isFavorite: boolean }> {
   // Obtener el contexto
   const { project } = await authorizationService.getProjectContext({ userId, workspaceSlug, projectSlug });
 
-  return project;
+  const isFavorite = await projectsRepository.isFavorited({ userId, projectId: project.id });
+
+  return { ...project, isFavorite };
 }
 
 export async function update({
@@ -83,7 +95,7 @@ export async function update({
   userId: string;
   workspaceSlug: string;
   projectSlug: string;
-}): Promise<Project> {
+}): Promise<Project & { isFavorite: boolean }> {
   // Obtener el contexto
   const { workspace, workspaceMember, project } = await authorizationService.getProjectContext({
     userId,
@@ -103,9 +115,12 @@ export async function update({
       exists: (slug) => projectsRepository.existsBySlugInWorkspace({ slug, workspaceId: workspace.id }),
     });
 
-  const updatedProject = await projectsRepository.update({ data, newSlug, projectId: project.id });
+  const [updatedProject, isFavorite] = await Promise.all([
+    projectsRepository.update({ data, newSlug, projectId: project.id }),
+    projectsRepository.isFavorited({ userId, projectId: project.id }),
+  ]);
 
-  return updatedProject;
+  return { ...updatedProject, isFavorite };
 }
 
 export async function archive({
@@ -131,4 +146,44 @@ export async function archive({
   if (project.isArchived === true) throw new ConflictError("Project is already archived");
 
   await projectsRepository.archive(project.id);
+}
+
+export async function favorite({
+  userId,
+  workspaceSlug,
+  projectSlug,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+}): Promise<void> {
+  // Obtener el contexto
+  const { project } = await authorizationService.getProjectContext({ userId, workspaceSlug, projectSlug });
+
+  // Comprobar que no este ya marcado como favorito
+  if (await projectsRepository.isFavorited({ userId, projectId: project.id })) {
+    throw new ConflictError("Project is already favorited");
+  }
+
+  await projectsRepository.createFavorite({ userId, projectId: project.id });
+}
+
+export async function unfavorite({
+  userId,
+  workspaceSlug,
+  projectSlug,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+}): Promise<void> {
+  // Obtener el contexto
+  const { project } = await authorizationService.getProjectContext({ userId, workspaceSlug, projectSlug });
+
+  // Comprobar que este marcado como favorito
+  if (!(await projectsRepository.isFavorited({ userId, projectId: project.id }))) {
+    throw new NotFoundError("Project is not favorited");
+  }
+
+  await projectsRepository.deleteFavorite({ userId, projectId: project.id });
 }

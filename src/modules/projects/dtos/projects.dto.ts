@@ -10,6 +10,7 @@ export type ProjectResponseDto = {
   color: string | null;
 
   isArchived: boolean;
+  isFavorite: boolean;
 
   createdAt: Date;
   updatedAt: Date;

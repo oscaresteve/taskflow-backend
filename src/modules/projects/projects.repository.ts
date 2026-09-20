@@ -111,6 +111,12 @@ export async function findAll({
   // Luego los filtros de la paginacion
   where.isArchived = query.isArchived ?? false; // Por defecto solo los que no esten archivadoss
 
+  if (query.isFavorite === true) {
+    where.favorites = { some: { userId } };
+  } else if (query.isFavorite === false) {
+    where.favorites = { none: { userId } };
+  }
+
   if (query.search) {
     where.OR = [
       {
@@ -184,6 +190,62 @@ export async function archive(projectId: string): Promise<void> {
     },
     data: {
       isArchived: true,
+    },
+  });
+}
+
+export async function isFavorited({ userId, projectId }: { userId: string; projectId: string }): Promise<boolean> {
+  const favorite = await prisma.projectFavorite.findUnique({
+    where: {
+      userId_projectId: {
+        userId,
+        projectId,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  return !!favorite;
+}
+
+export async function findFavoritedIds({
+  userId,
+  projectIds,
+}: {
+  userId: string;
+  projectIds: string[];
+}): Promise<Set<string>> {
+  const favorites = await prisma.projectFavorite.findMany({
+    where: {
+      userId,
+      projectId: { in: projectIds },
+    },
+    select: {
+      projectId: true,
+    },
+  });
+
+  return new Set(favorites.map((favorite) => favorite.projectId));
+}
+
+export async function createFavorite({ userId, projectId }: { userId: string; projectId: string }): Promise<void> {
+  await prisma.projectFavorite.create({
+    data: {
+      userId,
+      projectId,
+    },
+  });
+}
+
+export async function deleteFavorite({ userId, projectId }: { userId: string; projectId: string }): Promise<void> {
+  await prisma.projectFavorite.delete({
+    where: {
+      userId_projectId: {
+        userId,
+        projectId,
+      },
     },
   });
 }

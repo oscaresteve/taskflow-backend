@@ -64,3 +64,20 @@ projectsRouter.patch(
   validate({ params: projectParamsSchema }),
   projectsController.archive,
 );
+
+// 6. Marcar/desmarcar como favorito (por usuario)
+// POST   /workspaces/:workspaceSlug/projects/:projectSlug/favorite
+// DELETE /workspaces/:workspaceSlug/projects/:projectSlug/favorite
+projectsRouter.post(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/favorite",
+  auth,
+  validate({ params: projectParamsSchema }),
+  projectsController.favorite,
+);
+
+projectsRouter.delete(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/favorite",
+  auth,
+  validate({ params: projectParamsSchema }),
+  projectsController.unfavorite,
+);

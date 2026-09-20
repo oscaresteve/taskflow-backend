@@ -258,3 +258,83 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/archive", () =>
     expect(res.status).toBe(404);
   });
 });
+
+describe("POST/DELETE /workspaces/:workspaceSlug/projects/:projectSlug/favorite", () => {
+  it("lets a project member favorite and unfavorite a project", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+
+    const favoriteRes = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(favoriteRes.status).toBe(204);
+
+    const afterFavorite = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(afterFavorite.body.isFavorite).toBe(true);
+
+    const unfavoriteRes = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/projects/${project.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(unfavoriteRes.status).toBe(204);
+
+    const afterUnfavorite = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(afterUnfavorite.body.isFavorite).toBe(false);
+  });
+
+  it("409s when favoriting a project twice", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(409);
+  });
+
+  it("404s when unfavoriting a project that isn't favorited", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+
+    const res = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/projects/${project.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("forbids favoriting a project the user is not a member of", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    const outsider = await signUp();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/favorite`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("lists a favorited project when filtering by isFavorite=true", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const favorited = await createProject(owner.accessToken, workspace.slug, { key: "FAV" });
+    await createProject(owner.accessToken, workspace.slug, { key: "OTH" });
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${favorited.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects?isFavorite=true`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].slug).toBe(favorited.slug);
+  });
+});

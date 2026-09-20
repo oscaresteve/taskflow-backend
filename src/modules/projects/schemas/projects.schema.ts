@@ -34,6 +34,7 @@ export const projectQuerySchema = z.object({
 
   // Filtros
   isArchived: booleanQueryParamSchema,
+  isFavorite: booleanQueryParamSchema,
   search: searchSchema,
 
   // Ordenacion
