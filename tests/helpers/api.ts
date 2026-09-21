@@ -18,7 +18,9 @@ function extractCookieValue(setCookieHeader: string[] | undefined, name: string)
   return raw.split(";")[0].split("=")[1];
 }
 
-export async function signUp(overrides: Partial<{ name: string; email: string; password: string }> = {}) {
+export async function signUp(
+  overrides: Partial<{ name: string; email: string; password: string; timezone: string }> = {},
+) {
   userCounter += 1;
 
   const name = overrides.name ?? `Test User ${userCounter}`;
@@ -32,7 +34,7 @@ export async function signUp(overrides: Partial<{ name: string; email: string; p
     email: overrides.email ?? `user${userCounter}@example.com`,
     password,
     confirmPassword: password,
-    timezone: "UTC",
+    timezone: overrides.timezone ?? "UTC",
     locale: "en",
   };
 
@@ -172,12 +174,13 @@ export async function createTask(
   actorAccessToken: string,
   workspaceSlug: string,
   projectSlug: string,
-  overrides: Partial<{ title: string; priority: string; assigneeId: string }> = {},
+  overrides: Partial<{ title: string; priority: string; assigneeId: string; dueDate: string }> = {},
 ) {
   const payload = {
     title: overrides.title ?? "Test Task",
     priority: overrides.priority ?? "MEDIUM",
     assigneeId: overrides.assigneeId,
+    dueDate: overrides.dueDate,
   };
 
   const res = await request(app)

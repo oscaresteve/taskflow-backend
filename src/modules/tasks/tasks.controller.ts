@@ -29,12 +29,13 @@ export async function create(req: Request, res: Response, next: NextFunction) {
 export async function findAll(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user.id;
+    const timeZone = req.user.timezone;
     const query = req.validated.query as TaskQueryDto;
     const params = req.validated.params as ProjectParamsDto;
     const workspaceSlug = params.workspaceSlug;
     const projectSlug = params.projectSlug;
 
-    const tasks = await tasksService.findAll({ query, userId, workspaceSlug, projectSlug });
+    const tasks = await tasksService.findAll({ query, userId, timeZone, workspaceSlug, projectSlug });
 
     const tasksResponse = toPaginatedTaskResponseDto({ tasks, page: query.page, limit: query.limit });
 

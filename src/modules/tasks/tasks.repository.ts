@@ -4,6 +4,7 @@ import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { CreateTaskDto, TaskQueryDto, UpdateTaskDto } from "./schemas/tasks.schema.ts";
 import type { Task, TaskStatus } from "../../shared/types/prisma.types.ts";
 import { rankBetween } from "../../shared/utils/lexorank.ts";
+import { getThisWeekRange, resolveTimeZone } from "../../shared/utils/date-range.ts";
 
 // Rank para una tarea nueva: al final de su columna.
 export async function getNextTaskRank({
@@ -92,17 +93,41 @@ export async function create({
   });
 }
 
+function buildDueDateWhere(
+  filter: TaskQueryDto["dueDate"],
+  timeZone: string | null,
+): Prisma.TaskWhereInput["dueDate"] {
+  if (filter === "NONE") return null;
+  if (filter === "OVERDUE") return { lt: new Date() };
+  if (filter === "THIS_WEEK") {
+    const { start, end } = getThisWeekRange(new Date(), resolveTimeZone(timeZone));
+    return { gte: start, lt: end };
+  }
+
+  return undefined;
+}
+
 export async function findAll({
   projectId,
+  userId,
+  timeZone,
   query,
 }: {
   projectId: string;
+  userId: string;
+  timeZone: string | null;
   query: TaskQueryDto;
 }): Promise<PaginatedResult<Task>> {
   const where: Prisma.TaskWhereInput = {};
 
   where.projectId = projectId;
   where.isArchived = query.isArchived ?? false; // Por defecto solo los que no esten archivadoss
+
+  if (query.isFavorite === true) {
+    where.favorites = { some: { userId } };
+  } else if (query.isFavorite === false) {
+    where.favorites = { none: { userId } };
+  }
 
   if (query.search) {
     where.OR = [
@@ -129,8 +154,14 @@ export async function findAll({
     where.priority = query.priority;
   }
 
-  if (query.assigneeId) {
+  if (query.assigneeId === "UNASSIGNED") {
+    where.assigneeId = null;
+  } else if (query.assigneeId) {
     where.assigneeId = query.assigneeId;
+  }
+
+  if (query.dueDate) {
+    where.dueDate = buildDueDateWhere(query.dueDate, timeZone);
   }
 
   // Construimos la ordenacion. El taskNumber desempata: dos tareas pueden compartir rank

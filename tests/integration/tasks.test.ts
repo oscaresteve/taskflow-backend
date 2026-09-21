@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { prisma } from "../../src/config/prisma.ts";
+import { getThisWeekRange } from "../../src/shared/utils/date-range.ts";
 import {
   addActiveMember,
   addActiveProjectMember,
@@ -11,8 +12,8 @@ import {
   signUp,
 } from "../helpers/api.ts";
 
-async function setupOwnerProject() {
-  const owner = await signUp();
+async function setupOwnerProject(overrides: Partial<{ timezone: string }> = {}) {
+  const owner = await signUp({ timezone: overrides.timezone });
   const workspace = await createWorkspace(owner.accessToken);
   const project = await createProject(owner.accessToken, workspace.slug);
   return { owner, workspace, project };
@@ -69,6 +70,125 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/tasks", () => {
       .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.body.data).toHaveLength(0);
+  });
+
+  it("filters by status, priority and assigneeId", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Low", priority: "LOW" });
+    const urgent = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Urgent",
+      priority: "URGENT",
+      assigneeId: owner.user.id,
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .query({ priority: "URGENT", assigneeId: owner.user.id })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].id).toBe(urgent.id);
+  });
+
+  it("filters by assigneeId=UNASSIGNED", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const unassigned = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Unassigned" });
+    await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Assigned",
+      assigneeId: owner.user.id,
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .query({ assigneeId: "UNASSIGNED" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].id).toBe(unassigned.id);
+  });
+
+  it("filters by isFavorite", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const favorited = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Favorited" });
+    await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Not favorited" });
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${favorited.taskNumber}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .query({ isFavorite: "true" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].id).toBe(favorited.id);
+    expect(res.body.data[0].isFavorite).toBe(true);
+  });
+
+  it("filters by dueDate=OVERDUE, THIS_WEEK and NONE", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const now = new Date();
+    const overdue = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Overdue",
+      dueDate: new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString(),
+    });
+    const dueToday = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Due today",
+      dueDate: new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
+    });
+    const noDueDate = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "No due date" });
+
+    const overdueRes = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .query({ dueDate: "OVERDUE" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(overdueRes.body.data.map((task: { id: string }) => task.id)).toEqual([overdue.id]);
+
+    const thisWeekRes = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .query({ dueDate: "THIS_WEEK" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(thisWeekRes.body.data.map((task: { id: string }) => task.id)).toContain(dueToday.id);
+
+    const noneRes = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .query({ dueDate: "NONE" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(noneRes.body.data.map((task: { id: string }) => task.id)).toEqual([noDueDate.id]);
+  });
+
+  it("resolves dueDate=THIS_WEEK against the requesting user's own timezone, not the server's", async () => {
+    // 6h antes del inicio (UTC) de la semana actual: cae fuera de la semana en UTC, pero un
+    // usuario en Etc/GMT+12 (12h detras) todavia lo ve dentro de su propia semana, ya sea porque
+    // su lunes local empieza 12h mas tarde en UTC (misma semana) o porque para el todavia no ha
+    // empezado la semana nueva (semana anterior completa). En los dos casos el limite queda dentro.
+    const utcWeek = getThisWeekRange(new Date(), "UTC");
+    const dueDate = new Date(utcWeek.start.getTime() - 6 * 60 * 60 * 1000).toISOString();
+
+    const utcOwner = await setupOwnerProject({ timezone: "UTC" });
+    const utcTask = await createTask(utcOwner.owner.accessToken, utcOwner.workspace.slug, utcOwner.project.slug, {
+      dueDate,
+    });
+
+    const behindOwner = await setupOwnerProject({ timezone: "Etc/GMT+12" });
+    const behindTask = await createTask(
+      behindOwner.owner.accessToken,
+      behindOwner.workspace.slug,
+      behindOwner.project.slug,
+      { dueDate },
+    );
+
+    const utcRes = await request(app)
+      .get(`/api/workspaces/${utcOwner.workspace.slug}/projects/${utcOwner.project.slug}/tasks`)
+      .query({ dueDate: "THIS_WEEK" })
+      .set("Cookie", `accessToken=${utcOwner.owner.accessToken}`);
+    expect(utcRes.body.data.map((task: { id: string }) => task.id)).not.toContain(utcTask.id);
+
+    const behindRes = await request(app)
+      .get(`/api/workspaces/${behindOwner.workspace.slug}/projects/${behindOwner.project.slug}/tasks`)
+      .query({ dueDate: "THIS_WEEK" })
+      .set("Cookie", `accessToken=${behindOwner.owner.accessToken}`);
+    expect(behindRes.body.data.map((task: { id: string }) => task.id)).toContain(behindTask.id);
   });
 });
 

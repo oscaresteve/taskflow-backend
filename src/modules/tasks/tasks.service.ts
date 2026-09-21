@@ -48,11 +48,13 @@ export async function create({
 export async function findAll({
   query,
   userId,
+  timeZone,
   workspaceSlug,
   projectSlug,
 }: {
   query: TaskQueryDto;
   userId: string;
+  timeZone: string | null;
   workspaceSlug: string;
   projectSlug: string;
 }): Promise<PaginatedResult<Task & { isFavorite: boolean }>> {
@@ -63,7 +65,7 @@ export async function findAll({
     projectSlug,
   });
 
-  const tasks = await tasksRepository.findAll({ projectId: project.id, query });
+  const tasks = await tasksRepository.findAll({ projectId: project.id, userId, timeZone, query });
 
   const favoritedIds = await tasksRepository.findFavoritedIds({
     userId,

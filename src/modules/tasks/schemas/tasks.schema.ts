@@ -23,6 +23,7 @@ export const createTaskSchema = z.object({
 });
 
 const sortableFields = ["rank", "title", "status", "priority", "dueDate", "createdAt", "updatedAt"] as const;
+export const dueDateFilterValues = ["OVERDUE", "THIS_WEEK", "NONE"] as const;
 
 export const taskQuerySchema = z.object({
   // Pagination
@@ -31,6 +32,7 @@ export const taskQuerySchema = z.object({
 
   // Filters
   isArchived: booleanQueryParamSchema,
+  isFavorite: booleanQueryParamSchema,
 
   search: searchSchema,
 
@@ -38,7 +40,11 @@ export const taskQuerySchema = z.object({
 
   priority: z.enum(TaskPriority).optional(),
 
-  assigneeId: z.cuid().optional(),
+  // "UNASSIGNED" es el sentinel que ya usa el filtro de responsable del Kanban en el frontend
+  // para pedir las tareas sin asignar; un cuid real filtra por ese responsable concreto.
+  assigneeId: z.union([z.cuid(), z.literal("UNASSIGNED")]).optional(),
+
+  dueDate: z.enum(dueDateFilterValues).optional(),
 
   // Sorting
   sort: z.enum(sortableFields).default("rank"),
