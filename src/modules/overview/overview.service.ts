@@ -11,7 +11,7 @@ export async function getWorkspaceOverview({ userId, workspaceSlug }: { userId: 
   // Obtener el contexto (comprueba que el usuario es miembro activo)
   const { workspace } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
 
-  return overviewRepository.getWorkspaceOverview({ workspaceId: workspace.id });
+  return overviewRepository.getWorkspaceOverview({ userId, workspaceId: workspace.id });
 }
 
 export async function getProjectOverview({
@@ -26,5 +26,5 @@ export async function getProjectOverview({
   // Obtener el contexto (comprueba que el usuario es miembro activo del proyecto)
   const { project } = await authorizationService.getProjectContext({ userId, workspaceSlug, projectSlug });
 
-  return overviewRepository.getProjectOverview({ projectId: project.id });
+  return overviewRepository.getProjectOverview({ userId, projectId: project.id });
 }

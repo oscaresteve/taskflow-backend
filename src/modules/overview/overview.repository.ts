@@ -16,9 +16,28 @@ const overviewTaskInclude = {
 };
 
 export type OverviewTaskRow = Task & {
+  isFavorite: boolean;
   project: { key: string; slug: string; name: string; workspace: { slug: string } };
   assignee: { id: string; firstName: string; lastName: string; avatarUrl: string | null } | null;
 };
+
+type OverviewTaskRowWithoutFavorite = Omit<OverviewTaskRow, "isFavorite">;
+
+// Las filas de tarea de los overviews vienen de un include, no del modulo de tasks, asi que el
+// favorito de cada una se resuelve aqui con la misma tabla de union en vez de reusar tasks.repository.
+async function attachFavorites<T extends OverviewTaskRowWithoutFavorite>(
+  userId: string,
+  tasks: T[],
+): Promise<(T & { isFavorite: boolean })[]> {
+  const favorites = await prisma.taskFavorite.findMany({
+    where: { userId, taskId: { in: tasks.map((task) => task.id) } },
+    select: { taskId: true },
+  });
+
+  const favoritedIds = new Set(favorites.map((favorite) => favorite.taskId));
+
+  return tasks.map((task) => ({ ...task, isFavorite: favoritedIds.has(task.id) }));
+}
 
 export type ProjectWorkloadRow = {
   id: string;
@@ -91,11 +110,11 @@ export async function getMyOverview({ userId }: { userId: string }) {
     dueSoon,
     noDueDate,
     completedLast7Days,
-    myTasks: myTasks as OverviewTaskRow[],
+    myTasks: await attachFavorites(userId, myTasks as OverviewTaskRowWithoutFavorite[]),
   };
 }
 
-export async function getWorkspaceOverview({ workspaceId }: { workspaceId: string }) {
+export async function getWorkspaceOverview({ userId, workspaceId }: { userId: string; workspaceId: string }) {
   const now = new Date();
   const velocitySince = new Date(now.getTime() - VELOCITY_DAYS * 24 * 60 * 60 * 1000);
 
@@ -153,11 +172,11 @@ export async function getWorkspaceOverview({ workspaceId }: { workspaceId: strin
     overdue,
     completedLast7Days,
     workload: workload as ProjectWorkloadRow[],
-    recentTasks: recentTasks as OverviewTaskRow[],
+    recentTasks: await attachFavorites(userId, recentTasks as OverviewTaskRowWithoutFavorite[]),
   };
 }
 
-export async function getProjectOverview({ projectId }: { projectId: string }) {
+export async function getProjectOverview({ userId, projectId }: { userId: string; projectId: string }) {
   const now = new Date();
   const velocitySince = new Date(now.getTime() - VELOCITY_DAYS * 24 * 60 * 60 * 1000);
 
@@ -221,6 +240,6 @@ export async function getProjectOverview({ projectId }: { projectId: string }) {
     unassigned,
     completedLast7Days,
     workload: workload as MemberWorkloadRow[],
-    recentTasks: recentTasks as OverviewTaskRow[],
+    recentTasks: await attachFavorites(userId, recentTasks as OverviewTaskRowWithoutFavorite[]),
   };
 }
