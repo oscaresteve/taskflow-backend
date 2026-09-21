@@ -499,3 +499,81 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
     expect(res.status).toBe(400);
   });
 });
+
+describe("POST/DELETE /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/favorite", () => {
+  it("lets a project member favorite and unfavorite a task", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+
+    const favoriteRes = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(favoriteRes.status).toBe(204);
+
+    const afterFavorite = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(afterFavorite.body.isFavorite).toBe(true);
+
+    const unfavoriteRes = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(unfavoriteRes.status).toBe(204);
+
+    const afterUnfavorite = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(afterUnfavorite.body.isFavorite).toBe(false);
+  });
+
+  it("409s when favoriting a task twice", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(409);
+  });
+
+  it("404s when unfavoriting a task that isn't favorited", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+
+    const res = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("forbids favoriting a task the user is not a project member of", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    const outsider = await signUp();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/favorite`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("marks the task as favorite on the board", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/board`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.find((t: { id: string }) => t.id === task.id).isFavorite).toBe(true);
+  });
+});

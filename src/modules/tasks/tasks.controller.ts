@@ -130,3 +130,35 @@ export async function archive(req: Request, res: Response, next: NextFunction) {
     next(error);
   }
 }
+
+export async function favorite(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const params = req.validated.params as TaskParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const projectSlug = params.projectSlug;
+    const taskNumber = params.taskNumber;
+
+    await tasksService.favorite({ userId, workspaceSlug, projectSlug, taskNumber });
+
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function unfavorite(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const params = req.validated.params as TaskParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const projectSlug = params.projectSlug;
+    const taskNumber = params.taskNumber;
+
+    await tasksService.unfavorite({ userId, workspaceSlug, projectSlug, taskNumber });
+
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+}

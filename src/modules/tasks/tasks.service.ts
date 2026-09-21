@@ -2,6 +2,7 @@ import type { CreateTaskDto, MoveTaskDto, TaskQueryDto, UpdateTaskDto } from "./
 import { type Task } from "../../shared/types/prisma.types.ts";
 import * as tasksRepository from "./tasks.repository.ts";
 import { BadRequestError } from "../../shared/errors/bad-request-error.ts";
+import { ConflictError } from "../../shared/errors/conflict-error.ts";
 import { NotFoundError } from "../../shared/errors/not-found-error.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
@@ -19,7 +20,7 @@ export async function create({
   userId: string;
   workspaceSlug: string;
   projectSlug: string;
-}): Promise<Task> {
+}): Promise<Task & { isFavorite: boolean }> {
   // Obtener el contexto
   const { project } = await authorizationService.getProjectContext({
     userId,
@@ -40,7 +41,8 @@ export async function create({
 
   const task = await tasksRepository.create({ data, userId, projectId: project.id, rank });
 
-  return task;
+  // Una tarea recien creada no puede estar marcada como favorita todavia
+  return { ...task, isFavorite: false };
 }
 
 export async function findAll({
@@ -53,7 +55,7 @@ export async function findAll({
   userId: string;
   workspaceSlug: string;
   projectSlug: string;
-}): Promise<PaginatedResult<Task>> {
+}): Promise<PaginatedResult<Task & { isFavorite: boolean }>> {
   // Obtener el contexto
   const { project } = await authorizationService.getProjectContext({
     userId,
@@ -63,7 +65,15 @@ export async function findAll({
 
   const tasks = await tasksRepository.findAll({ projectId: project.id, query });
 
-  return tasks;
+  const favoritedIds = await tasksRepository.findFavoritedIds({
+    userId,
+    taskIds: tasks.items.map((task) => task.id),
+  });
+
+  return {
+    items: tasks.items.map((task) => ({ ...task, isFavorite: favoritedIds.has(task.id) })),
+    total: tasks.total,
+  };
 }
 
 export async function findBoard({
@@ -74,14 +84,21 @@ export async function findBoard({
   userId: string;
   workspaceSlug: string;
   projectSlug: string;
-}): Promise<Task[]> {
+}): Promise<(Task & { isFavorite: boolean })[]> {
   const { project } = await authorizationService.getProjectContext({
     userId,
     workspaceSlug,
     projectSlug,
   });
 
-  return tasksRepository.findAllForBoard(project.id);
+  const tasks = await tasksRepository.findAllForBoard(project.id);
+
+  const favoritedIds = await tasksRepository.findFavoritedIds({
+    userId,
+    taskIds: tasks.map((task) => task.id),
+  });
+
+  return tasks.map((task) => ({ ...task, isFavorite: favoritedIds.has(task.id) }));
 }
 
 export async function findByTaskNumber({
@@ -94,11 +111,13 @@ export async function findByTaskNumber({
   workspaceSlug: string;
   projectSlug: string;
   taskNumber: number;
-}): Promise<Task> {
+}): Promise<Task & { isFavorite: boolean }> {
   // Obtener contexto
   const { task } = await authorizationService.getTaskContext({ userId, workspaceSlug, projectSlug, taskNumber });
 
-  return task;
+  const isFavorite = await tasksRepository.isFavorited({ userId, taskId: task.id });
+
+  return { ...task, isFavorite };
 }
 
 export async function update({
@@ -113,7 +132,7 @@ export async function update({
   workspaceSlug: string;
   projectSlug: string;
   taskNumber: number;
-}): Promise<Task> {
+}): Promise<Task & { isFavorite: boolean }> {
   // Obtener contexto
   const { project, task } = await authorizationService.getTaskContext({
     userId,
@@ -146,9 +165,12 @@ export async function update({
     completedAt = null;
   }
 
-  const updatedTask = await tasksRepository.update({ projectId: project.id, taskNumber, data, completedAt });
+  const [updatedTask, isFavorite] = await Promise.all([
+    tasksRepository.update({ projectId: project.id, taskNumber, data, completedAt }),
+    tasksRepository.isFavorited({ userId, taskId: task.id }),
+  ]);
 
-  return updatedTask;
+  return { ...updatedTask, isFavorite };
 }
 
 export async function move({
@@ -163,7 +185,7 @@ export async function move({
   workspaceSlug: string;
   projectSlug: string;
   taskNumber: number;
-}): Promise<Task> {
+}): Promise<Task & { isFavorite: boolean }> {
   // Obtener contexto
   const { project, task } = await authorizationService.getTaskContext({
     userId,
@@ -220,7 +242,9 @@ export async function move({
     throw new NotFoundError("Anchor task not found");
   }
 
-  return movedTask;
+  const isFavorite = await tasksRepository.isFavorited({ userId, taskId: movedTask.id });
+
+  return { ...movedTask, isFavorite };
 }
 
 export async function archive({
@@ -251,4 +275,48 @@ export async function archive({
   }
 
   await tasksRepository.archive({ projectId: project.id, taskNumber });
+}
+
+export async function favorite({
+  userId,
+  workspaceSlug,
+  projectSlug,
+  taskNumber,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  taskNumber: number;
+}): Promise<void> {
+  // Obtener contexto
+  const { task } = await authorizationService.getTaskContext({ userId, workspaceSlug, projectSlug, taskNumber });
+
+  // Comprobar que no este ya marcada como favorita
+  if (await tasksRepository.isFavorited({ userId, taskId: task.id })) {
+    throw new ConflictError("Task is already favorited");
+  }
+
+  await tasksRepository.createFavorite({ userId, taskId: task.id });
+}
+
+export async function unfavorite({
+  userId,
+  workspaceSlug,
+  projectSlug,
+  taskNumber,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  taskNumber: number;
+}): Promise<void> {
+  // Obtener contexto
+  const { task } = await authorizationService.getTaskContext({ userId, workspaceSlug, projectSlug, taskNumber });
+
+  // Comprobar que este marcada como favorita
+  if (!(await tasksRepository.isFavorited({ userId, taskId: task.id }))) {
+    throw new NotFoundError("Task is not favorited");
+  }
+
+  await tasksRepository.deleteFavorite({ userId, taskId: task.id });
 }

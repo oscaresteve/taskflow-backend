@@ -311,3 +311,59 @@ export async function archive({ projectId, taskNumber }: { projectId: string; ta
     },
   });
 }
+
+export async function isFavorited({ userId, taskId }: { userId: string; taskId: string }): Promise<boolean> {
+  const favorite = await prisma.taskFavorite.findUnique({
+    where: {
+      userId_taskId: {
+        userId,
+        taskId,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  return !!favorite;
+}
+
+export async function findFavoritedIds({
+  userId,
+  taskIds,
+}: {
+  userId: string;
+  taskIds: string[];
+}): Promise<Set<string>> {
+  const favorites = await prisma.taskFavorite.findMany({
+    where: {
+      userId,
+      taskId: { in: taskIds },
+    },
+    select: {
+      taskId: true,
+    },
+  });
+
+  return new Set(favorites.map((favorite) => favorite.taskId));
+}
+
+export async function createFavorite({ userId, taskId }: { userId: string; taskId: string }): Promise<void> {
+  await prisma.taskFavorite.create({
+    data: {
+      userId,
+      taskId,
+    },
+  });
+}
+
+export async function deleteFavorite({ userId, taskId }: { userId: string; taskId: string }): Promise<void> {
+  await prisma.taskFavorite.delete({
+    where: {
+      userId_taskId: {
+        userId,
+        taskId,
+      },
+    },
+  });
+}

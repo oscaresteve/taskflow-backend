@@ -83,3 +83,20 @@ tasksRouter.patch(
   validate({ params: taskParamsSchema }),
   tasksController.archive,
 );
+
+// 7. Marcar/desmarcar como favorita (por usuario)
+// POST   /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/favorite
+// DELETE /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/favorite
+tasksRouter.post(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/favorite",
+  auth,
+  validate({ params: taskParamsSchema }),
+  tasksController.favorite,
+);
+
+tasksRouter.delete(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/favorite",
+  auth,
+  validate({ params: taskParamsSchema }),
+  tasksController.unfavorite,
+);
