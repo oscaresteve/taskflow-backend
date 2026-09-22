@@ -2,6 +2,7 @@ import type { PaginatedResponseDto } from "../../../shared/dtos/pagination.dto.t
 import type { PaginatedResult } from "../../../shared/types/pagination.types.ts";
 import type { WorkspaceResponseDto } from "../dtos/workspaces.dto.ts";
 import type { Workspace } from "../../../shared/types/prisma.types.ts";
+import { buildPublicUrl } from "../../../shared/storage/storage.service.ts";
 
 export function toWorkspaceResponseDto(workspace: Workspace & { isFavorite: boolean }): WorkspaceResponseDto {
   return {
@@ -11,7 +12,8 @@ export function toWorkspaceResponseDto(workspace: Workspace & { isFavorite: bool
     slug: workspace.slug,
 
     description: workspace.description,
-    logoUrl: workspace.logoUrl,
+    // La key se guarda en BD, la URL pública se construye al vuelo a partir de S3_PUBLIC_URL_BASE
+    avatarUrl: workspace.avatarKey ? buildPublicUrl({ key: workspace.avatarKey }) : null,
 
     isActive: workspace.isActive,
     isFavorite: workspace.isFavorite,

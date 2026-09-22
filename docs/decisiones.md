@@ -20,7 +20,7 @@ Cloudflare R2 en producción y MinIO en desarrollo, ambos compatibles con la API
 
 **Subida de archivos: URL prefirmada (presigned URL), no proxy por el backend.** El backend expone un endpoint que devuelve una URL de `PutObject` firmada; el cliente sube el archivo directo al bucket (R2 o MinIO) y el backend nunca ve los bytes del archivo pasar por su memoria/ancho de banda.
 
-**Por qué:** aunque el primer caso de uso (avatar de proyecto) es un archivo pequeño donde un proxy por el backend sería igual de simple, el sistema de storage se diseña una vez para todos los casos de uso futuros (adjuntos de tareas, que sí pueden ser archivos grandes), y ahí la URL prefirmada escala mejor. Requiere configurar CORS en el bucket y validar el archivo con condiciones en la policy de la URL firmada en vez de leerlo en el backend, pero evita que el servidor sea un cuello de botella de ancho de banda para subidas.
+**Por qué:** aunque el primer caso de uso (avatar de workspace) es un archivo pequeño donde un proxy por el backend sería igual de simple, el sistema de storage se diseña una vez para todos los casos de uso futuros (adjuntos de tareas, que sí pueden ser archivos grandes), y ahí la URL prefirmada escala mejor. Requiere configurar CORS en el bucket y validar el archivo con condiciones en la policy de la URL firmada en vez de leerlo en el backend, pero evita que el servidor sea un cuello de botella de ancho de banda para subidas.
 
 ### Validación: Zod
 

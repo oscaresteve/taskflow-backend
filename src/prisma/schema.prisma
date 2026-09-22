@@ -41,7 +41,7 @@ model Workspace {
   name        String
   slug        String    @unique
   description String?
-  logoUrl     String?
+  avatarKey   String?
   isActive    Boolean   @default(true)
 
   createdAt   DateTime  @default(now())

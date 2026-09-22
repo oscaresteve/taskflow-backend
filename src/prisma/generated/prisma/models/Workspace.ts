@@ -29,7 +29,7 @@ export type WorkspaceMinAggregateOutputType = {
   name: string | null
   slug: string | null
   description: string | null
-  logoUrl: string | null
+  avatarKey: string | null
   isActive: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -40,7 +40,7 @@ export type WorkspaceMaxAggregateOutputType = {
   name: string | null
   slug: string | null
   description: string | null
-  logoUrl: string | null
+  avatarKey: string | null
   isActive: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -51,7 +51,7 @@ export type WorkspaceCountAggregateOutputType = {
   name: number
   slug: number
   description: number
-  logoUrl: number
+  avatarKey: number
   isActive: number
   createdAt: number
   updatedAt: number
@@ -64,7 +64,7 @@ export type WorkspaceMinAggregateInputType = {
   name?: true
   slug?: true
   description?: true
-  logoUrl?: true
+  avatarKey?: true
   isActive?: true
   createdAt?: true
   updatedAt?: true
@@ -75,7 +75,7 @@ export type WorkspaceMaxAggregateInputType = {
   name?: true
   slug?: true
   description?: true
-  logoUrl?: true
+  avatarKey?: true
   isActive?: true
   createdAt?: true
   updatedAt?: true
@@ -86,7 +86,7 @@ export type WorkspaceCountAggregateInputType = {
   name?: true
   slug?: true
   description?: true
-  logoUrl?: true
+  avatarKey?: true
   isActive?: true
   createdAt?: true
   updatedAt?: true
@@ -170,7 +170,7 @@ export type WorkspaceGroupByOutputType = {
   name: string
   slug: string
   description: string | null
-  logoUrl: string | null
+  avatarKey: string | null
   isActive: boolean
   createdAt: Date
   updatedAt: Date
@@ -202,7 +202,7 @@ export type WorkspaceWhereInput = {
   name?: Prisma.StringFilter<"Workspace"> | string
   slug?: Prisma.StringFilter<"Workspace"> | string
   description?: Prisma.StringNullableFilter<"Workspace"> | string | null
-  logoUrl?: Prisma.StringNullableFilter<"Workspace"> | string | null
+  avatarKey?: Prisma.StringNullableFilter<"Workspace"> | string | null
   isActive?: Prisma.BoolFilter<"Workspace"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Workspace"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Workspace"> | Date | string
@@ -216,7 +216,7 @@ export type WorkspaceOrderByWithRelationInput = {
   name?: Prisma.SortOrder
   slug?: Prisma.SortOrder
   description?: Prisma.SortOrderInput | Prisma.SortOrder
-  logoUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  avatarKey?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -233,7 +233,7 @@ export type WorkspaceWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.WorkspaceWhereInput | Prisma.WorkspaceWhereInput[]
   name?: Prisma.StringFilter<"Workspace"> | string
   description?: Prisma.StringNullableFilter<"Workspace"> | string | null
-  logoUrl?: Prisma.StringNullableFilter<"Workspace"> | string | null
+  avatarKey?: Prisma.StringNullableFilter<"Workspace"> | string | null
   isActive?: Prisma.BoolFilter<"Workspace"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Workspace"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Workspace"> | Date | string
@@ -247,7 +247,7 @@ export type WorkspaceOrderByWithAggregationInput = {
   name?: Prisma.SortOrder
   slug?: Prisma.SortOrder
   description?: Prisma.SortOrderInput | Prisma.SortOrder
-  logoUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  avatarKey?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -264,7 +264,7 @@ export type WorkspaceScalarWhereWithAggregatesInput = {
   name?: Prisma.StringWithAggregatesFilter<"Workspace"> | string
   slug?: Prisma.StringWithAggregatesFilter<"Workspace"> | string
   description?: Prisma.StringNullableWithAggregatesFilter<"Workspace"> | string | null
-  logoUrl?: Prisma.StringNullableWithAggregatesFilter<"Workspace"> | string | null
+  avatarKey?: Prisma.StringNullableWithAggregatesFilter<"Workspace"> | string | null
   isActive?: Prisma.BoolWithAggregatesFilter<"Workspace"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Workspace"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Workspace"> | Date | string
@@ -275,7 +275,7 @@ export type WorkspaceCreateInput = {
   name: string
   slug: string
   description?: string | null
-  logoUrl?: string | null
+  avatarKey?: string | null
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -289,7 +289,7 @@ export type WorkspaceUncheckedCreateInput = {
   name: string
   slug: string
   description?: string | null
-  logoUrl?: string | null
+  avatarKey?: string | null
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -303,7 +303,7 @@ export type WorkspaceUpdateInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  logoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -317,7 +317,7 @@ export type WorkspaceUncheckedUpdateInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  logoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -331,7 +331,7 @@ export type WorkspaceCreateManyInput = {
   name: string
   slug: string
   description?: string | null
-  logoUrl?: string | null
+  avatarKey?: string | null
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -342,7 +342,7 @@ export type WorkspaceUpdateManyMutationInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  logoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -353,7 +353,7 @@ export type WorkspaceUncheckedUpdateManyInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  logoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -364,7 +364,7 @@ export type WorkspaceCountOrderByAggregateInput = {
   name?: Prisma.SortOrder
   slug?: Prisma.SortOrder
   description?: Prisma.SortOrder
-  logoUrl?: Prisma.SortOrder
+  avatarKey?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -375,7 +375,7 @@ export type WorkspaceMaxOrderByAggregateInput = {
   name?: Prisma.SortOrder
   slug?: Prisma.SortOrder
   description?: Prisma.SortOrder
-  logoUrl?: Prisma.SortOrder
+  avatarKey?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -386,7 +386,7 @@ export type WorkspaceMinOrderByAggregateInput = {
   name?: Prisma.SortOrder
   slug?: Prisma.SortOrder
   description?: Prisma.SortOrder
-  logoUrl?: Prisma.SortOrder
+  avatarKey?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -444,7 +444,7 @@ export type WorkspaceCreateWithoutFavoritesInput = {
   name: string
   slug: string
   description?: string | null
-  logoUrl?: string | null
+  avatarKey?: string | null
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -457,7 +457,7 @@ export type WorkspaceUncheckedCreateWithoutFavoritesInput = {
   name: string
   slug: string
   description?: string | null
-  logoUrl?: string | null
+  avatarKey?: string | null
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -486,7 +486,7 @@ export type WorkspaceUpdateWithoutFavoritesInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  logoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -499,7 +499,7 @@ export type WorkspaceUncheckedUpdateWithoutFavoritesInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  logoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -512,7 +512,7 @@ export type WorkspaceCreateWithoutMembersInput = {
   name: string
   slug: string
   description?: string | null
-  logoUrl?: string | null
+  avatarKey?: string | null
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -525,7 +525,7 @@ export type WorkspaceUncheckedCreateWithoutMembersInput = {
   name: string
   slug: string
   description?: string | null
-  logoUrl?: string | null
+  avatarKey?: string | null
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -554,7 +554,7 @@ export type WorkspaceUpdateWithoutMembersInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  logoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -567,7 +567,7 @@ export type WorkspaceUncheckedUpdateWithoutMembersInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  logoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -580,7 +580,7 @@ export type WorkspaceCreateWithoutProjectsInput = {
   name: string
   slug: string
   description?: string | null
-  logoUrl?: string | null
+  avatarKey?: string | null
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -593,7 +593,7 @@ export type WorkspaceUncheckedCreateWithoutProjectsInput = {
   name: string
   slug: string
   description?: string | null
-  logoUrl?: string | null
+  avatarKey?: string | null
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -622,7 +622,7 @@ export type WorkspaceUpdateWithoutProjectsInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  logoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -635,7 +635,7 @@ export type WorkspaceUncheckedUpdateWithoutProjectsInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  logoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -697,7 +697,7 @@ export type WorkspaceSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   name?: boolean
   slug?: boolean
   description?: boolean
-  logoUrl?: boolean
+  avatarKey?: boolean
   isActive?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -712,7 +712,7 @@ export type WorkspaceSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   name?: boolean
   slug?: boolean
   description?: boolean
-  logoUrl?: boolean
+  avatarKey?: boolean
   isActive?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -723,7 +723,7 @@ export type WorkspaceSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   name?: boolean
   slug?: boolean
   description?: boolean
-  logoUrl?: boolean
+  avatarKey?: boolean
   isActive?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -734,13 +734,13 @@ export type WorkspaceSelectScalar = {
   name?: boolean
   slug?: boolean
   description?: boolean
-  logoUrl?: boolean
+  avatarKey?: boolean
   isActive?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type WorkspaceOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "slug" | "description" | "logoUrl" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["workspace"]>
+export type WorkspaceOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "slug" | "description" | "avatarKey" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["workspace"]>
 export type WorkspaceInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   members?: boolean | Prisma.Workspace$membersArgs<ExtArgs>
   projects?: boolean | Prisma.Workspace$projectsArgs<ExtArgs>
@@ -762,7 +762,7 @@ export type $WorkspacePayload<ExtArgs extends runtime.Types.Extensions.InternalA
     name: string
     slug: string
     description: string | null
-    logoUrl: string | null
+    avatarKey: string | null
     isActive: boolean
     createdAt: Date
     updatedAt: Date
@@ -1196,7 +1196,7 @@ export interface WorkspaceFieldRefs {
   readonly name: Prisma.FieldRef<"Workspace", 'String'>
   readonly slug: Prisma.FieldRef<"Workspace", 'String'>
   readonly description: Prisma.FieldRef<"Workspace", 'String'>
-  readonly logoUrl: Prisma.FieldRef<"Workspace", 'String'>
+  readonly avatarKey: Prisma.FieldRef<"Workspace", 'String'>
   readonly isActive: Prisma.FieldRef<"Workspace", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"Workspace", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Workspace", 'DateTime'>

@@ -169,7 +169,6 @@ async function seedNimbusStudio(passwordHash: string) {
       name: "Nimbus Studio",
       slug: "nimbus-studio",
       description: "Estudio de producto digital. Diseño y desarrollo de aplicaciones a medida.",
-      logoUrl: "https://api.dicebear.com/10.x/disco/svg?seed=Nimbus",
       createdAt: daysAgo(300),
       members: {
         create: [
@@ -552,7 +551,6 @@ async function seedClosedWorkspace(demoId: string, partnerId: string) {
       name: "Herrera & Vidal",
       slug: "herrera-vidal",
       description: "Cliente antiguo. La colaboración terminó y el espacio quedó dado de baja.",
-      logoUrl: "https://api.dicebear.com/10.x/disco/svg?seed=Herrera",
       isActive: false,
       createdAt: daysAgo(620),
       members: {
@@ -707,7 +705,6 @@ async function seedLogistica(passwordHash: string, demoId: string) {
       name: "Logística Peninsular",
       slug: "logistica-peninsular",
       description: "Grupo con centros de distribución repartidos por todo el país.",
-      logoUrl: "https://api.dicebear.com/10.x/disco/svg?seed=Logistica",
       createdAt: daysAgo(500),
       members: {
         create: [

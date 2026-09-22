@@ -5,7 +5,7 @@ export type WorkspaceResponseDto = {
   slug: string;
 
   description: string | null;
-  logoUrl: string | null;
+  avatarUrl: string | null;
 
   isActive: boolean;
   isFavorite: boolean;

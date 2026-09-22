@@ -23,7 +23,6 @@ export async function create({
         name: data.name,
         slug,
         description: data.description,
-        logoUrl: data.logoUrl,
       },
     });
 
