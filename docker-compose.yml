@@ -29,5 +29,69 @@ services:
       timeout: 3s
       retries: 10
 
+  # MinIO habla la misma API que S3, así el código de storage no cambia entre dev y prod (Cloudflare R2).
+  minio:
+    image: quay.io/minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9000:9000" # API S3
+      - "9001:9001" # Consola web
+    volumes:
+      - minio_dev_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  minio-test:
+    image: quay.io/minio/minio:latest
+    command: server /data --console-address ":9003"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9002:9000"
+      - "9003:9003"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  # Jobs de un solo uso: crean el bucket y lo marcan como lectura pública.
+  # Van en su propio profile para no formar parte de `docker compose up --wait`
+  # (un contenedor que termina, aunque sea con éxito, rompe --wait).
+  # Se lanzan aparte desde el script `db:up`.
+  minio-init:
+    image: quay.io/minio/mc:latest
+    profiles: ["init"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin123 &&
+      mc mb --ignore-existing local/taskflow-avatars &&
+      mc anonymous set download local/taskflow-avatars
+      "
+
+  minio-test-init:
+    image: quay.io/minio/mc:latest
+    profiles: ["init"]
+    depends_on:
+      minio-test:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+      mc alias set local http://minio-test:9000 minioadmin minioadmin123 &&
+      mc mb --ignore-existing local/taskflow-avatars-test &&
+      mc anonymous set download local/taskflow-avatars-test
+      "
+
 volumes:
   postgres_dev_data:
+  minio_dev_data:

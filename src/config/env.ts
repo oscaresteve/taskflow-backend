@@ -12,6 +12,13 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_REFRESH_EXPIRES_IN: z.string(),
   CORS_ORIGIN: z.string().min(1),
+  S3_ENDPOINT: z.string().min(1),
+  S3_REGION: z.string().min(1),
+  S3_ACCESS_KEY_ID: z.string().min(1),
+  S3_SECRET_ACCESS_KEY: z.string().min(1),
+  S3_BUCKET_NAME: z.string().min(1),
+  S3_FORCE_PATH_STYLE: z.stringbool().default(false),
+  S3_PUBLIC_URL_BASE: z.string().min(1),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
