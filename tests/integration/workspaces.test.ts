@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
-import { addActiveMember, app, createWorkspace, signUp } from "../helpers/api.ts";
+import { addActiveMember, app, createWorkspace, signUp, uploadTestAvatarFile } from "../helpers/api.ts";
+import { MAX_AVATAR_SIZE_BYTES } from "../../src/modules/workspaces/schemas/workspaces.schema.ts";
 
 describe("POST /workspaces", () => {
   it("creates the workspace and makes the creator an active OWNER", async () => {
@@ -295,5 +296,217 @@ describe("POST/DELETE /workspaces/:slug/favorite", () => {
 
     expect(res.body.data).toHaveLength(1);
     expect(res.body.data[0].slug).toBe(favorited.slug);
+  });
+});
+
+describe("POST /workspaces/:slug/avatar/upload-url", () => {
+  it("returns a presigned URL and a key scoped to the workspace", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/avatar/upload-url`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ contentType: "image/png", fileSize: 1000 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.uploadUrl).toEqual(expect.stringContaining("http"));
+    expect(res.body.key).toEqual(expect.stringContaining(`workspaces/${workspace.id}/`));
+  });
+
+  it("403s a plain MEMBER", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/avatar/upload-url`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`)
+      .send({ contentType: "image/png", fileSize: 1000 });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("400s on a content type that isn't an allowed image format", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/avatar/upload-url`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ contentType: "application/pdf", fileSize: 1000 });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("400s when fileSize exceeds the max allowed size", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/avatar/upload-url`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ contentType: "image/png", fileSize: MAX_AVATAR_SIZE_BYTES + 1 });
+
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("PUT /workspaces/:slug/avatar", () => {
+  it("confirms a real upload and exposes the public avatarUrl afterwards", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const { key } = await uploadTestAvatarFile({ actorAccessToken: owner.accessToken, workspaceSlug: workspace.slug });
+
+    const confirmRes = await request(app)
+      .put(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ key });
+
+    expect(confirmRes.status).toBe(200);
+    expect(confirmRes.body.avatarUrl).toEqual(expect.stringContaining(key));
+
+    const getRes = await request(app)
+      .get(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(getRes.body.avatarUrl).toBe(confirmRes.body.avatarUrl);
+
+    // La URL pública debe ser accesible de verdad, no solo tener buena pinta.
+    const publicRes = await fetch(confirmRes.body.avatarUrl);
+    expect(publicRes.status).toBe(200);
+  });
+
+  it("replaces the previous avatar and deletes the old object from the bucket", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const first = await uploadTestAvatarFile({ actorAccessToken: owner.accessToken, workspaceSlug: workspace.slug });
+    const firstConfirmRes = await request(app)
+      .put(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ key: first.key });
+    const firstAvatarUrl = firstConfirmRes.body.avatarUrl as string;
+
+    const second = await uploadTestAvatarFile({ actorAccessToken: owner.accessToken, workspaceSlug: workspace.slug });
+    const secondConfirmRes = await request(app)
+      .put(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ key: second.key });
+
+    expect(secondConfirmRes.body.avatarUrl).not.toBe(firstAvatarUrl);
+
+    const oldObjectRes = await fetch(firstAvatarUrl);
+    expect(oldObjectRes.status).toBe(404);
+  });
+
+  it("400s when the key was never actually uploaded to the bucket", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .put(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ key: `workspaces/${workspace.id}/avatar-never-uploaded.png` });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("400s when the key belongs to a different workspace", async () => {
+    const owner = await signUp();
+    const workspaceA = await createWorkspace(owner.accessToken, "Workspace A");
+    const workspaceB = await createWorkspace(owner.accessToken, "Workspace B");
+    const { key } = await uploadTestAvatarFile({ actorAccessToken: owner.accessToken, workspaceSlug: workspaceA.slug });
+
+    const res = await request(app)
+      .put(`/api/workspaces/${workspaceB.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ key });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("403s a plain MEMBER", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    const { key } = await uploadTestAvatarFile({ actorAccessToken: owner.accessToken, workspaceSlug: workspace.slug });
+
+    const res = await request(app)
+      .put(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`)
+      .send({ key });
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("DELETE /workspaces/:slug/avatar", () => {
+  it("clears avatarUrl and removes the object from the bucket", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const { key } = await uploadTestAvatarFile({ actorAccessToken: owner.accessToken, workspaceSlug: workspace.slug });
+    const confirmRes = await request(app)
+      .put(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ key });
+    const avatarUrl = confirmRes.body.avatarUrl as string;
+
+    const deleteRes = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(deleteRes.status).toBe(204);
+
+    const getRes = await request(app)
+      .get(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(getRes.body.avatarUrl).toBeNull();
+
+    const objectRes = await fetch(avatarUrl);
+    expect(objectRes.status).toBe(404);
+  });
+
+  it("404s when the workspace has no avatar", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("403s a plain MEMBER", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    const { key } = await uploadTestAvatarFile({ actorAccessToken: owner.accessToken, workspaceSlug: workspace.slug });
+    await request(app)
+      .put(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ key });
+
+    const res = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(403);
   });
 });
