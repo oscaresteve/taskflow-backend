@@ -158,6 +158,23 @@ export async function update({
   });
 }
 
+export async function updateAvatarKey({
+  workspaceId,
+  avatarKey,
+}: {
+  workspaceId: string;
+  avatarKey: string | null;
+}): Promise<Workspace> {
+  return prisma.workspace.update({
+    where: {
+      id: workspaceId,
+    },
+    data: {
+      avatarKey,
+    },
+  });
+}
+
 export async function deactivate(workspaceId: string): Promise<void> {
   await prisma.workspace.update({
     where: {

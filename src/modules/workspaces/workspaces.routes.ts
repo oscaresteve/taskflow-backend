@@ -2,7 +2,13 @@ import { Router } from "express";
 import { auth } from "../../shared/middlewares/auth.ts";
 import { validate } from "../../shared/middlewares/validate.ts";
 import * as workspacesController from "./workspaces.controller.ts";
-import { createWorkspaceSchema, workspaceQuerySchema, updateWorkspaceSchema } from "./schemas/workspaces.schema.ts";
+import {
+  avatarUploadUrlSchema,
+  confirmAvatarSchema,
+  createWorkspaceSchema,
+  workspaceQuerySchema,
+  updateWorkspaceSchema,
+} from "./schemas/workspaces.schema.ts";
 import { workspaceParamsSchema } from "../../shared/schemas/common.schema.ts";
 
 export const workspacesRouter = Router();
@@ -59,7 +65,32 @@ workspacesRouter.patch(
   workspacesController.deactivate,
 );
 
-// 6. Marcar/desmarcar como favorito (por usuario)
+// 6. Avatar del workspace (subida vía URL prefirmada a S3/MinIO/R2)
+// POST   /workspaces/:workspaceSlug/avatar/upload-url  -> pide la URL prefirmada de subida
+// PUT    /workspaces/:workspaceSlug/avatar             -> confirma que el archivo ya se subió
+// DELETE /workspaces/:workspaceSlug/avatar             -> quita el avatar actual
+workspacesRouter.post(
+  "/workspaces/:workspaceSlug/avatar/upload-url",
+  auth,
+  validate({ params: workspaceParamsSchema, body: avatarUploadUrlSchema }),
+  workspacesController.getAvatarUploadUrl,
+);
+
+workspacesRouter.put(
+  "/workspaces/:workspaceSlug/avatar",
+  auth,
+  validate({ params: workspaceParamsSchema, body: confirmAvatarSchema }),
+  workspacesController.confirmAvatar,
+);
+
+workspacesRouter.delete(
+  "/workspaces/:workspaceSlug/avatar",
+  auth,
+  validate({ params: workspaceParamsSchema }),
+  workspacesController.deleteAvatar,
+);
+
+// 7. Marcar/desmarcar como favorito (por usuario)
 // POST   /workspaces/:workspaceSlug/favorite
 // DELETE /workspaces/:workspaceSlug/favorite
 workspacesRouter.post(

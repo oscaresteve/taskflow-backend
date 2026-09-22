@@ -50,6 +50,34 @@ export const workspaceQuerySchema = z.object({
   order: sortOrderSchema,
 });
 
+// Avatar del workspace: tipos de imagen permitidos y tamaño máximo, compartidos entre
+// la validación de la petición (aquí) y la comprobación real del archivo subido (workspaces.service.ts).
+export const avatarContentTypeSchema = z.enum(["image/png", "image/jpeg", "image/webp"]);
+export type AvatarContentType = z.infer<typeof avatarContentTypeSchema>;
+
+export const AVATAR_EXTENSION_BY_CONTENT_TYPE: Record<AvatarContentType, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
+
+export const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+
+export const avatarUploadUrlSchema = z.object({
+  contentType: avatarContentTypeSchema,
+  fileSize: z
+    .number()
+    .int()
+    .positive()
+    .max(MAX_AVATAR_SIZE_BYTES, `File size cannot exceed ${MAX_AVATAR_SIZE_BYTES} bytes`),
+});
+
+export const confirmAvatarSchema = z.object({
+  key: z.string().min(1),
+});
+
 export type CreateWorkspaceDto = z.infer<typeof createWorkspaceSchema>;
 export type UpdateWorkspaceDto = z.infer<typeof updateWorkspaceSchema>;
 export type WorkspaceQueryDto = z.infer<typeof workspaceQuerySchema>;
+export type AvatarUploadUrlDto = z.infer<typeof avatarUploadUrlSchema>;
+export type ConfirmAvatarDto = z.infer<typeof confirmAvatarSchema>;

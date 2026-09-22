@@ -2,6 +2,8 @@ import { type NextFunction, type Request, type Response } from "express";
 import * as workspacesService from "./workspaces.service.ts";
 import { toPaginatedWorkspaceResponseDto, toWorkspaceResponseDto } from "./mappers/workspaces.mapper.ts";
 import {
+  type AvatarUploadUrlDto,
+  type ConfirmAvatarDto,
   type CreateWorkspaceDto,
   type UpdateWorkspaceDto,
   type WorkspaceQueryDto,
@@ -83,6 +85,52 @@ export async function deactivate(req: Request, res: Response, next: NextFunction
     const workspaceSlug = params.workspaceSlug;
 
     await workspacesService.deactivate({ userId, workspaceSlug });
+
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getAvatarUploadUrl(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = req.validated.params as WorkspaceParamsDto;
+    const data = req.validated.body as AvatarUploadUrlDto;
+    const userId = req.user.id;
+    const workspaceSlug = params.workspaceSlug;
+
+    const result = await workspacesService.getAvatarUploadUrl({ userId, workspaceSlug, data });
+
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function confirmAvatar(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = req.validated.params as WorkspaceParamsDto;
+    const data = req.validated.body as ConfirmAvatarDto;
+    const userId = req.user.id;
+    const workspaceSlug = params.workspaceSlug;
+
+    const workspace = await workspacesService.confirmAvatar({ userId, workspaceSlug, data });
+
+    const workspaceResponse = toWorkspaceResponseDto(workspace);
+
+    res.json(workspaceResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteAvatar(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = req.validated.params as WorkspaceParamsDto;
+    const userId = req.user.id;
+    const workspaceSlug = params.workspaceSlug;
+
+    await workspacesService.deleteAvatar({ userId, workspaceSlug });
 
     res.sendStatus(204);
   } catch (error) {
