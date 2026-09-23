@@ -137,7 +137,6 @@ async function seedNimbusStudio(passwordHash: string) {
         lastName,
         email: `${slugify(firstName)}@taskflow.dev`,
         passwordHash,
-        avatarUrl: `https://api.dicebear.com/10.x/glyphs/svg?seed=${slugify(firstName)}`,
         timezone: "Europe/Madrid",
         locale: "es",
         emailVerifiedAt: daysAgo(300),
@@ -687,7 +686,6 @@ async function seedLogistica(passwordHash: string, demoId: string) {
           lastName,
           email: `${slugify(firstName)}.${slugify(lastName)}@logistica.dev`,
           passwordHash,
-          avatarUrl: `https://api.dicebear.com/10.x/glyphs/svg?seed=${slugify(firstName + lastName)}`,
           timezone: "Europe/Madrid",
           locale: "es",
           // Uno de cada veinte desactivado y uno de cada diez sin verificar el email.
