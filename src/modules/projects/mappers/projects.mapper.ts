@@ -12,7 +12,6 @@ export function toProjectResponseDto(project: Project & { isFavorite: boolean })
     key: project.key,
 
     description: project.description,
-    icon: project.icon,
     color: project.color,
 
     isArchived: project.isArchived,

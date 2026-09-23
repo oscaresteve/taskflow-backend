@@ -68,7 +68,6 @@ export async function create({
         slug,
         key: data.key,
         description: data.description,
-        icon: data.icon,
         color: data.color,
       },
     });
@@ -176,7 +175,6 @@ export async function update({
     data: {
       name: data.name,
       description: data.description,
-      icon: data.icon,
       color: data.color,
       slug: newSlug,
     },

@@ -21,7 +21,6 @@ export const createProjectSchema = z.object({
     .max(10)
     .regex(/^[A-Z0-9]+$/, "Key must contain only uppercase letters and numbers"),
   description: descriptionSchema,
-  icon: z.string("Icon must be a string").optional(),
   color: z.string("Color must be a string").optional(),
 });
 
@@ -51,7 +50,6 @@ export const updateProjectSchema = z
       .max(100, "Name cannot exceed 100 characters")
       .optional(),
     description: descriptionSchema.nullable(),
-    icon: z.string("Icon must be a string").optional().nullable(),
     color: z.string("Color must be a string").optional().nullable(),
   })
   .refine((data) => Object.keys(data).length > 0, "At least one field must be provided");

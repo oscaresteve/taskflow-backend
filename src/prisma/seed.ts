@@ -192,7 +192,6 @@ async function seedNimbusStudio(passwordHash: string) {
       slug: "plataforma-web",
       key: "WEB",
       description: "Portal público y área privada de clientes.",
-      icon: "🌐",
       color: "#2563eb",
       createdAt: daysAgo(280),
       members: {
@@ -390,7 +389,6 @@ async function seedNimbusStudio(passwordHash: string) {
       slug: "app-movil",
       key: "APP",
       description: "Aplicación para iOS y Android conectada a la plataforma.",
-      icon: "📱",
       color: "#16a34a",
       createdAt: daysAgo(120),
       members: {
@@ -482,7 +480,6 @@ async function seedNimbusStudio(passwordHash: string) {
       slug: "rediseno-de-marca",
       key: "MARCA",
       description: "Identidad visual del estudio. Se cerró el año pasado.",
-      icon: "🎨",
       color: "#db2777",
       isArchived: true,
       createdAt: daysAgo(290),
@@ -530,7 +527,6 @@ async function seedNimbusStudio(passwordHash: string) {
       slug: "portal-de-clientes",
       key: "PORT",
       description: "Área de seguimiento para los clientes del estudio. Arranca el mes que viene.",
-      icon: "🗂️",
       color: "#f59e0b",
       createdAt: daysAgo(2),
       members: {
@@ -568,7 +564,6 @@ async function seedClosedWorkspace(demoId: string, partnerId: string) {
       slug: "web-corporativa",
       key: "WEB", // mismo slug y key que en Nimbus: ambos son únicos por workspace, no globalmente
       description: "Sitio corporativo del cliente. Entregado y cerrado.",
-      icon: "🏛️",
       isArchived: true,
       createdAt: daysAgo(615),
       members: {
@@ -750,7 +745,6 @@ async function seedLogistica(passwordHash: string, demoId: string) {
         slug: slugify(name),
         key: `L${String(index + 1).padStart(3, "0")}`,
         description: `Centro de distribución de ${name}.`,
-        icon: "📦",
         // Uno de cada quince archivado, para que el filtro `isArchived` tenga material.
         isArchived: index > 0 && index % 15 === 0,
         createdAt,

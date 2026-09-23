@@ -41,7 +41,6 @@ export type ProjectMinAggregateOutputType = {
   slug: string | null
   key: string | null
   description: string | null
-  icon: string | null
   color: string | null
   nextTaskNumber: number | null
   isArchived: boolean | null
@@ -56,7 +55,6 @@ export type ProjectMaxAggregateOutputType = {
   slug: string | null
   key: string | null
   description: string | null
-  icon: string | null
   color: string | null
   nextTaskNumber: number | null
   isArchived: boolean | null
@@ -71,7 +69,6 @@ export type ProjectCountAggregateOutputType = {
   slug: number
   key: number
   description: number
-  icon: number
   color: number
   nextTaskNumber: number
   isArchived: number
@@ -96,7 +93,6 @@ export type ProjectMinAggregateInputType = {
   slug?: true
   key?: true
   description?: true
-  icon?: true
   color?: true
   nextTaskNumber?: true
   isArchived?: true
@@ -111,7 +107,6 @@ export type ProjectMaxAggregateInputType = {
   slug?: true
   key?: true
   description?: true
-  icon?: true
   color?: true
   nextTaskNumber?: true
   isArchived?: true
@@ -126,7 +121,6 @@ export type ProjectCountAggregateInputType = {
   slug?: true
   key?: true
   description?: true
-  icon?: true
   color?: true
   nextTaskNumber?: true
   isArchived?: true
@@ -228,7 +222,6 @@ export type ProjectGroupByOutputType = {
   slug: string
   key: string
   description: string | null
-  icon: string | null
   color: string | null
   nextTaskNumber: number
   isArchived: boolean
@@ -266,7 +259,6 @@ export type ProjectWhereInput = {
   slug?: Prisma.StringFilter<"Project"> | string
   key?: Prisma.StringFilter<"Project"> | string
   description?: Prisma.StringNullableFilter<"Project"> | string | null
-  icon?: Prisma.StringNullableFilter<"Project"> | string | null
   color?: Prisma.StringNullableFilter<"Project"> | string | null
   nextTaskNumber?: Prisma.IntFilter<"Project"> | number
   isArchived?: Prisma.BoolFilter<"Project"> | boolean
@@ -285,7 +277,6 @@ export type ProjectOrderByWithRelationInput = {
   slug?: Prisma.SortOrder
   key?: Prisma.SortOrder
   description?: Prisma.SortOrderInput | Prisma.SortOrder
-  icon?: Prisma.SortOrderInput | Prisma.SortOrder
   color?: Prisma.SortOrderInput | Prisma.SortOrder
   nextTaskNumber?: Prisma.SortOrder
   isArchived?: Prisma.SortOrder
@@ -309,7 +300,6 @@ export type ProjectWhereUniqueInput = Prisma.AtLeast<{
   slug?: Prisma.StringFilter<"Project"> | string
   key?: Prisma.StringFilter<"Project"> | string
   description?: Prisma.StringNullableFilter<"Project"> | string | null
-  icon?: Prisma.StringNullableFilter<"Project"> | string | null
   color?: Prisma.StringNullableFilter<"Project"> | string | null
   nextTaskNumber?: Prisma.IntFilter<"Project"> | number
   isArchived?: Prisma.BoolFilter<"Project"> | boolean
@@ -328,7 +318,6 @@ export type ProjectOrderByWithAggregationInput = {
   slug?: Prisma.SortOrder
   key?: Prisma.SortOrder
   description?: Prisma.SortOrderInput | Prisma.SortOrder
-  icon?: Prisma.SortOrderInput | Prisma.SortOrder
   color?: Prisma.SortOrderInput | Prisma.SortOrder
   nextTaskNumber?: Prisma.SortOrder
   isArchived?: Prisma.SortOrder
@@ -351,7 +340,6 @@ export type ProjectScalarWhereWithAggregatesInput = {
   slug?: Prisma.StringWithAggregatesFilter<"Project"> | string
   key?: Prisma.StringWithAggregatesFilter<"Project"> | string
   description?: Prisma.StringNullableWithAggregatesFilter<"Project"> | string | null
-  icon?: Prisma.StringNullableWithAggregatesFilter<"Project"> | string | null
   color?: Prisma.StringNullableWithAggregatesFilter<"Project"> | string | null
   nextTaskNumber?: Prisma.IntWithAggregatesFilter<"Project"> | number
   isArchived?: Prisma.BoolWithAggregatesFilter<"Project"> | boolean
@@ -365,7 +353,6 @@ export type ProjectCreateInput = {
   slug: string
   key: string
   description?: string | null
-  icon?: string | null
   color?: string | null
   nextTaskNumber?: number
   isArchived?: boolean
@@ -384,7 +371,6 @@ export type ProjectUncheckedCreateInput = {
   slug: string
   key: string
   description?: string | null
-  icon?: string | null
   color?: string | null
   nextTaskNumber?: number
   isArchived?: boolean
@@ -401,7 +387,6 @@ export type ProjectUpdateInput = {
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   key?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  icon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextTaskNumber?: Prisma.IntFieldUpdateOperationsInput | number
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -420,7 +405,6 @@ export type ProjectUncheckedUpdateInput = {
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   key?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  icon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextTaskNumber?: Prisma.IntFieldUpdateOperationsInput | number
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -438,7 +422,6 @@ export type ProjectCreateManyInput = {
   slug: string
   key: string
   description?: string | null
-  icon?: string | null
   color?: string | null
   nextTaskNumber?: number
   isArchived?: boolean
@@ -452,7 +435,6 @@ export type ProjectUpdateManyMutationInput = {
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   key?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  icon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextTaskNumber?: Prisma.IntFieldUpdateOperationsInput | number
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -467,7 +449,6 @@ export type ProjectUncheckedUpdateManyInput = {
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   key?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  icon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextTaskNumber?: Prisma.IntFieldUpdateOperationsInput | number
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -502,7 +483,6 @@ export type ProjectCountOrderByAggregateInput = {
   slug?: Prisma.SortOrder
   key?: Prisma.SortOrder
   description?: Prisma.SortOrder
-  icon?: Prisma.SortOrder
   color?: Prisma.SortOrder
   nextTaskNumber?: Prisma.SortOrder
   isArchived?: Prisma.SortOrder
@@ -521,7 +501,6 @@ export type ProjectMaxOrderByAggregateInput = {
   slug?: Prisma.SortOrder
   key?: Prisma.SortOrder
   description?: Prisma.SortOrder
-  icon?: Prisma.SortOrder
   color?: Prisma.SortOrder
   nextTaskNumber?: Prisma.SortOrder
   isArchived?: Prisma.SortOrder
@@ -536,7 +515,6 @@ export type ProjectMinOrderByAggregateInput = {
   slug?: Prisma.SortOrder
   key?: Prisma.SortOrder
   description?: Prisma.SortOrder
-  icon?: Prisma.SortOrder
   color?: Prisma.SortOrder
   nextTaskNumber?: Prisma.SortOrder
   isArchived?: Prisma.SortOrder
@@ -651,7 +629,6 @@ export type ProjectCreateWithoutWorkspaceInput = {
   slug: string
   key: string
   description?: string | null
-  icon?: string | null
   color?: string | null
   nextTaskNumber?: number
   isArchived?: boolean
@@ -668,7 +645,6 @@ export type ProjectUncheckedCreateWithoutWorkspaceInput = {
   slug: string
   key: string
   description?: string | null
-  icon?: string | null
   color?: string | null
   nextTaskNumber?: number
   isArchived?: boolean
@@ -715,7 +691,6 @@ export type ProjectScalarWhereInput = {
   slug?: Prisma.StringFilter<"Project"> | string
   key?: Prisma.StringFilter<"Project"> | string
   description?: Prisma.StringNullableFilter<"Project"> | string | null
-  icon?: Prisma.StringNullableFilter<"Project"> | string | null
   color?: Prisma.StringNullableFilter<"Project"> | string | null
   nextTaskNumber?: Prisma.IntFilter<"Project"> | number
   isArchived?: Prisma.BoolFilter<"Project"> | boolean
@@ -729,7 +704,6 @@ export type ProjectCreateWithoutFavoritesInput = {
   slug: string
   key: string
   description?: string | null
-  icon?: string | null
   color?: string | null
   nextTaskNumber?: number
   isArchived?: boolean
@@ -747,7 +721,6 @@ export type ProjectUncheckedCreateWithoutFavoritesInput = {
   slug: string
   key: string
   description?: string | null
-  icon?: string | null
   color?: string | null
   nextTaskNumber?: number
   isArchived?: boolean
@@ -779,7 +752,6 @@ export type ProjectUpdateWithoutFavoritesInput = {
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   key?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  icon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextTaskNumber?: Prisma.IntFieldUpdateOperationsInput | number
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -797,7 +769,6 @@ export type ProjectUncheckedUpdateWithoutFavoritesInput = {
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   key?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  icon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextTaskNumber?: Prisma.IntFieldUpdateOperationsInput | number
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -813,7 +784,6 @@ export type ProjectCreateWithoutMembersInput = {
   slug: string
   key: string
   description?: string | null
-  icon?: string | null
   color?: string | null
   nextTaskNumber?: number
   isArchived?: boolean
@@ -831,7 +801,6 @@ export type ProjectUncheckedCreateWithoutMembersInput = {
   slug: string
   key: string
   description?: string | null
-  icon?: string | null
   color?: string | null
   nextTaskNumber?: number
   isArchived?: boolean
@@ -863,7 +832,6 @@ export type ProjectUpdateWithoutMembersInput = {
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   key?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  icon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextTaskNumber?: Prisma.IntFieldUpdateOperationsInput | number
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -881,7 +849,6 @@ export type ProjectUncheckedUpdateWithoutMembersInput = {
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   key?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  icon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextTaskNumber?: Prisma.IntFieldUpdateOperationsInput | number
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -897,7 +864,6 @@ export type ProjectCreateWithoutTasksInput = {
   slug: string
   key: string
   description?: string | null
-  icon?: string | null
   color?: string | null
   nextTaskNumber?: number
   isArchived?: boolean
@@ -915,7 +881,6 @@ export type ProjectUncheckedCreateWithoutTasksInput = {
   slug: string
   key: string
   description?: string | null
-  icon?: string | null
   color?: string | null
   nextTaskNumber?: number
   isArchived?: boolean
@@ -947,7 +912,6 @@ export type ProjectUpdateWithoutTasksInput = {
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   key?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  icon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextTaskNumber?: Prisma.IntFieldUpdateOperationsInput | number
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -965,7 +929,6 @@ export type ProjectUncheckedUpdateWithoutTasksInput = {
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   key?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  icon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextTaskNumber?: Prisma.IntFieldUpdateOperationsInput | number
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -981,7 +944,6 @@ export type ProjectCreateManyWorkspaceInput = {
   slug: string
   key: string
   description?: string | null
-  icon?: string | null
   color?: string | null
   nextTaskNumber?: number
   isArchived?: boolean
@@ -995,7 +957,6 @@ export type ProjectUpdateWithoutWorkspaceInput = {
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   key?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  icon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextTaskNumber?: Prisma.IntFieldUpdateOperationsInput | number
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1012,7 +973,6 @@ export type ProjectUncheckedUpdateWithoutWorkspaceInput = {
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   key?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  icon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextTaskNumber?: Prisma.IntFieldUpdateOperationsInput | number
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1029,7 +989,6 @@ export type ProjectUncheckedUpdateManyWithoutWorkspaceInput = {
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   key?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  icon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextTaskNumber?: Prisma.IntFieldUpdateOperationsInput | number
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1093,7 +1052,6 @@ export type ProjectSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   slug?: boolean
   key?: boolean
   description?: boolean
-  icon?: boolean
   color?: boolean
   nextTaskNumber?: boolean
   isArchived?: boolean
@@ -1113,7 +1071,6 @@ export type ProjectSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   slug?: boolean
   key?: boolean
   description?: boolean
-  icon?: boolean
   color?: boolean
   nextTaskNumber?: boolean
   isArchived?: boolean
@@ -1129,7 +1086,6 @@ export type ProjectSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   slug?: boolean
   key?: boolean
   description?: boolean
-  icon?: boolean
   color?: boolean
   nextTaskNumber?: boolean
   isArchived?: boolean
@@ -1145,7 +1101,6 @@ export type ProjectSelectScalar = {
   slug?: boolean
   key?: boolean
   description?: boolean
-  icon?: boolean
   color?: boolean
   nextTaskNumber?: boolean
   isArchived?: boolean
@@ -1153,7 +1108,7 @@ export type ProjectSelectScalar = {
   updatedAt?: boolean
 }
 
-export type ProjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "workspaceId" | "name" | "slug" | "key" | "description" | "icon" | "color" | "nextTaskNumber" | "isArchived" | "createdAt" | "updatedAt", ExtArgs["result"]["project"]>
+export type ProjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "workspaceId" | "name" | "slug" | "key" | "description" | "color" | "nextTaskNumber" | "isArchived" | "createdAt" | "updatedAt", ExtArgs["result"]["project"]>
 export type ProjectInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   workspace?: boolean | Prisma.WorkspaceDefaultArgs<ExtArgs>
   members?: boolean | Prisma.Project$membersArgs<ExtArgs>
@@ -1183,7 +1138,6 @@ export type $ProjectPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     slug: string
     key: string
     description: string | null
-    icon: string | null
     color: string | null
     nextTaskNumber: number
     isArchived: boolean
@@ -1622,7 +1576,6 @@ export interface ProjectFieldRefs {
   readonly slug: Prisma.FieldRef<"Project", 'String'>
   readonly key: Prisma.FieldRef<"Project", 'String'>
   readonly description: Prisma.FieldRef<"Project", 'String'>
-  readonly icon: Prisma.FieldRef<"Project", 'String'>
   readonly color: Prisma.FieldRef<"Project", 'String'>
   readonly nextTaskNumber: Prisma.FieldRef<"Project", 'Int'>
   readonly isArchived: Prisma.FieldRef<"Project", 'Boolean'>

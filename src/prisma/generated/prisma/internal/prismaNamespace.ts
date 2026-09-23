@@ -1344,7 +1344,6 @@ export const ProjectScalarFieldEnum = {
   slug: 'slug',
   key: 'key',
   description: 'description',
-  icon: 'icon',
   color: 'color',
   nextTaskNumber: 'nextTaskNumber',
   isArchived: 'isArchived',

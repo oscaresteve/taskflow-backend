@@ -6,7 +6,6 @@ export type ProjectResponseDto = {
   key: string;
 
   description: string | null;
-  icon: string | null;
   color: string | null;
 
   isArchived: boolean;

@@ -112,7 +112,6 @@ model Project {
   key             String
 
   description     String?
-  icon            String?
   color           String?
 
   nextTaskNumber  Int       @default(1)
