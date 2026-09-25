@@ -1,12 +1,11 @@
 import { TaskPriority, TaskStatus } from "../../../shared/types/prisma.types.ts";
 import { toTaskResponseDto } from "../../tasks/mappers/tasks.mapper.ts";
-import type { MemberWorkloadRow, OverviewTaskRow, ProjectWorkloadRow } from "../overview.repository.ts";
+import type { DueDateBucketRows, OverviewTaskRow } from "../overview.repository.ts";
 import type {
-  MemberWorkloadItemDto,
+  DueDateBucketsDto,
   MyOverviewResponseDto,
   OverviewTaskDto,
   ProjectOverviewResponseDto,
-  ProjectWorkloadItemDto,
   WorkspaceOverviewResponseDto,
 } from "../dtos/overview.dto.ts";
 
@@ -46,6 +45,17 @@ function computeRate(numerator: number, denominator: number): number {
   return Math.round((numerator / denominator) * 100);
 }
 
+// "scheduled" es el resto de tareas abiertas con fecha: ni vencidas ni dentro de los proximos 7
+// dias. Se deduce en vez de contarse para que las cuatro cubetas sumen siempre las abiertas.
+function toDueDateBucketsDto(rows: DueDateBucketRows, open: number): DueDateBucketsDto {
+  return {
+    overdue: rows.overdue,
+    dueSoon: rows.dueSoon,
+    scheduled: open - rows.overdue - rows.dueSoon - rows.noDueDate,
+    noDueDate: rows.noDueDate,
+  };
+}
+
 function toOverviewTaskDto(task: OverviewTaskRow): OverviewTaskDto {
   return {
     ...toTaskResponseDto(task),
@@ -59,43 +69,9 @@ function toOverviewTaskDto(task: OverviewTaskRow): OverviewTaskDto {
   };
 }
 
-function toProjectWorkloadItemDto(row: ProjectWorkloadRow): ProjectWorkloadItemDto {
-  return {
-    projectId: row.id,
-    name: row.name,
-    slug: row.slug,
-    openTasksCount: row._count.tasks,
-  };
-}
-
-function toMemberWorkloadItemDto(row: MemberWorkloadRow): MemberWorkloadItemDto {
-  return {
-    userId: row.user.id,
-    firstName: row.user.firstName,
-    lastName: row.user.lastName,
-    avatarUrl: row.user.avatarUrl,
-    openTasksCount: row.user._count.assignedTasks,
-  };
-}
-
-// La carga de trabajo se ordena de mas a menos y se queda con las primeras entradas: lo que
-// interesa es quien (o que proyecto) esta mas saturado. Las filas con 0 tareas abiertas se
-// descartan porque no son carga de trabajo: en un workspace de 43 proyectos llenaban la lista de
-// filas vacias y tapaban justo la informacion que la tarjeta existe para dar.
-const WORKLOAD_LIMIT = 8;
-
-function sortByOpenTasksDesc<T extends { openTasksCount: number }>(items: T[]): T[] {
-  return items
-    .filter((item) => item.openTasksCount > 0)
-    .sort((a, b) => b.openTasksCount - a.openTasksCount)
-    .slice(0, WORKLOAD_LIMIT);
-}
-
 export function toMyOverviewResponseDto(data: {
   tasksByStatus: { status: TaskStatus; _count: number }[];
-  overdue: number;
-  dueSoon: number;
-  noDueDate: number;
+  byDueDate: DueDateBucketRows;
   completedLast7Days: number;
   myTasks: OverviewTaskRow[];
 }): MyOverviewResponseDto {
@@ -107,14 +83,7 @@ export function toMyOverviewResponseDto(data: {
     tasks: {
       open,
       completedLast7Days: data.completedLast7Days,
-
-      byUrgency: {
-        overdue: data.overdue,
-        dueSoon: data.dueSoon,
-        // El resto de tareas abiertas con fecha: ni vencidas ni dentro de los proximos 7 dias.
-        scheduled: open - data.overdue - data.dueSoon - data.noDueDate,
-        noDueDate: data.noDueDate,
-      },
+      byDueDate: toDueDateBucketsDto(data.byDueDate, open),
     },
 
     myTasks: data.myTasks.map(toOverviewTaskDto),
@@ -123,29 +92,25 @@ export function toMyOverviewResponseDto(data: {
 
 export function toWorkspaceOverviewResponseDto(data: {
   projectsCount: number;
-  membersCount: number;
   tasksByStatus: { status: TaskStatus; _count: number }[];
-  overdue: number;
+  byDueDate: DueDateBucketRows;
   completedLast7Days: number;
-  workload: ProjectWorkloadRow[];
   recentTasks: OverviewTaskRow[];
 }): WorkspaceOverviewResponseDto {
   const byStatus = fillStatusCounts(data.tasksByStatus);
   const total = Object.values(byStatus).reduce((sum, count) => sum + count, 0);
+  const open = total - byStatus.DONE;
 
   return {
     projectsCount: data.projectsCount,
-    membersCount: data.membersCount,
 
     tasks: {
       byStatus,
-      open: total - byStatus.DONE,
-      overdue: data.overdue,
+      byDueDate: toDueDateBucketsDto(data.byDueDate, open),
+      open,
       completedLast7Days: data.completedLast7Days,
       completionRate: computeRate(byStatus.DONE, total),
     },
-
-    workload: sortByOpenTasksDesc(data.workload.map(toProjectWorkloadItemDto)),
 
     recentTasks: data.recentTasks.map(toOverviewTaskDto),
   };
@@ -154,27 +119,25 @@ export function toWorkspaceOverviewResponseDto(data: {
 export function toProjectOverviewResponseDto(data: {
   tasksByStatus: { status: TaskStatus; _count: number }[];
   tasksByPriority: { priority: TaskPriority; _count: number }[];
-  overdue: number;
+  byDueDate: DueDateBucketRows;
   unassigned: number;
   completedLast7Days: number;
-  workload: MemberWorkloadRow[];
   recentTasks: OverviewTaskRow[];
 }): ProjectOverviewResponseDto {
   const byStatus = fillStatusCounts(data.tasksByStatus);
   const total = Object.values(byStatus).reduce((sum, count) => sum + count, 0);
+  const open = total - byStatus.DONE;
 
   return {
     tasks: {
       byStatus,
       byPriority: fillPriorityCounts(data.tasksByPriority),
-      open: total - byStatus.DONE,
-      overdue: data.overdue,
+      byDueDate: toDueDateBucketsDto(data.byDueDate, open),
+      open,
       unassigned: data.unassigned,
       completedLast7Days: data.completedLast7Days,
       completionRate: computeRate(byStatus.DONE, total),
     },
-
-    workload: sortByOpenTasksDesc(data.workload.map(toMemberWorkloadItemDto)),
 
     recentTasks: data.recentTasks.map(toOverviewTaskDto),
   };

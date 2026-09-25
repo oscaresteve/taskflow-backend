@@ -109,8 +109,8 @@ describe("GET /me/overview", () => {
     expect(res.status).toBe(200);
     expect(res.body.tasks.open).toBe(1);
     expect(res.body.tasks.completedLast7Days).toBe(1);
-    // Las cuatro cubetas de urgencia suman siempre las tareas abiertas.
-    expect(res.body.tasks.byUrgency).toEqual({ overdue: 1, dueSoon: 0, scheduled: 0, noDueDate: 0 });
+    // Las cuatro cubetas de fecha limite suman siempre las tareas abiertas.
+    expect(res.body.tasks.byDueDate).toEqual({ overdue: 1, dueSoon: 0, scheduled: 0, noDueDate: 0 });
 
     // La cola solo trae trabajo vivo: la tarea DONE del propio usuario no aparece.
     expect(res.body.myTasks).toHaveLength(1);
@@ -158,7 +158,7 @@ describe("GET /me/overview", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.myTasks.map((task: { id: string }) => task.id)).toEqual([soonest.id, later.id, undated.id]);
-    expect(res.body.tasks.byUrgency).toEqual({ overdue: 0, dueSoon: 1, scheduled: 1, noDueDate: 1 });
+    expect(res.body.tasks.byDueDate).toEqual({ overdue: 0, dueSoon: 1, scheduled: 1, noDueDate: 1 });
   });
 });
 
@@ -174,16 +174,9 @@ describe("GET /workspaces/:workspaceSlug/overview", () => {
     expect(res.status).toBe(403);
   });
 
-  it("aggregates project count, member count and task status breakdown for a member", async () => {
+  it("aggregates project count, task status breakdown and due date split for a member", async () => {
     const { owner, workspace, project } = await setupOwnerProject();
-    const memberUser = await signUp();
-    await addActiveMember({
-      managerAccessToken: owner.accessToken,
-      workspaceSlug: workspace.slug,
-      targetUserId: memberUser.user.id,
-      role: "MEMBER",
-    });
-    const emptyProject = await createProject(owner.accessToken, workspace.slug); // sin tareas
+    await createProject(owner.accessToken, workspace.slug); // sin tareas, solo cuenta como proyecto
 
     await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Task 1" });
     const doneTask = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Task 2" });
@@ -201,19 +194,15 @@ describe("GET /workspaces/:workspaceSlug/overview", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.projectsCount).toBe(2);
-    expect(res.body.membersCount).toBe(2);
     expect(res.body.tasks.byStatus).toEqual({ TODO: 1, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 1 });
     expect(res.body.tasks.open).toBe(1);
-    expect(res.body.tasks.overdue).toBe(0);
     expect(res.body.tasks.completedLast7Days).toBe(1);
     expect(res.body.tasks.completionRate).toBe(50);
+    // La unica tarea abierta no tiene fecha limite; la tarea DONE no entra en ninguna cubeta.
+    expect(res.body.tasks.byDueDate).toEqual({ overdue: 0, dueSoon: 0, scheduled: 0, noDueDate: 1 });
     expect(res.body.recentTasks).toHaveLength(2);
     // Cada fila trae ya la key del proyecto, que es lo que la UI pinta como "PRJ-1".
     expect(res.body.recentTasks[0].project.key).toBe(project.key);
-
-    // Solo aparece el proyecto con trabajo abierto; el que no tiene ninguno no es carga de trabajo.
-    expect(res.body.workload).toEqual([expect.objectContaining({ slug: project.slug, openTasksCount: 1 })]);
-    expect(res.body.workload.map((row: { slug: string }) => row.slug)).not.toContain(emptyProject.slug);
   });
 });
 
@@ -235,7 +224,7 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/overview", () => 
     expect(res.status).toBe(403);
   });
 
-  it("aggregates status/priority breakdown, overdue, unassigned and per-member workload", async () => {
+  it("aggregates status/priority breakdown, due date split and unassigned count", async () => {
     const { owner, workspace, project } = await setupOwnerProject();
     const memberUser = await signUp();
     await addActiveMember({
@@ -287,16 +276,11 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/overview", () => 
     expect(res.body.tasks.byStatus).toEqual({ TODO: 2, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 1 });
     expect(res.body.tasks.byPriority).toEqual({ LOW: 0, MEDIUM: 2, HIGH: 1, URGENT: 0 });
     expect(res.body.tasks.open).toBe(2);
-    expect(res.body.tasks.overdue).toBe(1);
     expect(res.body.tasks.unassigned).toBe(1);
     expect(res.body.tasks.completedLast7Days).toBe(1);
     expect(res.body.tasks.completionRate).toBe(33); // 1 DONE de 3 tareas
+    // De las 2 abiertas, una vencio ayer y la otra no tiene fecha.
+    expect(res.body.tasks.byDueDate).toEqual({ overdue: 1, dueSoon: 0, scheduled: 0, noDueDate: 1 });
     expect(res.body.recentTasks).toHaveLength(3);
-
-    // memberUser tiene 1 tarea abierta asignada; el owner ninguna (la suya esta DONE), asi que no
-    // aparece en la carga de trabajo.
-    expect(res.body.workload).toEqual([
-      expect.objectContaining({ userId: memberUser.user.id, openTasksCount: 1 }),
-    ]);
   });
 });
