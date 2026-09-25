@@ -90,6 +90,24 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/tasks", () => {
     expect(res.body.data[0].id).toBe(urgent.id);
   });
 
+  it("filters by status=OPEN, leaving out everything already DONE", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const open = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Open" });
+    const done = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Done" });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${done.taskNumber}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ status: "DONE" });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .query({ status: "OPEN" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].id).toBe(open.id);
+  });
+
   it("filters by assigneeId=UNASSIGNED", async () => {
     const { owner, workspace, project } = await setupOwnerProject();
     const unassigned = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Unassigned" });

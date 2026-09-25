@@ -36,7 +36,9 @@ export const taskQuerySchema = z.object({
 
   search: searchSchema,
 
-  status: z.enum(TaskStatus).optional(),
+  // "OPEN" es un sentinel, igual que el "UNASSIGNED" de assigneeId: pide todo lo que no esta
+  // DONE, que es a donde enlaza el contador de tareas abiertas de los overviews.
+  status: z.union([z.enum(TaskStatus), z.literal("OPEN")]).optional(),
 
   priority: z.enum(TaskPriority).optional(),
 

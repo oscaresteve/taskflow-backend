@@ -2,7 +2,8 @@ import { prisma } from "../../config/prisma.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { CreateTaskDto, TaskQueryDto, UpdateTaskDto } from "./schemas/tasks.schema.ts";
-import type { Task, TaskStatus } from "../../shared/types/prisma.types.ts";
+import { TaskStatus } from "../../shared/types/prisma.types.ts";
+import type { Task } from "../../shared/types/prisma.types.ts";
 import { rankBetween } from "../../shared/utils/lexorank.ts";
 import { getThisWeekRange, resolveTimeZone } from "../../shared/utils/date-range.ts";
 
@@ -146,7 +147,9 @@ export async function findAll({
     ];
   }
 
-  if (query.status) {
+  if (query.status === "OPEN") {
+    where.status = { not: TaskStatus.DONE };
+  } else if (query.status) {
     where.status = query.status;
   }
 
