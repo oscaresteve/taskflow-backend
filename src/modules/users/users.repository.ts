@@ -69,3 +69,7 @@ export async function findAll({
     total,
   };
 }
+
+export async function findById(userId: string): Promise<User | null> {
+  return prisma.user.findUnique({ where: { id: userId } });
+}

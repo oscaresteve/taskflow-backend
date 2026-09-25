@@ -12,4 +12,9 @@ export const usersQuerySchema = z.object({
   workspaceSlug: slugSchema.optional(),
 });
 
+export const userParamsSchema = z.object({
+  userId: z.cuid(),
+});
+
 export type UsersQueryDto = z.infer<typeof usersQuerySchema>;
+export type UserParamsDto = z.infer<typeof userParamsSchema>;

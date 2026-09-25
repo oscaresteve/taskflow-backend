@@ -2,10 +2,14 @@ import { Router } from "express";
 import { auth } from "../../shared/middlewares/auth.ts";
 import { validate } from "../../shared/middlewares/validate.ts";
 import * as usersController from "./users.controller.ts";
-import { usersQuerySchema } from "./schemas/users.schema.ts";
+import { userParamsSchema, usersQuerySchema } from "./schemas/users.schema.ts";
 
 export const usersRouter = Router();
 
 // 1. Buscar usuarios (por nombre o email), p.ej. para añadirlos a un workspace/proyecto
 // GET    /users
 usersRouter.get("/users", auth, validate({ query: usersQuerySchema }), usersController.findAll);
+
+// 2. Obtener un usuario por id
+// GET    /users/:userId
+usersRouter.get("/users/:userId", auth, validate({ params: userParamsSchema }), usersController.findOne);

@@ -187,3 +187,95 @@ describe("GET /users", () => {
     });
   });
 });
+
+describe("GET /users/:userId", () => {
+  it("401s without a token", async () => {
+    const self = await signUp();
+
+    const res = await request(app).get(`/api/users/${self.user.id}`);
+
+    expect(res.status).toBe(401);
+  });
+
+  it("returns your own profile without exposing the password hash", async () => {
+    const self = await signUp({ name: "Ada Lovelace", email: "ada@example.com" });
+
+    const res = await request(app).get(`/api/users/${self.user.id}`).set("Cookie", `accessToken=${self.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id: self.user.id,
+      firstName: "Ada",
+      lastName: "Lovelace",
+      email: "ada@example.com",
+      isActive: true,
+    });
+    expect(res.body).not.toHaveProperty("passwordHash");
+  });
+
+  it("returns a user you share a workspace with", async () => {
+    const owner = await signUp();
+    const member = await signUp({ name: "Grace Hopper" });
+    const workspace = await createWorkspace(owner.accessToken);
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/users/${owner.user.id}`)
+      .set("Cookie", `accessToken=${member.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(owner.user.id);
+  });
+
+  it("returns a user you share no workspace with", async () => {
+    const self = await signUp();
+    const stranger = await signUp();
+
+    const res = await request(app)
+      .get(`/api/users/${stranger.user.id}`)
+      .set("Cookie", `accessToken=${self.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(stranger.user.id);
+  });
+
+  it("404s when the user does not exist", async () => {
+    const self = await signUp();
+
+    const res = await request(app).get("/api/users/cnonexistentuser000000000").set("Cookie", `accessToken=${self.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  // A diferencia de GET /users, que oculta las cuentas desactivadas porque sirve para invitar, la
+  // ficha tiene que seguir resolviendose: quien fue eliminado del espacio sigue siendo el asignado
+  // de tareas y el autor de comentarios que los demas ven, y es aqui donde se muestra que ya no
+  // esta activo.
+  it("still returns a removed member whose account was deactivated", async () => {
+    const owner = await signUp();
+    const removedMember = await signUp({ name: "Removed Member" });
+    const workspace = await createWorkspace(owner.accessToken);
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: removedMember.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${removedMember.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    await deactivateUser(removedMember.user.id);
+
+    const res = await request(app)
+      .get(`/api/users/${removedMember.user.id}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ id: removedMember.user.id, isActive: false });
+  });
+});
