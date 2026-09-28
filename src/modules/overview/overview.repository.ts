@@ -1,7 +1,7 @@
 import { prisma } from "../../config/prisma.ts";
 import { TaskStatus } from "../../shared/types/prisma.types.ts";
-import type { Prisma } from "../../prisma/generated/prisma/client.ts";
-import type { Task } from "../../shared/types/prisma.types.ts";
+import { Prisma } from "../../prisma/generated/prisma/client.ts";
+import type { Project, Task } from "../../shared/types/prisma.types.ts";
 
 // Solo comunicarse con el ORM o DB
 
@@ -63,6 +63,115 @@ async function countOpenByDueDate(scope: Prisma.TaskWhereInput): Promise<DueDate
   return { overdue, dueSoon, noDueDate };
 }
 
+export type ProjectStatsRow = {
+  total: number;
+  done: number;
+  open: number;
+  overdue: number;
+  lastActivityAt: Date | null;
+};
+
+export type OverviewProjectRow = Project & {
+  isFavorite: boolean;
+  stats: ProjectStatsRow;
+};
+
+const EMPTY_STATS: ProjectStatsRow = { total: 0, done: 0, open: 0, overdue: 0, lastActivityAt: null };
+
+// Los numeros que pinta la tarjeta de cada proyecto, en una sola pasada sobre las tareas de la
+// pagina. Va en SQL crudo porque el _count de Prisma solo admite un filtro por relacion y aqui
+// hacen falta cuatro cuentas distintas mas el ultimo updatedAt. El limite de "vencida" viaja como
+// texto ISO porque Postgres convertiria un timestamptz casteado a timestamp con el timezone de la
+// sesion, y la columna guarda UTC.
+async function countProjectStats({
+  projectIds,
+  now,
+}: {
+  projectIds: string[];
+  now: Date;
+}): Promise<Map<string, ProjectStatsRow>> {
+  const rows = await prisma.$queryRaw<({ projectId: string } & ProjectStatsRow)[]>`
+    SELECT
+      task."projectId" AS "projectId",
+      COUNT(*)::int AS "total",
+      COUNT(*) FILTER (WHERE task.status = 'DONE')::int AS "done",
+      COUNT(*) FILTER (WHERE task.status <> 'DONE')::int AS "open",
+      COUNT(*) FILTER (WHERE task.status <> 'DONE' AND task."dueDate" < ${now.toISOString()}::timestamp)::int AS "overdue",
+      MAX(task."updatedAt") AS "lastActivityAt"
+    FROM "Task" task
+    WHERE task."projectId" IN (${Prisma.join(projectIds)})
+      AND task."isArchived" = false
+    GROUP BY 1
+  `;
+
+  return new Map(rows.map(({ projectId, ...stats }) => [projectId, stats]));
+}
+
+// La rejilla de proyectos del overview del espacio: la misma membresia que el listado de gestion
+// (solo los proyectos de los que eres miembro activo), pero con orden fijo por nombre y con los
+// numeros de cada tarjeta. Un proyecto sin tareas no vuelve del recuento y se completa con ceros.
+export async function findWorkspaceProjects({
+  userId,
+  workspaceId,
+  page,
+  limit,
+  search,
+}: {
+  userId: string;
+  workspaceId: string;
+  page: number;
+  limit: number;
+  search?: string;
+}): Promise<{ items: OverviewProjectRow[]; total: number }> {
+  const where: Prisma.ProjectWhereInput = {
+    workspaceId,
+    isArchived: false,
+    members: { some: { userId, isActive: true } },
+  };
+
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: "insensitive" } },
+      { description: { contains: search, mode: "insensitive" } },
+    ];
+  }
+
+  const [projects, total] = await Promise.all([
+    prisma.project.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+
+    prisma.project.count({ where }),
+  ]);
+
+  if (projects.length === 0) return { items: [], total };
+
+  const projectIds = projects.map((project) => project.id);
+
+  const [stats, favorites] = await Promise.all([
+    countProjectStats({ projectIds, now: new Date() }),
+
+    prisma.projectFavorite.findMany({
+      where: { userId, projectId: { in: projectIds } },
+      select: { projectId: true },
+    }),
+  ]);
+
+  const favoritedIds = new Set(favorites.map((favorite) => favorite.projectId));
+
+  return {
+    items: projects.map((project) => ({
+      ...project,
+      isFavorite: favoritedIds.has(project.id),
+      stats: stats.get(project.id) ?? EMPTY_STATS,
+    })),
+    total,
+  };
+}
+
 export async function getMyOverview({ userId }: { userId: string }) {
   const velocitySince = new Date(Date.now() - VELOCITY_DAYS * 24 * 60 * 60 * 1000);
 
@@ -98,23 +207,38 @@ export async function getMyOverview({ userId }: { userId: string }) {
 }
 
 export async function getWorkspaceOverview({ userId, workspaceId }: { userId: string; workspaceId: string }) {
-  const velocitySince = new Date(Date.now() - VELOCITY_DAYS * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const velocitySince = new Date(now.getTime() - VELOCITY_DAYS * 24 * 60 * 60 * 1000);
 
-  const [projectsCount, tasksByStatus, byDueDate, completedLast7Days, recentTasks] = await Promise.all([
+  // El espacio resume con cinco numeros y dos listas: el reparto por estado y por fecha limite se
+  // ve dentro de cada proyecto, y aqui cada proyecto trae los suyos en su tarjeta.
+  const openTasks: Prisma.TaskWhereInput = {
+    project: { workspaceId },
+    isArchived: false,
+    status: { not: TaskStatus.DONE },
+  };
+
+  const [projectsCount, open, overdue, unassigned, completedLast7Days, myTasks, recentTasks] = await Promise.all([
     prisma.project.count({
       where: { workspaceId, isArchived: false },
     }),
 
-    prisma.task.groupBy({
-      by: ["status"],
-      where: { project: { workspaceId }, isArchived: false },
-      _count: true,
-    }),
+    prisma.task.count({ where: openTasks }),
 
-    countOpenByDueDate({ project: { workspaceId } }),
+    prisma.task.count({ where: { ...openTasks, dueDate: { lt: now } } }),
+
+    prisma.task.count({ where: { ...openTasks, assigneeId: null } }),
 
     prisma.task.count({
       where: { project: { workspaceId }, isArchived: false, completedAt: { gte: velocitySince } },
+    }),
+
+    // La misma cola que My Space, acotada a este espacio: lo que vence antes primero.
+    prisma.task.findMany({
+      where: { ...openTasks, assigneeId: userId },
+      orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { priority: "desc" }],
+      take: TASK_LIST_LIMIT,
+      include: overviewTaskInclude,
     }),
 
     prisma.task.findMany({
@@ -127,9 +251,11 @@ export async function getWorkspaceOverview({ userId, workspaceId }: { userId: st
 
   return {
     projectsCount,
-    tasksByStatus,
-    byDueDate,
+    open,
+    overdue,
+    unassigned,
     completedLast7Days,
+    myTasks: await attachFavorites(userId, myTasks as OverviewTaskRowWithoutFavorite[]),
     recentTasks: await attachFavorites(userId, recentTasks as OverviewTaskRowWithoutFavorite[]),
   };
 }

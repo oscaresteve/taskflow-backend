@@ -1,8 +1,12 @@
 import { TaskPriority, TaskStatus } from "../../../shared/types/prisma.types.ts";
 import { toTaskResponseDto } from "../../tasks/mappers/tasks.mapper.ts";
-import type { DueDateBucketRows, OverviewTaskRow } from "../overview.repository.ts";
+import { toProjectResponseDto } from "../../projects/mappers/projects.mapper.ts";
+import type { PaginatedResponseDto } from "../../../shared/dtos/pagination.dto.ts";
+import type { DueDateBucketRows, OverviewProjectRow, OverviewTaskRow, ProjectStatsRow } from "../overview.repository.ts";
 import type {
   DueDateBucketsDto,
+  OverviewProjectDto,
+  ProjectStatsDto,
   MyOverviewResponseDto,
   OverviewTaskDto,
   ProjectOverviewResponseDto,
@@ -56,6 +60,40 @@ function toDueDateBucketsDto(rows: DueDateBucketRows, open: number): DueDateBuck
   };
 }
 
+// Redondeado a un entero porcentual; 0 si el proyecto no tiene tareas sobre las que calcularlo.
+function toProjectStatsDto(stats: ProjectStatsRow): ProjectStatsDto {
+  return {
+    open: stats.open,
+    overdue: stats.overdue,
+    completionRate: stats.total === 0 ? 0 : Math.round((stats.done / stats.total) * 100),
+    lastActivityAt: stats.lastActivityAt,
+  };
+}
+
+export function toPaginatedOverviewProjectDto({
+  projects,
+  page,
+  limit,
+}: {
+  projects: { items: OverviewProjectRow[]; total: number };
+  page: number;
+  limit: number;
+}): PaginatedResponseDto<OverviewProjectDto> {
+  return {
+    data: projects.items.map((project) => ({
+      ...toProjectResponseDto(project),
+      stats: toProjectStatsDto(project.stats),
+    })),
+
+    pagination: {
+      page,
+      limit,
+      total: projects.total,
+      pages: Math.ceil(projects.total / limit),
+    },
+  };
+}
+
 function toOverviewTaskDto(task: OverviewTaskRow): OverviewTaskDto {
   return {
     ...toTaskResponseDto(task),
@@ -92,26 +130,24 @@ export function toMyOverviewResponseDto(data: {
 
 export function toWorkspaceOverviewResponseDto(data: {
   projectsCount: number;
-  tasksByStatus: { status: TaskStatus; _count: number }[];
-  byDueDate: DueDateBucketRows;
+  open: number;
+  overdue: number;
+  unassigned: number;
   completedLast7Days: number;
+  myTasks: OverviewTaskRow[];
   recentTasks: OverviewTaskRow[];
 }): WorkspaceOverviewResponseDto {
-  const byStatus = fillStatusCounts(data.tasksByStatus);
-  const total = Object.values(byStatus).reduce((sum, count) => sum + count, 0);
-  const open = total - byStatus.DONE;
-
   return {
     projectsCount: data.projectsCount,
 
     tasks: {
-      byStatus,
-      byDueDate: toDueDateBucketsDto(data.byDueDate, open),
-      open,
+      open: data.open,
+      overdue: data.overdue,
+      unassigned: data.unassigned,
       completedLast7Days: data.completedLast7Days,
-      completionRate: computeRate(byStatus.DONE, total),
     },
 
+    myTasks: data.myTasks.map(toOverviewTaskDto),
     recentTasks: data.recentTasks.map(toOverviewTaskDto),
   };
 }

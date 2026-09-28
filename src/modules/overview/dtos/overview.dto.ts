@@ -1,5 +1,6 @@
 import type { TaskPriority, TaskStatus } from "../../../shared/types/prisma.types.ts";
 import type { TaskResponseDto } from "../../tasks/dtos/tasks.dto.ts";
+import type { ProjectResponseDto } from "../../projects/dtos/projects.dto.ts";
 
 // Fila de tarea de los overviews: la tarea mas el contexto que la UI necesita para pintarla
 // entera (identificador tipo CORE-113, proyecto al que pertenece y responsable).
@@ -37,17 +38,33 @@ export type MyOverviewResponseDto = {
   myTasks: OverviewTaskDto[];
 };
 
+// Numeros del proyecto en la rejilla del overview: lo que necesita su tarjeta para decir como va
+// sin abrirlo. `lastActivityAt` es el ultimo cambio en cualquiera de sus tareas, null si no tiene.
+export type ProjectStatsDto = {
+  open: number;
+  overdue: number;
+  completionRate: number;
+  lastActivityAt: Date | null;
+};
+
+export type OverviewProjectDto = ProjectResponseDto & {
+  stats: ProjectStatsDto;
+};
+
+// El espacio no reparte sus tareas en graficas: eso se ve dentro de cada proyecto, y cada proyecto
+// trae sus propios numeros en el listado. Aqui solo van los cinco contadores de cabecera, la cola
+// propia del usuario en este espacio y lo ultimo que se ha movido.
 export type WorkspaceOverviewResponseDto = {
   projectsCount: number;
 
   tasks: {
-    byStatus: Record<TaskStatus, number>;
-    byDueDate: DueDateBucketsDto;
     open: number;
+    overdue: number;
+    unassigned: number;
     completedLast7Days: number;
-    completionRate: number;
   };
 
+  myTasks: OverviewTaskDto[];
   recentTasks: OverviewTaskDto[];
 };
 

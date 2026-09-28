@@ -2,10 +2,12 @@ import { type NextFunction, type Request, type Response } from "express";
 import * as overviewService from "./overview.service.ts";
 import {
   toMyOverviewResponseDto,
+  toPaginatedOverviewProjectDto,
   toProjectOverviewResponseDto,
   toWorkspaceOverviewResponseDto,
 } from "./mappers/overview.mapper.ts";
 import type { ProjectParamsDto, WorkspaceParamsDto } from "../../shared/schemas/common.schema.ts";
+import type { OverviewProjectQueryDto } from "./schemas/overview.schema.ts";
 
 // Llamar al servicio y mappear la respuesta.
 // Responder HTTP
@@ -32,6 +34,20 @@ export async function findWorkspaceOverview(req: Request, res: Response, next: N
     const overview = await overviewService.getWorkspaceOverview({ userId, workspaceSlug });
 
     res.json(toWorkspaceOverviewResponseDto(overview));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function findWorkspaceProjects(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = req.validated.params as WorkspaceParamsDto;
+    const query = req.validated.query as OverviewProjectQueryDto;
+    const userId = req.user.id;
+
+    const projects = await overviewService.getWorkspaceProjects({ userId, workspaceSlug: params.workspaceSlug, query });
+
+    res.json(toPaginatedOverviewProjectDto({ projects, page: query.page, limit: query.limit }));
   } catch (error) {
     next(error);
   }

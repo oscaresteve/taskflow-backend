@@ -10,10 +10,10 @@ import {
   signUp,
 } from "../helpers/api.ts";
 
-async function setupOwnerProject() {
+async function setupOwnerProject(projectOverrides: Partial<{ name: string; key: string }> = {}) {
   const owner = await signUp();
   const workspace = await createWorkspace(owner.accessToken);
-  const project = await createProject(owner.accessToken, workspace.slug);
+  const project = await createProject(owner.accessToken, workspace.slug, projectOverrides);
   return { owner, workspace, project };
 }
 
@@ -174,7 +174,7 @@ describe("GET /workspaces/:workspaceSlug/overview", () => {
     expect(res.status).toBe(403);
   });
 
-  it("aggregates project count, task status breakdown and due date split for a member", async () => {
+  it("counts the workspace headline numbers for a member", async () => {
     const { owner, workspace, project } = await setupOwnerProject();
     await createProject(owner.accessToken, workspace.slug); // sin tareas, solo cuenta como proyecto
 
@@ -194,15 +194,117 @@ describe("GET /workspaces/:workspaceSlug/overview", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.projectsCount).toBe(2);
-    expect(res.body.tasks.byStatus).toEqual({ TODO: 1, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 1 });
-    expect(res.body.tasks.open).toBe(1);
-    expect(res.body.tasks.completedLast7Days).toBe(1);
-    expect(res.body.tasks.completionRate).toBe(50);
-    // La unica tarea abierta no tiene fecha limite; la tarea DONE no entra en ninguna cubeta.
-    expect(res.body.tasks.byDueDate).toEqual({ overdue: 0, dueSoon: 0, scheduled: 0, noDueDate: 1 });
+    // La unica abierta no tiene fecha ni responsable; la tarea DONE ya no cuenta como abierta.
+    expect(res.body.tasks).toEqual({ open: 1, overdue: 0, unassigned: 1, completedLast7Days: 1 });
     expect(res.body.recentTasks).toHaveLength(2);
     // Cada fila trae ya la key del proyecto, que es lo que la UI pinta como "PRJ-1".
     expect(res.body.recentTasks[0].project.key).toBe(project.key);
+  });
+
+  it("returns the caller's own queue for this workspace, not everyone's", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+
+    const mine = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Mine",
+      assigneeId: owner.user.id,
+    });
+    await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Nobody's" });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/overview`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.myTasks).toHaveLength(1);
+    expect(res.body.myTasks[0].id).toBe(mine.id);
+    // Y la actividad reciente sigue enseñando las dos, sean de quien sean.
+    expect(res.body.recentTasks).toHaveLength(2);
+  });
+});
+
+describe("GET /workspaces/:workspaceSlug/overview/projects", () => {
+  it("403s when the user is not a member of the workspace", async () => {
+    const { workspace } = await setupOwnerProject();
+    const outsider = await signUp();
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/overview/projects`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("carries the numbers each project card needs", async () => {
+    const { owner, workspace, project } = await setupOwnerProject({ name: "Alpha" });
+    await createProject(owner.accessToken, workspace.slug, { name: "Beta", key: "BETA" });
+
+    const doneTask = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Done" });
+    await setStatus({
+      actorAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      taskNumber: doneTask.taskNumber,
+      status: "DONE",
+    });
+
+    const lateTask = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Late" });
+    await setDueDate({
+      actorAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      taskNumber: lateTask.taskNumber,
+      dueDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    });
+
+    await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Open" });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/overview/projects`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.pagination).toEqual({ page: 1, limit: 10, total: 2, pages: 1 });
+    // Orden fijo por nombre.
+    expect(res.body.data.map((item: { name: string }) => item.name)).toEqual(["Alpha", "Beta"]);
+
+    // Una de tres hecha, y de las dos abiertas una ya se paso de fecha.
+    expect(res.body.data[0].stats).toEqual({
+      open: 2,
+      overdue: 1,
+      completionRate: 33,
+      lastActivityAt: expect.any(String),
+    });
+
+    // Sin tareas no hay nada que dividir ni ninguna actividad que datar.
+    expect(res.body.data[1].stats).toEqual({ open: 0, overdue: 0, completionRate: 0, lastActivityAt: null });
+  });
+
+  it("searches by name and only lists projects the user belongs to", async () => {
+    const { owner, workspace } = await setupOwnerProject({ name: "Website redesign" });
+    await createProject(owner.accessToken, workspace.slug, { name: "Mobile app", key: "MOB" });
+
+    const member = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+
+    const found = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/overview/projects`)
+      .query({ search: "mobile" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(found.body.data.map((item: { name: string }) => item.name)).toEqual(["Mobile app"]);
+    expect(found.body.pagination.total).toBe(1);
+
+    // El miembro del espacio no pertenece a ninguno de los dos proyectos.
+    const asMember = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/overview/projects`)
+      .set("Cookie", `accessToken=${member.accessToken}`);
+
+    expect(asMember.body.data).toEqual([]);
   });
 });
 
