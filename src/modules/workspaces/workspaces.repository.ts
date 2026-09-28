@@ -1,4 +1,6 @@
 import { prisma } from "../../config/prisma.ts";
+import * as activityRepository from "../activity/activity.repository.ts";
+import type { ActivityEventInput } from "../activity/types/activity.types.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { CreateWorkspaceDto, UpdateWorkspaceDto, WorkspaceQueryDto } from "./schemas/workspaces.schema.ts";
@@ -36,6 +38,18 @@ export async function create({
         joinedAt: new Date(),
       },
     });
+
+    // El id del espacio nace dentro de la transaccion, asi que el evento se arma aqui.
+    await activityRepository.record(tx, [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_CREATED",
+        payload: { workspaceName: workspace.name },
+      },
+    ]);
 
     return workspace;
   });
@@ -146,43 +160,69 @@ export async function findBySlugIncludingInactive(slug: string): Promise<Workspa
 export async function update({
   workspaceId,
   data,
+  events,
 }: {
   workspaceId: string;
   data: UpdateWorkspaceDto & { slug: string };
+  events: ActivityEventInput[];
 }): Promise<Workspace> {
-  return prisma.workspace.update({
-    where: {
-      id: workspaceId,
-    },
-    data,
+  return prisma.$transaction(async (tx) => {
+    const workspace = await tx.workspace.update({
+      where: {
+        id: workspaceId,
+      },
+      data,
+    });
+
+    await activityRepository.record(tx, events);
+
+    return workspace;
   });
 }
 
 export async function updateAvatarKey({
   workspaceId,
   avatarKey,
+  events,
 }: {
   workspaceId: string;
   avatarKey: string | null;
+  events: ActivityEventInput[];
 }): Promise<Workspace> {
-  return prisma.workspace.update({
-    where: {
-      id: workspaceId,
-    },
-    data: {
-      avatarKey,
-    },
+  return prisma.$transaction(async (tx) => {
+    const workspace = await tx.workspace.update({
+      where: {
+        id: workspaceId,
+      },
+      data: {
+        avatarKey,
+      },
+    });
+
+    await activityRepository.record(tx, events);
+
+    return workspace;
   });
 }
 
-export async function deactivate(workspaceId: string): Promise<void> {
-  await prisma.workspace.update({
-    where: {
-      id: workspaceId,
-    },
-    data: {
-      isActive: false,
-    },
+export async function deactivate({
+  workspaceId,
+  events,
+}: {
+  workspaceId: string;
+  events: ActivityEventInput[];
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.workspace.update({
+      where: {
+        id: workspaceId,
+      },
+      data: {
+        isActive: false,
+      },
+    });
+
+    await activityRepository.record(tx, events);
   });
 }
 

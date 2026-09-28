@@ -29,6 +29,12 @@ const actorSelect = {
   avatarUrl: true,
 } as const;
 
+const projectSelect = {
+  slug: true,
+  key: true,
+  name: true,
+} as const;
+
 async function findAll({
   where,
   query,
@@ -50,6 +56,9 @@ async function findAll({
         actor: {
           select: actorSelect,
         },
+        project: {
+          select: projectSelect,
+        },
       },
     }),
 
@@ -62,6 +71,27 @@ async function findAll({
     items,
     total,
   };
+}
+
+// El feed de espacio ensena lo del propio espacio mas lo de los proyectos de los que el usuario
+// es miembro: la misma regla de alcance que ya aplican los contadores del overview. No excluye los
+// proyectos archivados, porque "archivo el proyecto X" es justo una de las entradas que interesan.
+export async function findAllByWorkspace({
+  workspaceId,
+  userId,
+  query,
+}: {
+  workspaceId: string;
+  userId: string;
+  query: ActivityQueryDto;
+}): Promise<PaginatedResult<ActivityEventWithActor>> {
+  return findAll({
+    where: {
+      workspaceId,
+      OR: [{ projectId: null }, { project: { members: { some: { userId, isActive: true } } } }],
+    },
+    query,
+  });
 }
 
 export async function findAllByProject({

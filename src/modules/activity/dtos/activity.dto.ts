@@ -1,6 +1,12 @@
 import type { ActivityAction } from "../../../shared/types/prisma.types.ts";
 import type { ActivityPayloadMap } from "../types/activity.types.ts";
 
+export type ActivityProjectDto = {
+  slug: string;
+  key: string;
+  name: string;
+};
+
 export type ActivityActorDto = {
   id: string;
   firstName: string;
@@ -18,6 +24,7 @@ export type ActivityEventResponseDto = {
     payload: ActivityPayloadMap[A];
 
     taskId: string | null;
+    project: ActivityProjectDto | null;
 
     actor: ActivityActorDto;
 

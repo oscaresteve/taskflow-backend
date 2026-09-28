@@ -7,6 +7,7 @@ import { NotFoundError } from "../../shared/errors/not-found-error.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import { requireWorkspaceManager } from "../../shared/auth/permissions.ts";
+import type { ActivityEventInput, ProjectEditedField } from "../activity/types/activity.types.ts";
 
 // LLamar al repository y realizar toda la lógica necesaria
 
@@ -115,8 +116,30 @@ export async function update({
       exists: (slug) => projectsRepository.existsBySlugInWorkspace({ slug, workspaceId: workspace.id }),
     });
 
+  // Nombre, descripcion y color no tienen narrativa propia, asi que comparten un unico evento
+  // que solo registra cuales cambiaron de verdad.
+  const fields: ProjectEditedField[] = [];
+
+  if (data.name !== undefined && data.name !== project.name) fields.push("name");
+  if (data.description !== undefined && (data.description ?? null) !== project.description) fields.push("description");
+  if (data.color !== undefined && (data.color ?? null) !== project.color) fields.push("color");
+
+  const events: ActivityEventInput[] =
+    fields.length === 0
+      ? []
+      : [
+          {
+            workspaceId: workspace.id,
+            projectId: project.id,
+            taskId: null,
+            actorId: userId,
+            action: "PROJECT_UPDATED",
+            payload: { projectName: data.name ?? project.name, projectKey: project.key, fields },
+          },
+        ];
+
   const [updatedProject, isFavorite] = await Promise.all([
-    projectsRepository.update({ data, newSlug, projectId: project.id }),
+    projectsRepository.update({ data, newSlug, projectId: project.id, events }),
     projectsRepository.isFavorited({ userId, projectId: project.id }),
   ]);
 
@@ -133,7 +156,7 @@ export async function archive({
   projectSlug: string;
 }): Promise<void> {
   // Obtener el contexto
-  const { workspaceMember, project } = await authorizationService.getProjectContext({
+  const { workspace, workspaceMember, project } = await authorizationService.getProjectContext({
     userId,
     workspaceSlug,
     projectSlug,
@@ -145,7 +168,19 @@ export async function archive({
   // Comprobar que no este ya archivado
   if (project.isArchived === true) throw new ConflictError("Project is already archived");
 
-  await projectsRepository.archive(project.id);
+  await projectsRepository.archive({
+    projectId: project.id,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: project.id,
+        taskId: null,
+        actorId: userId,
+        action: "PROJECT_ARCHIVED",
+        payload: { projectName: project.name, projectKey: project.key },
+      },
+    ],
+  });
 }
 
 export async function favorite({

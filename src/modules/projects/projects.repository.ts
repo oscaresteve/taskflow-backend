@@ -1,4 +1,6 @@
 import { prisma } from "../../config/prisma.ts";
+import * as activityRepository from "../activity/activity.repository.ts";
+import type { ActivityEventInput } from "../activity/types/activity.types.ts";
 import type { CreateProjectDto, ProjectQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
 import type { Project } from "../../shared/types/prisma.types.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
@@ -82,6 +84,18 @@ export async function create({
       },
     });
 
+    // El id del proyecto nace dentro de la transaccion, asi que el evento se arma aqui.
+    await activityRepository.record(tx, [
+      {
+        workspaceId,
+        projectId: project.id,
+        taskId: null,
+        actorId: userId,
+        action: "PROJECT_CREATED",
+        payload: { projectName: project.name, projectKey: project.key },
+      },
+    ]);
+
     return project;
   });
 }
@@ -163,32 +177,50 @@ export async function update({
   data,
   projectId,
   newSlug,
+  events,
 }: {
   data: UpdateProjectDto;
   projectId: string;
   newSlug: string;
+  events: ActivityEventInput[];
 }): Promise<Project> {
-  return await prisma.project.update({
-    where: {
-      id: projectId,
-    },
-    data: {
-      name: data.name,
-      description: data.description,
-      color: data.color,
-      slug: newSlug,
-    },
+  return prisma.$transaction(async (tx) => {
+    const project = await tx.project.update({
+      where: {
+        id: projectId,
+      },
+      data: {
+        name: data.name,
+        description: data.description,
+        color: data.color,
+        slug: newSlug,
+      },
+    });
+
+    await activityRepository.record(tx, events);
+
+    return project;
   });
 }
 
-export async function archive(projectId: string): Promise<void> {
-  await prisma.project.update({
-    where: {
-      id: projectId,
-    },
-    data: {
-      isArchived: true,
-    },
+export async function archive({
+  projectId,
+  events,
+}: {
+  projectId: string;
+  events: ActivityEventInput[];
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.project.update({
+      where: {
+        id: projectId,
+      },
+      data: {
+        isArchived: true,
+      },
+    });
+
+    await activityRepository.record(tx, events);
   });
 }
 

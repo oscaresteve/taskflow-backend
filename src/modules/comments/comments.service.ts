@@ -77,7 +77,7 @@ export async function update({
   commentId: string;
   data: UpdateCommentDto;
 }): Promise<Comment> {
-  const { comment } = await authorizationService.getCommentContext({
+  const { project, task, comment } = await authorizationService.getCommentContext({
     userId,
     workspaceSlug,
     projectSlug,
@@ -87,7 +87,20 @@ export async function update({
 
   if (comment.authorId !== userId) throw new ForbiddenError("You cannot manage others comments");
 
-  const newComment = await commentsRepository.update({ data, commentId });
+  const newComment = await commentsRepository.update({
+    data,
+    commentId,
+    events: [
+      {
+        workspaceId: project.workspaceId,
+        projectId: project.id,
+        taskId: task.id,
+        actorId: userId,
+        action: "COMMENT_EDITED",
+        payload: { taskNumber: task.taskNumber, taskTitle: task.title, commentId },
+      },
+    ],
+  });
 
   return newComment;
 }
@@ -105,7 +118,7 @@ export async function remove({
   taskNumber: number;
   commentId: string;
 }): Promise<void> {
-  const { projectMember, comment } = await authorizationService.getCommentContext({
+  const { project, projectMember, task, comment } = await authorizationService.getCommentContext({
     userId,
     workspaceSlug,
     projectSlug,
@@ -117,5 +130,17 @@ export async function remove({
 
   if (comment.deletedAt) throw new ConflictError("Comment is already deleted");
 
-  await commentsRepository.remove(commentId);
+  await commentsRepository.remove({
+    commentId,
+    events: [
+      {
+        workspaceId: project.workspaceId,
+        projectId: project.id,
+        taskId: task.id,
+        actorId: userId,
+        action: "COMMENT_DELETED",
+        payload: { taskNumber: task.taskNumber, taskTitle: task.title, commentId },
+      },
+    ],
+  });
 }

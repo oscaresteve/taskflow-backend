@@ -1,4 +1,6 @@
 import { prisma } from "../../config/prisma.ts";
+import * as activityRepository from "../activity/activity.repository.ts";
+import type { ActivityEventInput } from "../activity/types/activity.types.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type {
@@ -145,31 +147,51 @@ export async function findUserActive(id: string): Promise<{ id: string; isActive
 export async function create({
   data,
   workspaceId,
+  events,
 }: {
   data: CreateWorkspaceMemberDto;
   workspaceId: string;
+  events: ActivityEventInput[];
 }): Promise<WorkspaceMember> {
-  return await prisma.workspaceMember.create({
-    data: {
-      userId: data.userId,
-      role: data.role,
-      workspaceId,
-    },
+  return prisma.$transaction(async (tx) => {
+    const workspaceMember = await tx.workspaceMember.create({
+      data: {
+        userId: data.userId,
+        role: data.role,
+        workspaceId,
+      },
+    });
+
+    await activityRepository.record(tx, events);
+
+    return workspaceMember;
   });
 }
 
-export async function activate({ workspaceId, userId }: { workspaceId: string; userId: string }): Promise<void> {
-  await prisma.workspaceMember.update({
-    where: {
-      userId_workspaceId: {
-        userId,
-        workspaceId,
+export async function activate({
+  workspaceId,
+  userId,
+  events,
+}: {
+  workspaceId: string;
+  userId: string;
+  events: ActivityEventInput[];
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.workspaceMember.update({
+      where: {
+        userId_workspaceId: {
+          userId,
+          workspaceId,
+        },
       },
-    },
-    data: {
-      status: WorkspaceMemberStatus.ACTIVE,
-      joinedAt: new Date(),
-    },
+      data: {
+        status: WorkspaceMemberStatus.ACTIVE,
+        joinedAt: new Date(),
+      },
+    });
+
+    await activityRepository.record(tx, events);
   });
 }
 
@@ -177,36 +199,54 @@ export async function update({
   workspaceId,
   userId,
   role,
+  events,
 }: {
   workspaceId: string;
   userId: string;
   role: WorkspaceRole;
+  events: ActivityEventInput[];
 }): Promise<void> {
-  await prisma.workspaceMember.update({
-    where: {
-      userId_workspaceId: {
-        userId,
-        workspaceId,
+  await prisma.$transaction(async (tx) => {
+    await tx.workspaceMember.update({
+      where: {
+        userId_workspaceId: {
+          userId,
+          workspaceId,
+        },
       },
-    },
-    data: {
-      role,
-    },
+      data: {
+        role,
+      },
+    });
+
+    await activityRepository.record(tx, events);
   });
 }
 
-export async function remove({ workspaceId, userId }: { workspaceId: string; userId: string }): Promise<void> {
-  await prisma.workspaceMember.update({
-    where: {
-      userId_workspaceId: {
-        userId,
-        workspaceId,
+export async function remove({
+  workspaceId,
+  userId,
+  events,
+}: {
+  workspaceId: string;
+  userId: string;
+  events: ActivityEventInput[];
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.workspaceMember.update({
+      where: {
+        userId_workspaceId: {
+          userId,
+          workspaceId,
+        },
       },
-    },
-    data: {
-      status: WorkspaceMemberStatus.REMOVED,
-      role: WorkspaceRole.MEMBER, // Eliminar permisos por si en un futuro se vuelve a activar el usuario
-      joinedAt: null,
-    },
+      data: {
+        status: WorkspaceMemberStatus.REMOVED,
+        role: WorkspaceRole.MEMBER, // Eliminar permisos por si en un futuro se vuelve a activar el usuario
+        joinedAt: null,
+      },
+    });
+
+    await activityRepository.record(tx, events);
   });
 }

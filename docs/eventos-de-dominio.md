@@ -24,12 +24,15 @@ Pero hay dos cosas que no se derivan tan directamente, y que cambian el diseño:
 
 ## El modelo
 
-`ActivityEvent` guarda `workspaceId`, `projectId`, `taskId?`, `actorId`, `action`, `payload` y
+`ActivityEvent` guarda `workspaceId`, `projectId?`, `taskId?`, `actorId`, `action`, `payload` y
 `createdAt`.
 
-`workspaceId` es una desnormalización deliberada: es derivable del proyecto, pero tenerlo evita el
-join en un futuro feed de espacio y sirve de clave de sala. En v1 todo evento es de proyecto, así
-que `projectId` es no nulo.
+Todo evento pertenece a un espacio, y por eso `workspaceId` es el único obligatorio. Los de proyecto
+además cuelgan de uno, y los de tarea también de ella; los del propio espacio (miembros, ajustes) no
+tienen ninguno de los dos. `workspaceId` es una desnormalización deliberada respecto al proyecto:
+evita el join en el feed de espacio y sirve de clave de sala.
+
+Hay tres feeds, cada uno con su índice por fecha descendente: espacio, proyecto y tarea.
 
 El actor va con `onDelete: Restrict`, igual que el creador de una tarea: un evento sin autor no es
 un evento. Los usuarios se desactivan, no se borran.
@@ -74,6 +77,15 @@ parámetro más por función mutadora; a cambio el log no puede mentir.
 
 La publicación (fan-out de notificaciones y emisión por socket) va **después** del commit: emitir
 dentro de la transacción difunde cambios que todavía pueden revertirse.
+
+## El alcance del feed de espacio
+
+El feed de espacio enseña los eventos del propio espacio más los de los proyectos de los que el
+usuario es miembro. Es la misma regla de alcance que ya aplican los contadores del overview: solo lo
+alcanzable, y nunca más estricta que el endpoint que ya expone esos mismos datos.
+
+No excluye los proyectos archivados. Los contadores sí lo hacen porque cuentan trabajo pendiente,
+pero "archivó el proyecto X" es justo una de las entradas que un historial tiene que contar.
 
 ## Notificaciones
 
@@ -166,8 +178,5 @@ eventos, y conviene presupuestarlos aparte.
 - **Suscriptores explícitos.** Las reglas de destinatarios son un sustituto de un modelo de
   *watchers* ("seguir esta tarea"). Es la evolución natural cuando el ruido moleste, y no rompe nada
   de lo diseñado.
-- **Eventos de espacio.** En v1 `projectId` es no nulo. Para tener historial de espacio (renombrados,
-  miembros del espacio) hay que hacerlo opcional: una migración pequeña, pero conviene tomarla a
-  conciencia.
 - **Espacios inactivos y proyectos archivados.** El backend ya devuelve 404 para todo lo que cuelga
   de un espacio inactivo; el feed y la campanita siguen esa misma regla en vez de inventarse una.

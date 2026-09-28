@@ -20,6 +20,7 @@ function toActivityEventResponse(event: ActivityEventWithActor): ActivityEventRe
     payload: parsed.data,
 
     taskId: event.taskId,
+    project: event.project,
 
     actor: {
       id: event.actor.id,

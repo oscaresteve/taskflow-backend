@@ -4,6 +4,7 @@ import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { Comment } from "../../shared/types/prisma.types.ts";
 import type { CommentQueryDto, CreateCommentDto, UpdateCommentDto } from "./schemas/comments.schema.ts";
 import * as activityRepository from "../activity/activity.repository.ts";
+import type { ActivityEventInput } from "../activity/types/activity.types.ts";
 
 export async function create({
   taskId,
@@ -94,25 +95,49 @@ export async function findAll({
   };
 }
 
-export async function update({ commentId, data }: { commentId: string; data: UpdateCommentDto }): Promise<Comment> {
-  return prisma.comment.update({
-    where: {
-      id: commentId,
-    },
-    data: {
-      content: data.content,
-      editedAt: new Date(),
-    },
+export async function update({
+  commentId,
+  data,
+  events,
+}: {
+  commentId: string;
+  data: UpdateCommentDto;
+  events: ActivityEventInput[];
+}): Promise<Comment> {
+  return prisma.$transaction(async (tx) => {
+    const comment = await tx.comment.update({
+      where: {
+        id: commentId,
+      },
+      data: {
+        content: data.content,
+        editedAt: new Date(),
+      },
+    });
+
+    await activityRepository.record(tx, events);
+
+    return comment;
   });
 }
 
-export async function remove(commentId: string): Promise<void> {
-  await prisma.comment.update({
-    where: {
-      id: commentId,
-    },
-    data: {
-      deletedAt: new Date(),
-    },
+export async function remove({
+  commentId,
+  events,
+}: {
+  commentId: string;
+  events: ActivityEventInput[];
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.comment.update({
+      where: {
+        id: commentId,
+      },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
+
+    await activityRepository.record(tx, events);
   });
 }

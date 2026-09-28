@@ -81,7 +81,7 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/activity", () => 
     const res = await getProjectActivity(owner.accessToken, workspace.slug, project.slug);
     const entries = res.body.data as ActivityEntry[];
 
-    expect(entries.map((entry) => entry.action)).toEqual(["TASK_CREATED"]);
+    expect(entries.map((entry) => entry.action)).toEqual(["TASK_CREATED", "PROJECT_CREATED"]);
   });
 
   it("records a column change on move, but not a reorder inside the same column", async () => {
@@ -158,7 +158,8 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/activity", () => 
     const entries = res.body.data as ActivityEntry[];
 
     expect(entries[0].action).toBe("TASK_STATUS_CHANGED");
-    expect(entries[entries.length - 1].action).toBe("TASK_CREATED");
+    // Lo mas viejo del feed de un proyecto es siempre su propia creacion.
+    expect(entries[entries.length - 1].action).toBe("PROJECT_CREATED");
   });
 
   it("403s when the user is a workspace member but not a project member", async () => {
@@ -217,5 +218,148 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber
       .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(404);
+  });
+});
+
+describe("GET /workspaces/:workspaceSlug/activity", () => {
+  async function getWorkspaceActivity(accessToken: string, workspaceSlug: string) {
+    return request(app)
+      .get(`/api/workspaces/${workspaceSlug}/activity`)
+      .set("Cookie", `accessToken=${accessToken}`);
+  }
+
+  it("records the workspace and project lifecycle", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const project = await createProject(owner.accessToken, workspace.slug);
+
+    const renamed = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "Renamed project" });
+
+    // Cambiar el nombre regenera el slug, asi que el de antes ya no resuelve.
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${renamed.body.slug}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await getWorkspaceActivity(owner.accessToken, workspace.slug);
+
+    expect(res.status).toBe(200);
+
+    const entries = res.body.data as ActivityEntry[];
+    const actions = entries.map((entry) => entry.action);
+
+    expect(actions).toContain("WORKSPACE_CREATED");
+    expect(actions).toContain("PROJECT_CREATED");
+    expect(actions).toContain("PROJECT_ARCHIVED");
+
+    const updated = entries.find((entry) => entry.action === "PROJECT_UPDATED");
+
+    expect(updated!.payload).toMatchObject({ projectName: "Renamed project", fields: ["name"] });
+  });
+
+  it("records workspace member events with no project attached", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const invited = await signUp();
+
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: invited.user.id,
+      role: "MEMBER",
+    });
+
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${invited.user.id}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ role: "ADMIN" });
+
+    const res = await getWorkspaceActivity(owner.accessToken, workspace.slug);
+    const entries = res.body.data as ActivityEntry[];
+
+    const invitedEntry = entries.find((entry) => entry.action === "WORKSPACE_MEMBER_INVITED");
+    const activatedEntry = entries.find((entry) => entry.action === "WORKSPACE_MEMBER_ACTIVATED");
+    const roleEntry = entries.find((entry) => entry.action === "WORKSPACE_MEMBER_ROLE_CHANGED");
+
+    expect(invitedEntry!.taskId).toBeNull();
+    expect(invitedEntry!.payload).toMatchObject({ targetUserId: invited.user.id, role: "MEMBER" });
+    expect(activatedEntry).toBeDefined();
+    expect(roleEntry!.payload).toMatchObject({ from: "MEMBER", to: "ADMIN" });
+  });
+
+  it("hides events of projects the member does not belong to", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const mine = await createProject(owner.accessToken, workspace.slug);
+    const theirs = await createProject(owner.accessToken, workspace.slug);
+
+    const member = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: mine.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+
+    await createTask(owner.accessToken, workspace.slug, mine.slug, { title: "Visible task" });
+    await createTask(owner.accessToken, workspace.slug, theirs.slug, { title: "Hidden task" });
+
+    const res = await getWorkspaceActivity(member.accessToken, workspace.slug);
+    const entries = res.body.data as ActivityEntry[];
+
+    const titles = entries
+      .filter((entry) => entry.action === "TASK_CREATED")
+      .map((entry) => entry.payload.taskTitle);
+
+    expect(titles).toContain("Visible task");
+    expect(titles).not.toContain("Hidden task");
+
+    // Los eventos del propio espacio no cuelgan de ningun proyecto, asi que los ve igual.
+    expect(entries.map((entry) => entry.action)).toContain("WORKSPACE_MEMBER_INVITED");
+  });
+
+  it("records editing and deleting a comment", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const project = await createProject(owner.accessToken, workspace.slug);
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    const comment = await createComment(owner.accessToken, workspace.slug, project.slug, task.taskNumber);
+
+    const base = `/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments/${comment.id}`;
+
+    await request(app).patch(base).set("Cookie", `accessToken=${owner.accessToken}`).send({ content: "Edited" });
+    await request(app).patch(`${base}/delete`).set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/activity`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const entries = res.body.data as ActivityEntry[];
+    const actions = entries.map((entry) => entry.action);
+
+    expect(actions).toContain("COMMENT_EDITED");
+    expect(actions).toContain("COMMENT_DELETED");
+    expect(entries.find((entry) => entry.action === "COMMENT_DELETED")!.payload).toMatchObject({
+      commentId: comment.id,
+    });
+  });
+
+  it("403s when the user is not a member of the workspace", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const outsider = await signUp();
+
+    const res = await getWorkspaceActivity(outsider.accessToken, workspace.slug);
+
+    expect(res.status).toBe(403);
   });
 });

@@ -284,17 +284,35 @@ model Comment {
 
 enum ActivityAction {
   TASK_CREATED
-  // Titulo o descripcion: cambios sin narrativa propia, van juntos en una sola accion
+  // Los campos sin narrativa propia (titulo, descripcion, nombre, color...) comparten accion y
+  // solo registran cuales se tocaron; los que si la tienen van cada uno por su lado.
   TASK_EDITED
   TASK_STATUS_CHANGED
   TASK_PRIORITY_CHANGED
   TASK_ASSIGNEE_CHANGED
   TASK_DUE_DATE_CHANGED
   TASK_ARCHIVED
+
   COMMENT_CREATED
+  COMMENT_EDITED
+  COMMENT_DELETED
+
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  PROJECT_ARCHIVED
+
   PROJECT_MEMBER_ADDED
   PROJECT_MEMBER_ROLE_CHANGED
   PROJECT_MEMBER_DEACTIVATED
+
+  WORKSPACE_CREATED
+  WORKSPACE_UPDATED
+  WORKSPACE_DEACTIVATED
+
+  WORKSPACE_MEMBER_INVITED
+  WORKSPACE_MEMBER_ACTIVATED
+  WORKSPACE_MEMBER_ROLE_CHANGED
+  WORKSPACE_MEMBER_REMOVED
 }
 
 // Registro inmutable de lo que ha pasado en un proyecto. Nunca se actualiza ni se borra: el
@@ -302,10 +320,10 @@ enum ActivityAction {
 model ActivityEvent {
   id          String         @id @default(cuid())
 
-  // workspaceId es derivable del proyecto, pero desnormalizarlo evita el join en el feed de espacio
-  // y sirve de clave de sala. En v1 todo evento cuelga de un proyecto.
+  // Todo evento pertenece a un espacio. Los de proyecto ademas cuelgan de uno, y los de tarea
+  // tambien de ella; los del propio espacio (miembros, ajustes) no tienen ninguno de los dos.
   workspaceId String
-  projectId   String
+  projectId   String?
   taskId      String?
 
   actorId     String
@@ -320,14 +338,15 @@ model ActivityEvent {
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   task        Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   // Un evento sin autor no es un evento. Los usuarios se desactivan, no se borran.
   actor       User      @relation(fields: [actorId], references: [id], onDelete: Restrict)
 
-  // Los dos feeds: el del proyecto y el de la tarea. Ambos ordenan por fecha descendente.
+  // Los tres feeds: espacio, proyecto y tarea. Todos ordenan por fecha descendente.
+  @@index([workspaceId, createdAt(sort: Desc)])
   @@index([projectId, createdAt(sort: Desc)])
   @@index([taskId, createdAt(sort: Desc)])
   @@index([actorId])

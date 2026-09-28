@@ -98,7 +98,20 @@ export async function create({
     throw new BadRequestError("User is already a member of this workspace");
   }
 
-  const newWorkspaceMember = await workspaceMembersRepository.create({ data, workspaceId: workspace.id });
+  const newWorkspaceMember = await workspaceMembersRepository.create({
+    data,
+    workspaceId: workspace.id,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_MEMBER_INVITED",
+        payload: { targetUserId: data.userId, role: data.role },
+      },
+    ],
+  });
 
   return newWorkspaceMember;
 }
@@ -141,6 +154,16 @@ export async function activate({
   await workspaceMembersRepository.activate({
     workspaceId: workspace.id,
     userId: workspaceMemberUserId,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_MEMBER_ACTIVATED",
+        payload: { targetUserId: workspaceMemberUserId },
+      },
+    ],
   });
 }
 
@@ -197,6 +220,16 @@ export async function update({
     workspaceId: workspace.id,
     userId: workspaceMemberUserId,
     role: data.role,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_MEMBER_ROLE_CHANGED",
+        payload: { targetUserId: workspaceMemberUserId, from: workspaceMemberTarget.role, to: data.role },
+      },
+    ],
   });
 }
 
@@ -240,5 +273,15 @@ export async function remove({
   await workspaceMembersRepository.remove({
     workspaceId: workspace.id,
     userId: workspaceMemberUserId,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_MEMBER_REMOVED",
+        payload: { targetUserId: workspaceMemberUserId },
+      },
+    ],
   });
 }

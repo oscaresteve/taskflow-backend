@@ -7,6 +7,20 @@ import type { ActivityEventWithActor } from "./types/activity.types.ts";
 // Solo lectura: los eventos los escriben los modulos que originan el cambio, dentro de su propia
 // transaccion, llamando a activityRepository.record.
 
+export async function findAllByWorkspace({
+  userId,
+  workspaceSlug,
+  query,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  query: ActivityQueryDto;
+}): Promise<PaginatedResult<ActivityEventWithActor>> {
+  const { workspace } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  return activityRepository.findAllByWorkspace({ workspaceId: workspace.id, userId, query });
+}
+
 export async function findAllByProject({
   userId,
   workspaceSlug,

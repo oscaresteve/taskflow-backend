@@ -18,6 +18,7 @@ import { BadRequestError } from "../../shared/errors/bad-request-error.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import { requireWorkspaceManager } from "../../shared/auth/permissions.ts";
 import { deleteObject, getUploadUrl, headObject } from "../../shared/storage/storage.service.ts";
+import type { ActivityEventInput, WorkspaceEditedField } from "../activity/types/activity.types.ts";
 
 // LLamar al repository y realizar toda la lógica necesaria
 
@@ -130,6 +131,28 @@ export async function update({
     });
   }
 
+  // Nombre y descripcion comparten un unico evento que solo registra cuales cambiaron.
+  const fields: WorkspaceEditedField[] = [];
+
+  if (data.name !== undefined && data.name !== workspace.name) fields.push("name");
+  if (data.description !== undefined && (data.description ?? null) !== workspace.description) {
+    fields.push("description");
+  }
+
+  const events: ActivityEventInput[] =
+    fields.length === 0
+      ? []
+      : [
+          {
+            workspaceId: workspace.id,
+            projectId: null,
+            taskId: null,
+            actorId: userId,
+            action: "WORKSPACE_UPDATED",
+            payload: { workspaceName: data.name ?? workspace.name, fields },
+          },
+        ];
+
   const [updatedWorkspace, isFavorite] = await Promise.all([
     workspacesRepository.update({
       workspaceId: workspace.id,
@@ -137,6 +160,7 @@ export async function update({
         ...data,
         slug: newSlug,
       },
+      events,
     }),
     workspacesRepository.isFavorited({ userId, workspaceId: workspace.id }),
   ]);
@@ -157,7 +181,19 @@ export async function deactivate({ userId, workspaceSlug }: { userId: string; wo
   // Comprobar que no este ya desactivado
   if (workspace.isActive === false) throw new ConflictError("Workspace is already deactivated");
 
-  await workspacesRepository.deactivate(workspace.id);
+  await workspacesRepository.deactivate({
+    workspaceId: workspace.id,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_DEACTIVATED",
+        payload: { workspaceName: workspace.name },
+      },
+    ],
+  });
 }
 
 export async function getAvatarUploadUrl({
@@ -230,7 +266,20 @@ export async function confirmAvatar({
   }
 
   const [updatedWorkspace, isFavorite] = await Promise.all([
-    workspacesRepository.updateAvatarKey({ workspaceId: workspace.id, avatarKey: data.key }),
+    workspacesRepository.updateAvatarKey({
+      workspaceId: workspace.id,
+      avatarKey: data.key,
+      events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_UPDATED",
+        payload: { workspaceName: workspace.name, fields: ["avatar"] },
+      },
+      ],
+    }),
     workspacesRepository.isFavorited({ userId, workspaceId: workspace.id }),
   ]);
 
@@ -258,5 +307,18 @@ export async function deleteAvatar({
   }
 
   await deleteObject({ key: workspace.avatarKey });
-  await workspacesRepository.updateAvatarKey({ workspaceId: workspace.id, avatarKey: null });
+  await workspacesRepository.updateAvatarKey({
+    workspaceId: workspace.id,
+    avatarKey: null,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_UPDATED",
+        payload: { workspaceName: workspace.name, fields: ["avatar"] },
+      },
+    ],
+  });
 }
