@@ -42,6 +42,14 @@ Ya había trabajado con esta combinación antes y es una elección conocida en e
 
 Para el orden de las tareas en el tablero (drag & drop) probé primero con un campo numérico de orden, pero me encontré con el límite natural de reordenaciones que tiene ese enfoque (hay que renumerar o dejar huecos, y eventualmente se agotan). Investigué y encontré que lexorank (orden por claves alfanuméricas, al estilo Jira) es la solución más profesional para este problema, así que la adopté.
 
+### Historial, notificaciones y tiempo real: una tabla de eventos de dominio
+
+Las tres features se apoyan en la misma pieza — una tabla de eventos inmutables con actor, acción, entidad, payload y fecha — en vez de resolver cada una por su cuenta. El historial es leer esos eventos, las notificaciones son materializar los que te afectan y el tiempo real es empujarlos por la sala del proyecto. Los eventos se escriben en la misma transacción que la mutación que los origina, para que el registro no pueda afirmar algo que luego hizo rollback.
+
+Para el transporte en vivo, socket.io en vez de `ws` a pelo: hacen falta salas por proyecto y reconexión con backoff, y con `ws` eso hay que escribirlo a mano junto con los heartbeats. El interés está en el modelado de eventos, no en reimplementar un multiplexor.
+
+El diseño completo (esquema, catálogo de acciones, reglas de destinatarios, menciones, aristas conocidas y fases) está en `eventos-de-dominio.md`.
+
 ### Gestor de paquetes: pnpm (obligatorio)
 
 pnpm es seguro por defecto — sobre todo relevante después de los ataques recientes a la cadena de suministro de npm. Es el único gestor soportado en el proyecto.
