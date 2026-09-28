@@ -292,8 +292,8 @@ describe("GET /workspaces/:workspaceSlug/activity", () => {
   it("hides events of projects the member does not belong to", async () => {
     const owner = await signUp();
     const workspace = await createWorkspace(owner.accessToken);
-    const mine = await createProject(owner.accessToken, workspace.slug);
-    const theirs = await createProject(owner.accessToken, workspace.slug);
+    const mine = await createProject(owner.accessToken, workspace.slug, { name: "Mine" });
+    const theirs = await createProject(owner.accessToken, workspace.slug, { name: "Theirs" });
 
     const member = await signUp();
     await addActiveMember({
@@ -310,21 +310,47 @@ describe("GET /workspaces/:workspaceSlug/activity", () => {
       role: "MEMBER",
     });
 
-    await createTask(owner.accessToken, workspace.slug, mine.slug, { title: "Visible task" });
-    await createTask(owner.accessToken, workspace.slug, theirs.slug, { title: "Hidden task" });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${theirs.slug}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
 
     const res = await getWorkspaceActivity(member.accessToken, workspace.slug);
     const entries = res.body.data as ActivityEntry[];
 
-    const titles = entries
-      .filter((entry) => entry.action === "TASK_CREATED")
-      .map((entry) => entry.payload.taskTitle);
+    const projectNames = entries
+      .filter((entry) => entry.action === "PROJECT_CREATED" || entry.action === "PROJECT_ARCHIVED")
+      .map((entry) => entry.payload.projectName);
 
-    expect(titles).toContain("Visible task");
-    expect(titles).not.toContain("Hidden task");
+    expect(projectNames).toContain("Mine");
+    expect(projectNames).not.toContain("Theirs");
 
     // Los eventos del propio espacio no cuelgan de ningun proyecto, asi que los ve igual.
     expect(entries.map((entry) => entry.action)).toContain("WORKSPACE_MEMBER_INVITED");
+  });
+
+  it("leaves the task detail to the project feed", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const project = await createProject(owner.accessToken, workspace.slug);
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ status: "IN_PROGRESS" });
+
+    const workspaceRes = await getWorkspaceActivity(owner.accessToken, workspace.slug);
+    const workspaceEntries = workspaceRes.body.data as ActivityEntry[];
+
+    // Ninguna entrada del feed de espacio cuelga de una tarea: ese nivel es dos por debajo.
+    expect(workspaceEntries.every((entry) => entry.taskId === null)).toBe(true);
+    expect(workspaceEntries.map((entry) => entry.action)).toEqual(["PROJECT_CREATED", "WORKSPACE_CREATED"]);
+
+    const projectRes = await getProjectActivity(owner.accessToken, workspace.slug, project.slug);
+    const projectActions = (projectRes.body.data as ActivityEntry[]).map((entry) => entry.action);
+
+    expect(projectActions).toContain("TASK_CREATED");
+    expect(projectActions).toContain("TASK_STATUS_CHANGED");
   });
 
   it("records editing and deleting a comment", async () => {

@@ -73,9 +73,13 @@ async function findAll({
   };
 }
 
-// El feed de espacio ensena lo del propio espacio mas lo de los proyectos de los que el usuario
-// es miembro: la misma regla de alcance que ya aplican los contadores del overview. No excluye los
-// proyectos archivados, porque "archivo el proyecto X" es justo una de las entradas que interesan.
+// Cada feed ensena su nivel y el de abajo, pero no dos niveles abajo: el del espacio habla del
+// espacio y de sus proyectos, y el detalle de cada tarea se queda en el feed de su proyecto. Sin
+// ese corte, un solo proyecto movido ahoga a todos los demas.
+//
+// El alcance es el mismo que aplican los contadores del overview: solo los proyectos de los que el
+// usuario es miembro. No excluye los archivados, porque "archivo el proyecto X" es justo una de
+// las entradas que interesan.
 export async function findAllByWorkspace({
   workspaceId,
   userId,
@@ -88,6 +92,7 @@ export async function findAllByWorkspace({
   return findAll({
     where: {
       workspaceId,
+      taskId: null,
       OR: [{ projectId: null }, { project: { members: { some: { userId, isActive: true } } } }],
     },
     query,

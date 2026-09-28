@@ -78,11 +78,25 @@ parámetro más por función mutadora; a cambio el log no puede mentir.
 La publicación (fan-out de notificaciones y emisión por socket) va **después** del commit: emitir
 dentro de la transacción difunde cambios que todavía pueden revertirse.
 
-## El alcance del feed de espacio
+## Qué enseña cada feed
 
-El feed de espacio enseña los eventos del propio espacio más los de los proyectos de los que el
-usuario es miembro. Es la misma regla de alcance que ya aplican los contadores del overview: solo lo
-alcanzable, y nunca más estricta que el endpoint que ya expone esos mismos datos.
+**Cada feed enseña su nivel y el de abajo, pero no dos niveles abajo.**
+
+| Feed | Enseña | No enseña |
+| --- | --- | --- |
+| Espacio | El espacio (ajustes, miembros) y sus proyectos (creados, renombrados, archivados, altas y bajas) | El detalle de cada tarea |
+| Proyecto | El proyecto, sus miembros, sus tareas y sus comentarios | — |
+| Tarea | Solo esa tarea | — |
+
+El corte del feed de espacio es un único predicado, `taskId: null`, no una lista de acciones que
+mantener a mano: una acción nueva cae del lado correcto sola. Sin ese corte un solo proyecto movido
+ahoga a todos los demás, y el overview de espacio está para aterrizar, no para leer el detalle.
+
+### Alcance
+
+Además del nivel, el feed de espacio solo enseña los proyectos de los que el usuario es miembro. Es
+la misma regla que ya aplican los contadores del overview: solo lo alcanzable, y nunca más estricta
+que el endpoint que ya expone esos mismos datos.
 
 No excluye los proyectos archivados. Los contadores sí lo hacen porque cuentan trabajo pendiente,
 pero "archivó el proyecto X" es justo una de las entradas que un historial tiene que contar.
