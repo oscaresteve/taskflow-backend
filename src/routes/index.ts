@@ -9,6 +9,7 @@ import { commentsRouter } from "../modules/comments/index.ts";
 import { usersRouter } from "../modules/users/index.ts";
 import { overviewRouter } from "../modules/overview/index.ts";
 import { searchRouter } from "../modules/search/index.ts";
+import { activityRouter } from "../modules/activity/index.ts";
 
 export const router = Router();
 
@@ -22,3 +23,4 @@ router.use(commentsRouter);
 router.use(usersRouter);
 router.use(overviewRouter);
 router.use(searchRouter);
+router.use(activityRouter);

@@ -3,22 +3,46 @@ import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { Comment } from "../../shared/types/prisma.types.ts";
 import type { CommentQueryDto, CreateCommentDto, UpdateCommentDto } from "./schemas/comments.schema.ts";
+import * as activityRepository from "../activity/activity.repository.ts";
 
 export async function create({
   taskId,
   authorId,
   data,
+  activity,
 }: {
   taskId: string;
   authorId: string;
   data: CreateCommentDto;
+  activity: { workspaceId: string; projectId: string; taskNumber: number; taskTitle: string };
 }): Promise<Comment> {
-  return prisma.comment.create({
-    data: {
-      taskId,
-      authorId,
-      content: data.content,
-    },
+  return prisma.$transaction(async (tx) => {
+    const comment = await tx.comment.create({
+      data: {
+        taskId,
+        authorId,
+        content: data.content,
+      },
+    });
+
+    // El evento se arma aqui porque el id del comentario nace dentro de la transaccion, igual que
+    // pasa con el taskNumber al crear una tarea.
+    await activityRepository.record(tx, [
+      {
+        workspaceId: activity.workspaceId,
+        projectId: activity.projectId,
+        taskId,
+        actorId: authorId,
+        action: "COMMENT_CREATED",
+        payload: {
+          taskNumber: activity.taskNumber,
+          taskTitle: activity.taskTitle,
+          commentId: comment.id,
+        },
+      },
+    ]);
+
+    return comment;
   });
 }
 

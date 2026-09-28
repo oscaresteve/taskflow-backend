@@ -7,6 +7,7 @@ import { NotFoundError } from "../../shared/errors/not-found-error.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import { requireProjectManager } from "../../shared/auth/permissions.ts";
+import { buildTaskArchivedEvent, buildTaskMoveEvents, buildTaskUpdateEvents } from "./tasks.events.ts";
 
 // LLamar al repository y realizar toda la lógica necesaria
 
@@ -39,7 +40,13 @@ export async function create({
   // Las tareas nacen en TODO (createTaskSchema no acepta status), al final de esa columna.
   const rank = await tasksRepository.getNextTaskRank({ projectId: project.id, status: "TODO" });
 
-  const task = await tasksRepository.create({ data, userId, projectId: project.id, rank });
+  const task = await tasksRepository.create({
+    data,
+    userId,
+    projectId: project.id,
+    workspaceId: project.workspaceId,
+    rank,
+  });
 
   // Una tarea recien creada no puede estar marcada como favorita todavia
   return { ...task, isFavorite: false };
@@ -167,8 +174,16 @@ export async function update({
     completedAt = null;
   }
 
+  const events = buildTaskUpdateEvents({
+    workspaceId: project.workspaceId,
+    projectId: project.id,
+    actorId: userId,
+    task,
+    data,
+  });
+
   const [updatedTask, isFavorite] = await Promise.all([
-    tasksRepository.update({ projectId: project.id, taskNumber, data, completedAt }),
+    tasksRepository.update({ projectId: project.id, taskNumber, data, completedAt, events }),
     tasksRepository.isFavorited({ userId, taskId: task.id }),
   ]);
 
@@ -230,12 +245,21 @@ export async function move({
     completedAt = null;
   }
 
+  const events = buildTaskMoveEvents({
+    workspaceId: project.workspaceId,
+    projectId: project.id,
+    actorId: userId,
+    task,
+    status: data.status,
+  });
+
   const movedTask = await tasksRepository.move({
     projectId: project.id,
     task,
     status: data.status,
     afterTaskId: data.afterTaskId,
     completedAt,
+    events,
   });
 
   // El ancla dejo de ser valida entre la validacion y la transaccion (otro usuario la archivo o la
@@ -276,7 +300,14 @@ export async function archive({
     throw new BadRequestError("Task is already archived");
   }
 
-  await tasksRepository.archive({ projectId: project.id, taskNumber });
+  const event = buildTaskArchivedEvent({
+    workspaceId: project.workspaceId,
+    projectId: project.id,
+    actorId: userId,
+    task,
+  });
+
+  await tasksRepository.archive({ projectId: project.id, taskNumber, events: [event] });
 }
 
 export async function favorite({

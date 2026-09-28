@@ -140,7 +140,20 @@ export async function create({
     throw new BadRequestError("User is already a member of this project");
   }
 
-  const newProjectMember = await projectMembersRepository.create({ data, projectId: project.id });
+  const newProjectMember = await projectMembersRepository.create({
+    data,
+    projectId: project.id,
+    events: [
+      {
+        workspaceId: project.workspaceId,
+        projectId: project.id,
+        taskId: null,
+        actorId: userId,
+        action: "PROJECT_MEMBER_ADDED",
+        payload: { targetUserId: data.userId, role: data.role },
+      },
+    ],
+  });
 
   return newProjectMember;
 }
@@ -204,6 +217,16 @@ export async function update({
     data,
     userId: projectMemberUserId,
     projectId: project.id,
+    events: [
+      {
+        workspaceId: project.workspaceId,
+        projectId: project.id,
+        taskId: null,
+        actorId: userId,
+        action: "PROJECT_MEMBER_ROLE_CHANGED",
+        payload: { targetUserId: projectMemberUserId, from: projectMemberTarget.role, to: data.role },
+      },
+    ],
   });
 
   return newProjectMember;
@@ -254,5 +277,15 @@ export async function deactivate({
   await projectMembersRepository.deactivate({
     userId: projectMemberUserId,
     projectId: project.id,
+    events: [
+      {
+        workspaceId: project.workspaceId,
+        projectId: project.id,
+        taskId: null,
+        actorId: userId,
+        action: "PROJECT_MEMBER_DEACTIVATED",
+        payload: { targetUserId: projectMemberUserId },
+      },
+    ],
   });
 }

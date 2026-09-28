@@ -20,9 +20,24 @@ export async function create({
   taskNumber: number;
   data: CreateCommentDto;
 }): Promise<Comment> {
-  const { task } = await authorizationService.getTaskContext({ userId, workspaceSlug, projectSlug, taskNumber });
+  const { project, task } = await authorizationService.getTaskContext({
+    userId,
+    workspaceSlug,
+    projectSlug,
+    taskNumber,
+  });
 
-  const comment = await commentsRepository.create({ data, authorId: userId, taskId: task.id });
+  const comment = await commentsRepository.create({
+    data,
+    authorId: userId,
+    taskId: task.id,
+    activity: {
+      workspaceId: project.workspaceId,
+      projectId: project.id,
+      taskNumber: task.taskNumber,
+      taskTitle: task.title,
+    },
+  });
 
   return comment;
 }

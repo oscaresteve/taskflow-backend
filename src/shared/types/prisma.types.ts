@@ -5,6 +5,7 @@ export type {
   ProjectMember,
   Task,
   Comment,
+  ActivityEvent,
   User,
   RefreshToken,
 } from "../../prisma/generated/prisma/client.ts";
@@ -15,4 +16,5 @@ export {
   ProjectRole,
   TaskStatus,
   TaskPriority,
+  ActivityAction,
 } from "../../prisma/generated/prisma/enums.ts";

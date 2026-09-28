@@ -92,6 +92,11 @@ export type TaskFavorite = Prisma.TaskFavoriteModel
  */
 export type Comment = Prisma.CommentModel
 /**
+ * Model ActivityEvent
+ * 
+ */
+export type ActivityEvent = Prisma.ActivityEventModel
+/**
  * Model RefreshToken
  * 
  */

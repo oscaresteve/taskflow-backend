@@ -6,6 +6,8 @@ import { TaskStatus } from "../../shared/types/prisma.types.ts";
 import type { Task } from "../../shared/types/prisma.types.ts";
 import { rankBetween } from "../../shared/utils/lexorank.ts";
 import { getThisWeekRange, resolveTimeZone } from "../../shared/utils/date-range.ts";
+import * as activityRepository from "../activity/activity.repository.ts";
+import type { ActivityEventInput } from "../activity/types/activity.types.ts";
 
 // Rank para una tarea nueva: al final de su columna.
 export async function getNextTaskRank({
@@ -45,11 +47,13 @@ export async function findAllForBoard(projectId: string): Promise<Task[]> {
 export async function create({
   data,
   projectId,
+  workspaceId,
   userId,
   rank,
 }: {
   data: CreateTaskDto;
   projectId: string;
+  workspaceId: string;
   userId: string;
   rank: string;
 }): Promise<Task> {
@@ -89,6 +93,19 @@ export async function create({
         nextTaskNumber: { increment: 1 },
       },
     });
+
+    // A diferencia del resto de eventos, este se arma en el repositorio: el taskNumber se asigna
+    // dentro de la transaccion, y al service todavia no le consta.
+    await activityRepository.record(tx, [
+      {
+        workspaceId,
+        projectId,
+        taskId: task.id,
+        actorId: userId,
+        action: "TASK_CREATED",
+        payload: { taskNumber: task.taskNumber, taskTitle: task.title },
+      },
+    ]);
 
     return task;
   });
@@ -198,28 +215,36 @@ export async function update({
   projectId,
   taskNumber,
   completedAt,
+  events,
 }: {
   data: UpdateTaskDto;
   projectId: string;
   taskNumber: number;
   completedAt: Date | null;
+  events: ActivityEventInput[];
 }): Promise<Task> {
-  return await prisma.task.update({
-    where: {
-      projectId_taskNumber: {
-        projectId,
-        taskNumber,
+  return prisma.$transaction(async (tx) => {
+    const task = await tx.task.update({
+      where: {
+        projectId_taskNumber: {
+          projectId,
+          taskNumber,
+        },
       },
-    },
-    data: {
-      title: data.title,
-      description: data.description,
-      priority: data.priority,
-      status: data.status,
-      assigneeId: data.assigneeId,
-      dueDate: data.dueDate,
-      completedAt,
-    },
+      data: {
+        title: data.title,
+        description: data.description,
+        priority: data.priority,
+        status: data.status,
+        assigneeId: data.assigneeId,
+        dueDate: data.dueDate,
+        completedAt,
+      },
+    });
+
+    await activityRepository.record(tx, events);
+
+    return task;
   });
 }
 
@@ -299,12 +324,14 @@ export async function move({
   status,
   afterTaskId,
   completedAt,
+  events,
 }: {
   projectId: string;
   task: Task;
   status: TaskStatus;
   afterTaskId: string | null;
   completedAt: Date | null;
+  events: ActivityEventInput[];
 }): Promise<Task | null> {
   return prisma.$transaction(async (tx) => {
     // Serializa los movimientos que aterrizan en la misma columna. Sin esto, dos usuarios que
@@ -319,7 +346,7 @@ export async function move({
 
     if (rank === null) return null;
 
-    return tx.task.update({
+    const movedTask = await tx.task.update({
       where: {
         id: task.id,
       },
@@ -329,20 +356,36 @@ export async function move({
         completedAt,
       },
     });
+
+    await activityRepository.record(tx, events);
+
+    return movedTask;
   });
 }
 
-export async function archive({ projectId, taskNumber }: { projectId: string; taskNumber: number }): Promise<void> {
-  await prisma.task.update({
-    where: {
-      projectId_taskNumber: {
-        projectId,
-        taskNumber,
+export async function archive({
+  projectId,
+  taskNumber,
+  events,
+}: {
+  projectId: string;
+  taskNumber: number;
+  events: ActivityEventInput[];
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.task.update({
+      where: {
+        projectId_taskNumber: {
+          projectId,
+          taskNumber,
+        },
       },
-    },
-    data: {
-      isArchived: true,
-    },
+      data: {
+        isArchived: true,
+      },
+    });
+
+    await activityRepository.record(tx, events);
   });
 }
 

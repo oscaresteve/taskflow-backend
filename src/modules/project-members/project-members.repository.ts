@@ -8,6 +8,8 @@ import type {
   UpdateProjectMemberDto,
 } from "./schemas/project-members.schema.ts";
 import type { ProjectMember, User } from "../../shared/types/prisma.types.ts";
+import * as activityRepository from "../activity/activity.repository.ts";
+import type { ActivityEventInput } from "../activity/types/activity.types.ts";
 
 function buildWhere(projectId: string, query: ProjectMembersAllQueryDto): Prisma.ProjectMemberWhereInput {
   const where: Prisma.ProjectMemberWhereInput = {};
@@ -146,17 +148,25 @@ export async function findProjectMemberWithUser({
 export async function create({
   data,
   projectId,
+  events,
 }: {
   data: CreateProjectMemberDto;
   projectId: string;
+  events: ActivityEventInput[];
 }): Promise<ProjectMember> {
-  return await prisma.projectMember.create({
-    data: {
-      userId: data.userId,
-      role: data.role,
-      projectId,
-      joinedAt: new Date(),
-    },
+  return prisma.$transaction(async (tx) => {
+    const projectMember = await tx.projectMember.create({
+      data: {
+        userId: data.userId,
+        role: data.role,
+        projectId,
+        joinedAt: new Date(),
+      },
+    });
+
+    await activityRepository.record(tx, events);
+
+    return projectMember;
   });
 }
 
@@ -164,36 +174,56 @@ export async function update({
   data,
   projectId,
   userId,
+  events,
 }: {
   data: UpdateProjectMemberDto;
   projectId: string;
   userId: string;
+  events: ActivityEventInput[];
 }): Promise<ProjectMember> {
-  return await prisma.projectMember.update({
-    where: {
-      projectId_userId: {
-        projectId,
-        userId,
+  return prisma.$transaction(async (tx) => {
+    const projectMember = await tx.projectMember.update({
+      where: {
+        projectId_userId: {
+          projectId,
+          userId,
+        },
       },
-    },
-    data: {
-      role: data.role,
-    },
+      data: {
+        role: data.role,
+      },
+    });
+
+    await activityRepository.record(tx, events);
+
+    return projectMember;
   });
 }
 
-export async function deactivate({ projectId, userId }: { projectId: string; userId: string }): Promise<void> {
-  await prisma.projectMember.update({
-    where: {
-      projectId_userId: {
-        projectId,
-        userId,
+export async function deactivate({
+  projectId,
+  userId,
+  events,
+}: {
+  projectId: string;
+  userId: string;
+  events: ActivityEventInput[];
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.projectMember.update({
+      where: {
+        projectId_userId: {
+          projectId,
+          userId,
+        },
       },
-    },
-    data: {
-      role: "MEMBER",
-      isActive: false,
-      joinedAt: null,
-    },
+      data: {
+        role: "MEMBER",
+        isActive: false,
+        joinedAt: null,
+      },
+    });
+
+    await activityRepository.record(tx, events);
   });
 }
