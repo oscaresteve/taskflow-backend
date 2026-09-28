@@ -11,6 +11,15 @@ export const booleanQueryParamSchema = z
 
 export const searchSchema = z.string().trim().min(1).optional();
 
+// El identificador publico con el que se menciona a alguien (@usuario).
+export const usernameSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(3, "Username must be at least 3 characters long")
+  .max(30, "Username cannot exceed 30 characters")
+  .regex(/^[a-z0-9_]+$/, "Username can only contain lowercase letters, numbers and underscores");
+
 export const descriptionSchema = z.string().trim().max(500, "Description cannot exceed 500 characters").optional();
 
 // Locales soportados por la app; unica fuente para no repetir el enum en cada schema que

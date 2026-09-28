@@ -22,6 +22,29 @@ import type { ActivityEventInput, WorkspaceEditedField } from "../activity/types
 
 // LLamar al repository y realizar toda la lógica necesaria
 
+function buildWorkspaceUpdatedEvents({
+  workspace,
+  actorId,
+  fields,
+}: {
+  workspace: Workspace;
+  actorId: string;
+  fields: WorkspaceEditedField[];
+}): ActivityEventInput[] {
+  if (fields.length === 0) return [];
+
+  return [
+    {
+      workspaceId: workspace.id,
+      projectId: null,
+      taskId: null,
+      actorId,
+      action: "WORKSPACE_UPDATED",
+      payload: { workspaceName: workspace.name, fields },
+    },
+  ];
+}
+
 export async function create({
   data,
   userId,
@@ -139,19 +162,11 @@ export async function update({
     fields.push("description");
   }
 
-  const events: ActivityEventInput[] =
-    fields.length === 0
-      ? []
-      : [
-          {
-            workspaceId: workspace.id,
-            projectId: null,
-            taskId: null,
-            actorId: userId,
-            action: "WORKSPACE_UPDATED",
-            payload: { workspaceName: data.name ?? workspace.name, fields },
-          },
-        ];
+  const events = buildWorkspaceUpdatedEvents({
+    workspace: { ...workspace, name: data.name ?? workspace.name },
+    actorId: userId,
+    fields,
+  });
 
   const [updatedWorkspace, isFavorite] = await Promise.all([
     workspacesRepository.update({
@@ -269,16 +284,7 @@ export async function confirmAvatar({
     workspacesRepository.updateAvatarKey({
       workspaceId: workspace.id,
       avatarKey: data.key,
-      events: [
-      {
-        workspaceId: workspace.id,
-        projectId: null,
-        taskId: null,
-        actorId: userId,
-        action: "WORKSPACE_UPDATED",
-        payload: { workspaceName: workspace.name, fields: ["avatar"] },
-      },
-      ],
+      events: buildWorkspaceUpdatedEvents({ workspace, actorId: userId, fields: ["avatar"] }),
     }),
     workspacesRepository.isFavorited({ userId, workspaceId: workspace.id }),
   ]);
@@ -310,15 +316,6 @@ export async function deleteAvatar({
   await workspacesRepository.updateAvatarKey({
     workspaceId: workspace.id,
     avatarKey: null,
-    events: [
-      {
-        workspaceId: workspace.id,
-        projectId: null,
-        taskId: null,
-        actorId: userId,
-        action: "WORKSPACE_UPDATED",
-        payload: { workspaceName: workspace.name, fields: ["avatar"] },
-      },
-    ],
+    events: buildWorkspaceUpdatedEvents({ workspace, actorId: userId, fields: ["avatar"] }),
   });
 }

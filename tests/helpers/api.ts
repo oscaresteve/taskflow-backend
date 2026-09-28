@@ -19,7 +19,7 @@ function extractCookieValue(setCookieHeader: string[] | undefined, name: string)
 }
 
 export async function signUp(
-  overrides: Partial<{ name: string; email: string; password: string; timezone: string }> = {},
+  overrides: Partial<{ name: string; email: string; username: string; password: string; timezone: string }> = {},
 ) {
   userCounter += 1;
 
@@ -31,6 +31,7 @@ export async function signUp(
   const payload = {
     firstName,
     lastName,
+    username: overrides.username ?? `user_${userCounter}`,
     email: overrides.email ?? `user${userCounter}@example.com`,
     password,
     confirmPassword: password,
@@ -48,7 +49,7 @@ export async function signUp(
   const setCookie = res.headers["set-cookie"] as unknown as string[];
 
   return {
-    user: res.body.user as { id: string; email: string },
+    user: res.body.user as { id: string; email: string; username: string },
     accessToken: extractCookieValue(setCookie, "accessToken"),
     refreshToken: extractCookieValue(setCookie, "refreshToken"),
   };
@@ -64,7 +65,7 @@ export async function signIn(overrides: { email: string; password: string }) {
   const setCookie = res.headers["set-cookie"] as unknown as string[];
 
   return {
-    user: res.body.user as { id: string; email: string },
+    user: res.body.user as { id: string; email: string; username: string },
     accessToken: extractCookieValue(setCookie, "accessToken"),
     refreshToken: extractCookieValue(setCookie, "refreshToken"),
   };

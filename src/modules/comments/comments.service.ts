@@ -1,6 +1,8 @@
 import type { CommentQueryDto, CreateCommentDto, UpdateCommentDto } from "./schemas/comments.schema.ts";
 import type { Comment } from "../../shared/types/prisma.types.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
+import * as authorizationRepository from "../../shared/auth/authorization.repository.ts";
+import { extractMentionedUserIds } from "../../shared/utils/mentions.ts";
 import * as commentsRepository from "./comments.repository.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import { requireCanManageComment } from "../../shared/auth/permissions.ts";
@@ -27,6 +29,17 @@ export async function create({
     taskNumber,
   });
 
+  // No nos fiamos de los ids que vengan en el texto: se reresuelven contra los miembros activos
+  // del proyecto y se descarta a quien no lo sea. No es una regla nueva, es la misma pertenencia
+  // que getTaskContext ya exige para poder comentar.
+  const mentionedIds = extractMentionedUserIds(data.content);
+  const projectMemberIds = await authorizationRepository.findActiveProjectMemberIds({
+    projectId: project.id,
+    userIds: mentionedIds,
+  });
+
+  const mentions = mentionedIds.filter((mentionedId) => projectMemberIds.has(mentionedId));
+
   const comment = await commentsRepository.create({
     data,
     authorId: userId,
@@ -36,6 +49,7 @@ export async function create({
       projectId: project.id,
       taskNumber: task.taskNumber,
       taskTitle: task.title,
+      mentions,
     },
   });
 

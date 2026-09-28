@@ -73,6 +73,11 @@ export type Comment = Prisma.CommentModel
  */
 export type ActivityEvent = Prisma.ActivityEventModel
 /**
+ * Model Notification
+ * 
+ */
+export type Notification = Prisma.NotificationModel
+/**
  * Model RefreshToken
  * 
  */

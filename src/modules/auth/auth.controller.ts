@@ -3,11 +3,11 @@ import * as authService from "./auth.service.ts";
 import { toAuthResponseDto, toUserResponseDto } from "./mappers/auth.mapper.ts";
 import { setAccessTokenCookie, setRefreshTokenCookie, clearAuthCookies } from "../../shared/security/cookies.ts";
 import { UnauthorizedError } from "../../shared/errors/unauthorized-error.ts";
-import type { UpdateMeDto } from "./schemas/auth.schema.ts";
+import type { SignInDto, SignUpDto, UpdateMeDto } from "./schemas/auth.schema.ts";
 
 export async function signUp(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = await authService.signUp(req.body);
+    const result = await authService.signUp(req.validated.body as SignUpDto);
 
     setAccessTokenCookie(res, { token: result.accessToken, expiresAt: result.accessTokenExpiresAt });
     setRefreshTokenCookie(res, { token: result.refreshToken, expiresAt: result.refreshTokenExpiresAt });
@@ -21,7 +21,7 @@ export async function signUp(req: Request, res: Response, next: NextFunction) {
 
 export async function signIn(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = await authService.signIn(req.body);
+    const result = await authService.signIn(req.validated.body as SignInDto);
 
     setAccessTokenCookie(res, { token: result.accessToken, expiresAt: result.accessTokenExpiresAt });
     setRefreshTokenCookie(res, { token: result.refreshToken, expiresAt: result.refreshTokenExpiresAt });

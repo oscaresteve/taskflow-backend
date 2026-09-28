@@ -10,6 +10,7 @@ import { usersRouter } from "../modules/users/index.ts";
 import { overviewRouter } from "../modules/overview/index.ts";
 import { searchRouter } from "../modules/search/index.ts";
 import { activityRouter } from "../modules/activity/index.ts";
+import { notificationsRouter } from "../modules/notifications/index.ts";
 
 export const router = Router();
 
@@ -24,3 +25,4 @@ router.use(usersRouter);
 router.use(overviewRouter);
 router.use(searchRouter);
 router.use(activityRouter);
+router.use(notificationsRouter);

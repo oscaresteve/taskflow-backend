@@ -36,6 +36,12 @@ export async function signUp(data: SignUpDto): Promise<AuthResult> {
     throw new ConflictError("User already exists");
   }
 
+  const existingUsername = await authRepository.findByUsername(data.username);
+
+  if (existingUsername) {
+    throw new ConflictError("Username is already taken");
+  }
+
   const passwordHash = await hashPassword(data.password);
 
   const user = await authRepository.create({
@@ -79,6 +85,16 @@ export async function getAuthenticatedUser(userId: string): Promise<User> {
 }
 
 export async function updateMe({ userId, data }: { userId: string; data: UpdateMeDto }): Promise<User> {
+  // El username es publico y unico, asi que cambiarlo puede chocar con el de otro. Las menciones ya
+  // escritas no se rompen: guardan el id, no el nombre.
+  if (data.username) {
+    const existingUsername = await authRepository.findByUsername(data.username);
+
+    if (existingUsername && existingUsername.id !== userId) {
+      throw new ConflictError("Username is already taken");
+    }
+  }
+
   const user = await authRepository.update({ id: userId, data });
 
   return user;

@@ -38,6 +38,7 @@ function buildWhere(projectId: string, query: ProjectMembersAllQueryDto): Prisma
       OR: [
         { firstName: { contains: query.search, mode: "insensitive" } },
         { lastName: { contains: query.search, mode: "insensitive" } },
+        { username: { contains: query.search, mode: "insensitive" } },
         { email: { contains: query.search, mode: "insensitive" } },
       ],
     };

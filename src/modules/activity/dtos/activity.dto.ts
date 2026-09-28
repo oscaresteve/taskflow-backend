@@ -1,5 +1,5 @@
 import type { ActivityAction } from "../../../shared/types/prisma.types.ts";
-import type { ActivityPayloadMap } from "../types/activity.types.ts";
+import type { ActivityPayloadMap, ActivityPerson } from "../types/activity.types.ts";
 
 export type ActivityProjectDto = {
   slug: string;
@@ -7,12 +7,7 @@ export type ActivityProjectDto = {
   name: string;
 };
 
-export type ActivityActorDto = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  avatarUrl: string | null;
-};
+export type ActivityPersonDto = ActivityPerson;
 
 // Union discriminada por accion, igual que al escribir: el consumidor estrecha por action y sabe
 // exactamente que campos tiene el payload, sin comprobaciones a mano.
@@ -26,7 +21,9 @@ export type ActivityEventResponseDto = {
     taskId: string | null;
     project: ActivityProjectDto | null;
 
-    actor: ActivityActorDto;
+    actor: ActivityPersonDto;
+    // Solo las acciones que hablan de alguien lo traen ("asigno la tarea a X").
+    target: ActivityPersonDto | null;
 
     createdAt: Date;
   };

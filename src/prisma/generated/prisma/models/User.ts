@@ -28,6 +28,7 @@ export type UserMinAggregateOutputType = {
   id: string | null
   firstName: string | null
   lastName: string | null
+  username: string | null
   email: string | null
   passwordHash: string | null
   avatarUrl: string | null
@@ -44,6 +45,7 @@ export type UserMaxAggregateOutputType = {
   id: string | null
   firstName: string | null
   lastName: string | null
+  username: string | null
   email: string | null
   passwordHash: string | null
   avatarUrl: string | null
@@ -60,6 +62,7 @@ export type UserCountAggregateOutputType = {
   id: number
   firstName: number
   lastName: number
+  username: number
   email: number
   passwordHash: number
   avatarUrl: number
@@ -78,6 +81,7 @@ export type UserMinAggregateInputType = {
   id?: true
   firstName?: true
   lastName?: true
+  username?: true
   email?: true
   passwordHash?: true
   avatarUrl?: true
@@ -94,6 +98,7 @@ export type UserMaxAggregateInputType = {
   id?: true
   firstName?: true
   lastName?: true
+  username?: true
   email?: true
   passwordHash?: true
   avatarUrl?: true
@@ -110,6 +115,7 @@ export type UserCountAggregateInputType = {
   id?: true
   firstName?: true
   lastName?: true
+  username?: true
   email?: true
   passwordHash?: true
   avatarUrl?: true
@@ -199,6 +205,7 @@ export type UserGroupByOutputType = {
   id: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl: string | null
@@ -236,6 +243,7 @@ export type UserWhereInput = {
   id?: Prisma.StringFilter<"User"> | string
   firstName?: Prisma.StringFilter<"User"> | string
   lastName?: Prisma.StringFilter<"User"> | string
+  username?: Prisma.StringFilter<"User"> | string
   email?: Prisma.StringFilter<"User"> | string
   passwordHash?: Prisma.StringFilter<"User"> | string
   avatarUrl?: Prisma.StringNullableFilter<"User"> | string | null
@@ -256,12 +264,14 @@ export type UserWhereInput = {
   favoriteProjects?: Prisma.ProjectFavoriteListRelationFilter
   favoriteTasks?: Prisma.TaskFavoriteListRelationFilter
   activityEvents?: Prisma.ActivityEventListRelationFilter
+  notifications?: Prisma.NotificationListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   firstName?: Prisma.SortOrder
   lastName?: Prisma.SortOrder
+  username?: Prisma.SortOrder
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   avatarUrl?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -282,10 +292,12 @@ export type UserOrderByWithRelationInput = {
   favoriteProjects?: Prisma.ProjectFavoriteOrderByRelationAggregateInput
   favoriteTasks?: Prisma.TaskFavoriteOrderByRelationAggregateInput
   activityEvents?: Prisma.ActivityEventOrderByRelationAggregateInput
+  notifications?: Prisma.NotificationOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
   id?: string
+  username?: string
   email?: string
   AND?: Prisma.UserWhereInput | Prisma.UserWhereInput[]
   OR?: Prisma.UserWhereInput[]
@@ -311,12 +323,14 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   favoriteProjects?: Prisma.ProjectFavoriteListRelationFilter
   favoriteTasks?: Prisma.TaskFavoriteListRelationFilter
   activityEvents?: Prisma.ActivityEventListRelationFilter
-}, "id" | "email">
+  notifications?: Prisma.NotificationListRelationFilter
+}, "id" | "username" | "email">
 
 export type UserOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   firstName?: Prisma.SortOrder
   lastName?: Prisma.SortOrder
+  username?: Prisma.SortOrder
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   avatarUrl?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -339,6 +353,7 @@ export type UserScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"User"> | string
   firstName?: Prisma.StringWithAggregatesFilter<"User"> | string
   lastName?: Prisma.StringWithAggregatesFilter<"User"> | string
+  username?: Prisma.StringWithAggregatesFilter<"User"> | string
   email?: Prisma.StringWithAggregatesFilter<"User"> | string
   passwordHash?: Prisma.StringWithAggregatesFilter<"User"> | string
   avatarUrl?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
@@ -355,6 +370,7 @@ export type UserCreateInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -375,12 +391,14 @@ export type UserCreateInput = {
   favoriteProjects?: Prisma.ProjectFavoriteCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -401,12 +419,14 @@ export type UserUncheckedCreateInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -427,12 +447,14 @@ export type UserUpdateInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -453,12 +475,14 @@ export type UserUncheckedUpdateInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUncheckedUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateManyInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -475,6 +499,7 @@ export type UserUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -491,6 +516,7 @@ export type UserUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -507,6 +533,7 @@ export type UserCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   firstName?: Prisma.SortOrder
   lastName?: Prisma.SortOrder
+  username?: Prisma.SortOrder
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   avatarUrl?: Prisma.SortOrder
@@ -523,6 +550,7 @@ export type UserMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   firstName?: Prisma.SortOrder
   lastName?: Prisma.SortOrder
+  username?: Prisma.SortOrder
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   avatarUrl?: Prisma.SortOrder
@@ -539,6 +567,7 @@ export type UserMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   firstName?: Prisma.SortOrder
   lastName?: Prisma.SortOrder
+  username?: Prisma.SortOrder
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   avatarUrl?: Prisma.SortOrder
@@ -709,6 +738,20 @@ export type UserUpdateOneRequiredWithoutActivityEventsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutActivityEventsInput, Prisma.UserUpdateWithoutActivityEventsInput>, Prisma.UserUncheckedUpdateWithoutActivityEventsInput>
 }
 
+export type UserCreateNestedOneWithoutNotificationsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutNotificationsInput, Prisma.UserUncheckedCreateWithoutNotificationsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutNotificationsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutNotificationsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutNotificationsInput, Prisma.UserUncheckedCreateWithoutNotificationsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutNotificationsInput
+  upsert?: Prisma.UserUpsertWithoutNotificationsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutNotificationsInput, Prisma.UserUpdateWithoutNotificationsInput>, Prisma.UserUncheckedUpdateWithoutNotificationsInput>
+}
+
 export type UserCreateNestedOneWithoutRefreshTokensInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutRefreshTokensInput, Prisma.UserUncheckedCreateWithoutRefreshTokensInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutRefreshTokensInput
@@ -727,6 +770,7 @@ export type UserCreateWithoutFavoriteWorkspacesInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -746,12 +790,14 @@ export type UserCreateWithoutFavoriteWorkspacesInput = {
   favoriteProjects?: Prisma.ProjectFavoriteCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutFavoriteWorkspacesInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -771,6 +817,7 @@ export type UserUncheckedCreateWithoutFavoriteWorkspacesInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutFavoriteWorkspacesInput = {
@@ -793,6 +840,7 @@ export type UserUpdateWithoutFavoriteWorkspacesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -812,12 +860,14 @@ export type UserUpdateWithoutFavoriteWorkspacesInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutFavoriteWorkspacesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -837,12 +887,14 @@ export type UserUncheckedUpdateWithoutFavoriteWorkspacesInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUncheckedUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutWorkspaceMembersInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -862,12 +914,14 @@ export type UserCreateWithoutWorkspaceMembersInput = {
   favoriteProjects?: Prisma.ProjectFavoriteCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutWorkspaceMembersInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -887,6 +941,7 @@ export type UserUncheckedCreateWithoutWorkspaceMembersInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutWorkspaceMembersInput = {
@@ -909,6 +964,7 @@ export type UserUpdateWithoutWorkspaceMembersInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -928,12 +984,14 @@ export type UserUpdateWithoutWorkspaceMembersInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutWorkspaceMembersInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -953,12 +1011,14 @@ export type UserUncheckedUpdateWithoutWorkspaceMembersInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUncheckedUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutFavoriteProjectsInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -978,12 +1038,14 @@ export type UserCreateWithoutFavoriteProjectsInput = {
   favoriteWorkspaces?: Prisma.WorkspaceFavoriteCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutFavoriteProjectsInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -1003,6 +1065,7 @@ export type UserUncheckedCreateWithoutFavoriteProjectsInput = {
   favoriteWorkspaces?: Prisma.WorkspaceFavoriteUncheckedCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutFavoriteProjectsInput = {
@@ -1025,6 +1088,7 @@ export type UserUpdateWithoutFavoriteProjectsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1044,12 +1108,14 @@ export type UserUpdateWithoutFavoriteProjectsInput = {
   favoriteWorkspaces?: Prisma.WorkspaceFavoriteUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutFavoriteProjectsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1069,12 +1135,14 @@ export type UserUncheckedUpdateWithoutFavoriteProjectsInput = {
   favoriteWorkspaces?: Prisma.WorkspaceFavoriteUncheckedUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUncheckedUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutProjectMembersInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -1094,12 +1162,14 @@ export type UserCreateWithoutProjectMembersInput = {
   favoriteProjects?: Prisma.ProjectFavoriteCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutProjectMembersInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -1119,6 +1189,7 @@ export type UserUncheckedCreateWithoutProjectMembersInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutProjectMembersInput = {
@@ -1141,6 +1212,7 @@ export type UserUpdateWithoutProjectMembersInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1160,12 +1232,14 @@ export type UserUpdateWithoutProjectMembersInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutProjectMembersInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1185,12 +1259,14 @@ export type UserUncheckedUpdateWithoutProjectMembersInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUncheckedUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutCreatedTasksInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -1210,12 +1286,14 @@ export type UserCreateWithoutCreatedTasksInput = {
   favoriteProjects?: Prisma.ProjectFavoriteCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutCreatedTasksInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -1235,6 +1313,7 @@ export type UserUncheckedCreateWithoutCreatedTasksInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutCreatedTasksInput = {
@@ -1246,6 +1325,7 @@ export type UserCreateWithoutAssignedTasksInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -1265,12 +1345,14 @@ export type UserCreateWithoutAssignedTasksInput = {
   favoriteProjects?: Prisma.ProjectFavoriteCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutAssignedTasksInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -1290,6 +1372,7 @@ export type UserUncheckedCreateWithoutAssignedTasksInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutAssignedTasksInput = {
@@ -1312,6 +1395,7 @@ export type UserUpdateWithoutCreatedTasksInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1331,12 +1415,14 @@ export type UserUpdateWithoutCreatedTasksInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutCreatedTasksInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1356,6 +1442,7 @@ export type UserUncheckedUpdateWithoutCreatedTasksInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUncheckedUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserUpsertWithoutAssignedTasksInput = {
@@ -1373,6 +1460,7 @@ export type UserUpdateWithoutAssignedTasksInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1392,12 +1480,14 @@ export type UserUpdateWithoutAssignedTasksInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAssignedTasksInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1417,12 +1507,14 @@ export type UserUncheckedUpdateWithoutAssignedTasksInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUncheckedUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutFavoriteTasksInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -1442,12 +1534,14 @@ export type UserCreateWithoutFavoriteTasksInput = {
   favoriteWorkspaces?: Prisma.WorkspaceFavoriteCreateNestedManyWithoutUserInput
   favoriteProjects?: Prisma.ProjectFavoriteCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutFavoriteTasksInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -1467,6 +1561,7 @@ export type UserUncheckedCreateWithoutFavoriteTasksInput = {
   favoriteWorkspaces?: Prisma.WorkspaceFavoriteUncheckedCreateNestedManyWithoutUserInput
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutFavoriteTasksInput = {
@@ -1489,6 +1584,7 @@ export type UserUpdateWithoutFavoriteTasksInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1508,12 +1604,14 @@ export type UserUpdateWithoutFavoriteTasksInput = {
   favoriteWorkspaces?: Prisma.WorkspaceFavoriteUpdateManyWithoutUserNestedInput
   favoriteProjects?: Prisma.ProjectFavoriteUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutFavoriteTasksInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1533,12 +1631,14 @@ export type UserUncheckedUpdateWithoutFavoriteTasksInput = {
   favoriteWorkspaces?: Prisma.WorkspaceFavoriteUncheckedUpdateManyWithoutUserNestedInput
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUncheckedUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutCommentsInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -1558,12 +1658,14 @@ export type UserCreateWithoutCommentsInput = {
   favoriteProjects?: Prisma.ProjectFavoriteCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutCommentsInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -1583,6 +1685,7 @@ export type UserUncheckedCreateWithoutCommentsInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutCommentsInput = {
@@ -1605,6 +1708,7 @@ export type UserUpdateWithoutCommentsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1624,12 +1728,14 @@ export type UserUpdateWithoutCommentsInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutCommentsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1649,12 +1755,14 @@ export type UserUncheckedUpdateWithoutCommentsInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUncheckedUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutActivityEventsInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -1674,12 +1782,14 @@ export type UserCreateWithoutActivityEventsInput = {
   favoriteWorkspaces?: Prisma.WorkspaceFavoriteCreateNestedManyWithoutUserInput
   favoriteProjects?: Prisma.ProjectFavoriteCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteCreateNestedManyWithoutUserInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutActivityEventsInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -1699,6 +1809,7 @@ export type UserUncheckedCreateWithoutActivityEventsInput = {
   favoriteWorkspaces?: Prisma.WorkspaceFavoriteUncheckedCreateNestedManyWithoutUserInput
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedCreateNestedManyWithoutUserInput
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutActivityEventsInput = {
@@ -1721,6 +1832,7 @@ export type UserUpdateWithoutActivityEventsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1740,12 +1852,14 @@ export type UserUpdateWithoutActivityEventsInput = {
   favoriteWorkspaces?: Prisma.WorkspaceFavoriteUpdateManyWithoutUserNestedInput
   favoriteProjects?: Prisma.ProjectFavoriteUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUpdateManyWithoutUserNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutActivityEventsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1765,12 +1879,138 @@ export type UserUncheckedUpdateWithoutActivityEventsInput = {
   favoriteWorkspaces?: Prisma.WorkspaceFavoriteUncheckedUpdateManyWithoutUserNestedInput
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutNotificationsInput = {
+  id?: string
+  firstName: string
+  lastName: string
+  username: string
+  email: string
+  passwordHash: string
+  avatarUrl?: string | null
+  timezone?: string | null
+  locale?: string | null
+  isActive?: boolean
+  emailVerifiedAt?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  workspaceMembers?: Prisma.WorkspaceMemberCreateNestedManyWithoutUserInput
+  projectMembers?: Prisma.ProjectMemberCreateNestedManyWithoutUserInput
+  createdTasks?: Prisma.TaskCreateNestedManyWithoutCreatorInput
+  assignedTasks?: Prisma.TaskCreateNestedManyWithoutAssigneeInput
+  comments?: Prisma.CommentCreateNestedManyWithoutAuthorInput
+  refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
+  favoriteWorkspaces?: Prisma.WorkspaceFavoriteCreateNestedManyWithoutUserInput
+  favoriteProjects?: Prisma.ProjectFavoriteCreateNestedManyWithoutUserInput
+  favoriteTasks?: Prisma.TaskFavoriteCreateNestedManyWithoutUserInput
+  activityEvents?: Prisma.ActivityEventCreateNestedManyWithoutActorInput
+}
+
+export type UserUncheckedCreateWithoutNotificationsInput = {
+  id?: string
+  firstName: string
+  lastName: string
+  username: string
+  email: string
+  passwordHash: string
+  avatarUrl?: string | null
+  timezone?: string | null
+  locale?: string | null
+  isActive?: boolean
+  emailVerifiedAt?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  workspaceMembers?: Prisma.WorkspaceMemberUncheckedCreateNestedManyWithoutUserInput
+  projectMembers?: Prisma.ProjectMemberUncheckedCreateNestedManyWithoutUserInput
+  createdTasks?: Prisma.TaskUncheckedCreateNestedManyWithoutCreatorInput
+  assignedTasks?: Prisma.TaskUncheckedCreateNestedManyWithoutAssigneeInput
+  comments?: Prisma.CommentUncheckedCreateNestedManyWithoutAuthorInput
+  refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
+  favoriteWorkspaces?: Prisma.WorkspaceFavoriteUncheckedCreateNestedManyWithoutUserInput
+  favoriteProjects?: Prisma.ProjectFavoriteUncheckedCreateNestedManyWithoutUserInput
+  favoriteTasks?: Prisma.TaskFavoriteUncheckedCreateNestedManyWithoutUserInput
+  activityEvents?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutActorInput
+}
+
+export type UserCreateOrConnectWithoutNotificationsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutNotificationsInput, Prisma.UserUncheckedCreateWithoutNotificationsInput>
+}
+
+export type UserUpsertWithoutNotificationsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutNotificationsInput, Prisma.UserUncheckedUpdateWithoutNotificationsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutNotificationsInput, Prisma.UserUncheckedCreateWithoutNotificationsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutNotificationsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutNotificationsInput, Prisma.UserUncheckedUpdateWithoutNotificationsInput>
+}
+
+export type UserUpdateWithoutNotificationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  firstName?: Prisma.StringFieldUpdateOperationsInput | string
+  lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  emailVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  workspaceMembers?: Prisma.WorkspaceMemberUpdateManyWithoutUserNestedInput
+  projectMembers?: Prisma.ProjectMemberUpdateManyWithoutUserNestedInput
+  createdTasks?: Prisma.TaskUpdateManyWithoutCreatorNestedInput
+  assignedTasks?: Prisma.TaskUpdateManyWithoutAssigneeNestedInput
+  comments?: Prisma.CommentUpdateManyWithoutAuthorNestedInput
+  refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
+  favoriteWorkspaces?: Prisma.WorkspaceFavoriteUpdateManyWithoutUserNestedInput
+  favoriteProjects?: Prisma.ProjectFavoriteUpdateManyWithoutUserNestedInput
+  favoriteTasks?: Prisma.TaskFavoriteUpdateManyWithoutUserNestedInput
+  activityEvents?: Prisma.ActivityEventUpdateManyWithoutActorNestedInput
+}
+
+export type UserUncheckedUpdateWithoutNotificationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  firstName?: Prisma.StringFieldUpdateOperationsInput | string
+  lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  emailVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  workspaceMembers?: Prisma.WorkspaceMemberUncheckedUpdateManyWithoutUserNestedInput
+  projectMembers?: Prisma.ProjectMemberUncheckedUpdateManyWithoutUserNestedInput
+  createdTasks?: Prisma.TaskUncheckedUpdateManyWithoutCreatorNestedInput
+  assignedTasks?: Prisma.TaskUncheckedUpdateManyWithoutAssigneeNestedInput
+  comments?: Prisma.CommentUncheckedUpdateManyWithoutAuthorNestedInput
+  refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
+  favoriteWorkspaces?: Prisma.WorkspaceFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  favoriteProjects?: Prisma.ProjectFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  favoriteTasks?: Prisma.TaskFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  activityEvents?: Prisma.ActivityEventUncheckedUpdateManyWithoutActorNestedInput
 }
 
 export type UserCreateWithoutRefreshTokensInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -1790,12 +2030,14 @@ export type UserCreateWithoutRefreshTokensInput = {
   favoriteProjects?: Prisma.ProjectFavoriteCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutRefreshTokensInput = {
   id?: string
   firstName: string
   lastName: string
+  username: string
   email: string
   passwordHash: string
   avatarUrl?: string | null
@@ -1815,6 +2057,7 @@ export type UserUncheckedCreateWithoutRefreshTokensInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedCreateNestedManyWithoutUserInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedCreateNestedManyWithoutUserInput
   activityEvents?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutActorInput
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutRefreshTokensInput = {
@@ -1837,6 +2080,7 @@ export type UserUpdateWithoutRefreshTokensInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1856,12 +2100,14 @@ export type UserUpdateWithoutRefreshTokensInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutRefreshTokensInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   firstName?: Prisma.StringFieldUpdateOperationsInput | string
   lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1881,6 +2127,7 @@ export type UserUncheckedUpdateWithoutRefreshTokensInput = {
   favoriteProjects?: Prisma.ProjectFavoriteUncheckedUpdateManyWithoutUserNestedInput
   favoriteTasks?: Prisma.TaskFavoriteUncheckedUpdateManyWithoutUserNestedInput
   activityEvents?: Prisma.ActivityEventUncheckedUpdateManyWithoutActorNestedInput
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
 }
 
 
@@ -1899,6 +2146,7 @@ export type UserCountOutputType = {
   favoriteProjects: number
   favoriteTasks: number
   activityEvents: number
+  notifications: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1912,6 +2160,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   favoriteProjects?: boolean | UserCountOutputTypeCountFavoriteProjectsArgs
   favoriteTasks?: boolean | UserCountOutputTypeCountFavoriteTasksArgs
   activityEvents?: boolean | UserCountOutputTypeCountActivityEventsArgs
+  notifications?: boolean | UserCountOutputTypeCountNotificationsArgs
 }
 
 /**
@@ -1994,11 +2243,19 @@ export type UserCountOutputTypeCountActivityEventsArgs<ExtArgs extends runtime.T
   where?: Prisma.ActivityEventWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountNotificationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.NotificationWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   firstName?: boolean
   lastName?: boolean
+  username?: boolean
   email?: boolean
   passwordHash?: boolean
   avatarUrl?: boolean
@@ -2019,6 +2276,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   favoriteProjects?: boolean | Prisma.User$favoriteProjectsArgs<ExtArgs>
   favoriteTasks?: boolean | Prisma.User$favoriteTasksArgs<ExtArgs>
   activityEvents?: boolean | Prisma.User$activityEventsArgs<ExtArgs>
+  notifications?: boolean | Prisma.User$notificationsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -2026,6 +2284,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   id?: boolean
   firstName?: boolean
   lastName?: boolean
+  username?: boolean
   email?: boolean
   passwordHash?: boolean
   avatarUrl?: boolean
@@ -2042,6 +2301,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   id?: boolean
   firstName?: boolean
   lastName?: boolean
+  username?: boolean
   email?: boolean
   passwordHash?: boolean
   avatarUrl?: boolean
@@ -2058,6 +2318,7 @@ export type UserSelectScalar = {
   id?: boolean
   firstName?: boolean
   lastName?: boolean
+  username?: boolean
   email?: boolean
   passwordHash?: boolean
   avatarUrl?: boolean
@@ -2070,7 +2331,7 @@ export type UserSelectScalar = {
   updatedAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "firstName" | "lastName" | "email" | "passwordHash" | "avatarUrl" | "timezone" | "locale" | "isActive" | "emailVerifiedAt" | "lastLoginAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "firstName" | "lastName" | "username" | "email" | "passwordHash" | "avatarUrl" | "timezone" | "locale" | "isActive" | "emailVerifiedAt" | "lastLoginAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   workspaceMembers?: boolean | Prisma.User$workspaceMembersArgs<ExtArgs>
   projectMembers?: boolean | Prisma.User$projectMembersArgs<ExtArgs>
@@ -2082,6 +2343,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   favoriteProjects?: boolean | Prisma.User$favoriteProjectsArgs<ExtArgs>
   favoriteTasks?: boolean | Prisma.User$favoriteTasksArgs<ExtArgs>
   activityEvents?: boolean | Prisma.User$activityEventsArgs<ExtArgs>
+  notifications?: boolean | Prisma.User$notificationsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -2100,11 +2362,13 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     favoriteProjects: Prisma.$ProjectFavoritePayload<ExtArgs>[]
     favoriteTasks: Prisma.$TaskFavoritePayload<ExtArgs>[]
     activityEvents: Prisma.$ActivityEventPayload<ExtArgs>[]
+    notifications: Prisma.$NotificationPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     firstName: string
     lastName: string
+    username: string
     email: string
     passwordHash: string
     avatarUrl: string | null
@@ -2519,6 +2783,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   favoriteProjects<T extends Prisma.User$favoriteProjectsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$favoriteProjectsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProjectFavoritePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   favoriteTasks<T extends Prisma.User$favoriteTasksArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$favoriteTasksArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TaskFavoritePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   activityEvents<T extends Prisma.User$activityEventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$activityEventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ActivityEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  notifications<T extends Prisma.User$notificationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$notificationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2551,6 +2816,7 @@ export interface UserFieldRefs {
   readonly id: Prisma.FieldRef<"User", 'String'>
   readonly firstName: Prisma.FieldRef<"User", 'String'>
   readonly lastName: Prisma.FieldRef<"User", 'String'>
+  readonly username: Prisma.FieldRef<"User", 'String'>
   readonly email: Prisma.FieldRef<"User", 'String'>
   readonly passwordHash: Prisma.FieldRef<"User", 'String'>
   readonly avatarUrl: Prisma.FieldRef<"User", 'String'>
@@ -3191,6 +3457,30 @@ export type User$activityEventsArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   distinct?: Prisma.ActivityEventScalarFieldEnum | Prisma.ActivityEventScalarFieldEnum[]
+}
+
+/**
+ * User.notifications
+ */
+export type User$notificationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Notification
+   */
+  select?: Prisma.NotificationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Notification
+   */
+  omit?: Prisma.NotificationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.NotificationInclude<ExtArgs> | null
+  where?: Prisma.NotificationWhereInput
+  orderBy?: Prisma.NotificationOrderByWithRelationInput | Prisma.NotificationOrderByWithRelationInput[]
+  cursor?: Prisma.NotificationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.NotificationScalarFieldEnum | Prisma.NotificationScalarFieldEnum[]
 }
 
 /**

@@ -6,6 +6,7 @@ export type {
   Task,
   Comment,
   ActivityEvent,
+  Notification,
   User,
   RefreshToken,
 } from "../../prisma/generated/prisma/client.ts";

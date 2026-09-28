@@ -3,6 +3,7 @@ export type { SignUpDto } from "../schemas/auth.schema.ts";
 export interface UserResponseDto {
   firstName: string;
   lastName: string;
+  username: string;
   email: string;
   id: string;
   avatarUrl: string | null;

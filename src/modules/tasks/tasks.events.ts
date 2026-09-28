@@ -104,18 +104,20 @@ export function buildTaskMoveEvents({
   ];
 }
 
-export function buildTaskArchivedEvent({
+export function buildTaskArchivedEvents({
   workspaceId,
   projectId,
   actorId,
   task,
-}: TaskEventScope): ActivityEventInput {
-  return {
-    workspaceId,
-    projectId,
-    taskId: task.id,
-    actorId,
-    action: "TASK_ARCHIVED",
-    payload: { taskNumber: task.taskNumber, taskTitle: task.title },
-  };
+}: TaskEventScope): ActivityEventInput[] {
+  return [
+    {
+      workspaceId,
+      projectId,
+      taskId: task.id,
+      actorId,
+      action: "TASK_ARCHIVED",
+      payload: { taskNumber: task.taskNumber, taskTitle: task.title },
+    },
+  ];
 }

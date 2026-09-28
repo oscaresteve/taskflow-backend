@@ -15,6 +15,7 @@ export function toUserResponseDto(user: User): UserResponseDto {
   return {
     firstName: user.firstName,
     lastName: user.lastName,
+    username: user.username,
     email: user.email,
     id: user.id,
     avatarUrl: user.avatarUrl,

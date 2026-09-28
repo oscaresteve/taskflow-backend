@@ -206,6 +206,7 @@ export type ActivityEventWhereInput = {
   project?: Prisma.XOR<Prisma.ProjectNullableScalarRelationFilter, Prisma.ProjectWhereInput> | null
   task?: Prisma.XOR<Prisma.TaskNullableScalarRelationFilter, Prisma.TaskWhereInput> | null
   actor?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  notifications?: Prisma.NotificationListRelationFilter
 }
 
 export type ActivityEventOrderByWithRelationInput = {
@@ -221,6 +222,7 @@ export type ActivityEventOrderByWithRelationInput = {
   project?: Prisma.ProjectOrderByWithRelationInput
   task?: Prisma.TaskOrderByWithRelationInput
   actor?: Prisma.UserOrderByWithRelationInput
+  notifications?: Prisma.NotificationOrderByRelationAggregateInput
 }
 
 export type ActivityEventWhereUniqueInput = Prisma.AtLeast<{
@@ -239,6 +241,7 @@ export type ActivityEventWhereUniqueInput = Prisma.AtLeast<{
   project?: Prisma.XOR<Prisma.ProjectNullableScalarRelationFilter, Prisma.ProjectWhereInput> | null
   task?: Prisma.XOR<Prisma.TaskNullableScalarRelationFilter, Prisma.TaskWhereInput> | null
   actor?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  notifications?: Prisma.NotificationListRelationFilter
 }, "id">
 
 export type ActivityEventOrderByWithAggregationInput = {
@@ -278,6 +281,7 @@ export type ActivityEventCreateInput = {
   project?: Prisma.ProjectCreateNestedOneWithoutActivityInput
   task?: Prisma.TaskCreateNestedOneWithoutActivityInput
   actor: Prisma.UserCreateNestedOneWithoutActivityEventsInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutEventInput
 }
 
 export type ActivityEventUncheckedCreateInput = {
@@ -289,6 +293,7 @@ export type ActivityEventUncheckedCreateInput = {
   action: $Enums.ActivityAction
   payload: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutEventInput
 }
 
 export type ActivityEventUpdateInput = {
@@ -300,6 +305,7 @@ export type ActivityEventUpdateInput = {
   project?: Prisma.ProjectUpdateOneWithoutActivityNestedInput
   task?: Prisma.TaskUpdateOneWithoutActivityNestedInput
   actor?: Prisma.UserUpdateOneRequiredWithoutActivityEventsNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutEventNestedInput
 }
 
 export type ActivityEventUncheckedUpdateInput = {
@@ -311,6 +317,7 @@ export type ActivityEventUncheckedUpdateInput = {
   action?: Prisma.EnumActivityActionFieldUpdateOperationsInput | $Enums.ActivityAction
   payload?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutEventNestedInput
 }
 
 export type ActivityEventCreateManyInput = {
@@ -381,6 +388,11 @@ export type ActivityEventMinOrderByAggregateInput = {
   actorId?: Prisma.SortOrder
   action?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+}
+
+export type ActivityEventScalarRelationFilter = {
+  is?: Prisma.ActivityEventWhereInput
+  isNot?: Prisma.ActivityEventWhereInput
 }
 
 export type ActivityEventCreateNestedManyWithoutActorInput = {
@@ -555,6 +567,20 @@ export type EnumActivityActionFieldUpdateOperationsInput = {
   set?: $Enums.ActivityAction
 }
 
+export type ActivityEventCreateNestedOneWithoutNotificationsInput = {
+  create?: Prisma.XOR<Prisma.ActivityEventCreateWithoutNotificationsInput, Prisma.ActivityEventUncheckedCreateWithoutNotificationsInput>
+  connectOrCreate?: Prisma.ActivityEventCreateOrConnectWithoutNotificationsInput
+  connect?: Prisma.ActivityEventWhereUniqueInput
+}
+
+export type ActivityEventUpdateOneRequiredWithoutNotificationsNestedInput = {
+  create?: Prisma.XOR<Prisma.ActivityEventCreateWithoutNotificationsInput, Prisma.ActivityEventUncheckedCreateWithoutNotificationsInput>
+  connectOrCreate?: Prisma.ActivityEventCreateOrConnectWithoutNotificationsInput
+  upsert?: Prisma.ActivityEventUpsertWithoutNotificationsInput
+  connect?: Prisma.ActivityEventWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ActivityEventUpdateToOneWithWhereWithoutNotificationsInput, Prisma.ActivityEventUpdateWithoutNotificationsInput>, Prisma.ActivityEventUncheckedUpdateWithoutNotificationsInput>
+}
+
 export type ActivityEventCreateWithoutActorInput = {
   id?: string
   action: $Enums.ActivityAction
@@ -563,6 +589,7 @@ export type ActivityEventCreateWithoutActorInput = {
   workspace: Prisma.WorkspaceCreateNestedOneWithoutActivityInput
   project?: Prisma.ProjectCreateNestedOneWithoutActivityInput
   task?: Prisma.TaskCreateNestedOneWithoutActivityInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutEventInput
 }
 
 export type ActivityEventUncheckedCreateWithoutActorInput = {
@@ -573,6 +600,7 @@ export type ActivityEventUncheckedCreateWithoutActorInput = {
   action: $Enums.ActivityAction
   payload: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutEventInput
 }
 
 export type ActivityEventCreateOrConnectWithoutActorInput = {
@@ -623,6 +651,7 @@ export type ActivityEventCreateWithoutWorkspaceInput = {
   project?: Prisma.ProjectCreateNestedOneWithoutActivityInput
   task?: Prisma.TaskCreateNestedOneWithoutActivityInput
   actor: Prisma.UserCreateNestedOneWithoutActivityEventsInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutEventInput
 }
 
 export type ActivityEventUncheckedCreateWithoutWorkspaceInput = {
@@ -633,6 +662,7 @@ export type ActivityEventUncheckedCreateWithoutWorkspaceInput = {
   action: $Enums.ActivityAction
   payload: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutEventInput
 }
 
 export type ActivityEventCreateOrConnectWithoutWorkspaceInput = {
@@ -669,6 +699,7 @@ export type ActivityEventCreateWithoutProjectInput = {
   workspace: Prisma.WorkspaceCreateNestedOneWithoutActivityInput
   task?: Prisma.TaskCreateNestedOneWithoutActivityInput
   actor: Prisma.UserCreateNestedOneWithoutActivityEventsInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutEventInput
 }
 
 export type ActivityEventUncheckedCreateWithoutProjectInput = {
@@ -679,6 +710,7 @@ export type ActivityEventUncheckedCreateWithoutProjectInput = {
   action: $Enums.ActivityAction
   payload: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutEventInput
 }
 
 export type ActivityEventCreateOrConnectWithoutProjectInput = {
@@ -715,6 +747,7 @@ export type ActivityEventCreateWithoutTaskInput = {
   workspace: Prisma.WorkspaceCreateNestedOneWithoutActivityInput
   project?: Prisma.ProjectCreateNestedOneWithoutActivityInput
   actor: Prisma.UserCreateNestedOneWithoutActivityEventsInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutEventInput
 }
 
 export type ActivityEventUncheckedCreateWithoutTaskInput = {
@@ -725,6 +758,7 @@ export type ActivityEventUncheckedCreateWithoutTaskInput = {
   action: $Enums.ActivityAction
   payload: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutEventInput
 }
 
 export type ActivityEventCreateOrConnectWithoutTaskInput = {
@@ -753,6 +787,66 @@ export type ActivityEventUpdateManyWithWhereWithoutTaskInput = {
   data: Prisma.XOR<Prisma.ActivityEventUpdateManyMutationInput, Prisma.ActivityEventUncheckedUpdateManyWithoutTaskInput>
 }
 
+export type ActivityEventCreateWithoutNotificationsInput = {
+  id?: string
+  action: $Enums.ActivityAction
+  payload: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Date | string
+  workspace: Prisma.WorkspaceCreateNestedOneWithoutActivityInput
+  project?: Prisma.ProjectCreateNestedOneWithoutActivityInput
+  task?: Prisma.TaskCreateNestedOneWithoutActivityInput
+  actor: Prisma.UserCreateNestedOneWithoutActivityEventsInput
+}
+
+export type ActivityEventUncheckedCreateWithoutNotificationsInput = {
+  id?: string
+  workspaceId: string
+  projectId?: string | null
+  taskId?: string | null
+  actorId: string
+  action: $Enums.ActivityAction
+  payload: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Date | string
+}
+
+export type ActivityEventCreateOrConnectWithoutNotificationsInput = {
+  where: Prisma.ActivityEventWhereUniqueInput
+  create: Prisma.XOR<Prisma.ActivityEventCreateWithoutNotificationsInput, Prisma.ActivityEventUncheckedCreateWithoutNotificationsInput>
+}
+
+export type ActivityEventUpsertWithoutNotificationsInput = {
+  update: Prisma.XOR<Prisma.ActivityEventUpdateWithoutNotificationsInput, Prisma.ActivityEventUncheckedUpdateWithoutNotificationsInput>
+  create: Prisma.XOR<Prisma.ActivityEventCreateWithoutNotificationsInput, Prisma.ActivityEventUncheckedCreateWithoutNotificationsInput>
+  where?: Prisma.ActivityEventWhereInput
+}
+
+export type ActivityEventUpdateToOneWithWhereWithoutNotificationsInput = {
+  where?: Prisma.ActivityEventWhereInput
+  data: Prisma.XOR<Prisma.ActivityEventUpdateWithoutNotificationsInput, Prisma.ActivityEventUncheckedUpdateWithoutNotificationsInput>
+}
+
+export type ActivityEventUpdateWithoutNotificationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  action?: Prisma.EnumActivityActionFieldUpdateOperationsInput | $Enums.ActivityAction
+  payload?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  workspace?: Prisma.WorkspaceUpdateOneRequiredWithoutActivityNestedInput
+  project?: Prisma.ProjectUpdateOneWithoutActivityNestedInput
+  task?: Prisma.TaskUpdateOneWithoutActivityNestedInput
+  actor?: Prisma.UserUpdateOneRequiredWithoutActivityEventsNestedInput
+}
+
+export type ActivityEventUncheckedUpdateWithoutNotificationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  workspaceId?: Prisma.StringFieldUpdateOperationsInput | string
+  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  taskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  actorId?: Prisma.StringFieldUpdateOperationsInput | string
+  action?: Prisma.EnumActivityActionFieldUpdateOperationsInput | $Enums.ActivityAction
+  payload?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
 export type ActivityEventCreateManyActorInput = {
   id?: string
   workspaceId: string
@@ -771,6 +865,7 @@ export type ActivityEventUpdateWithoutActorInput = {
   workspace?: Prisma.WorkspaceUpdateOneRequiredWithoutActivityNestedInput
   project?: Prisma.ProjectUpdateOneWithoutActivityNestedInput
   task?: Prisma.TaskUpdateOneWithoutActivityNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutEventNestedInput
 }
 
 export type ActivityEventUncheckedUpdateWithoutActorInput = {
@@ -781,6 +876,7 @@ export type ActivityEventUncheckedUpdateWithoutActorInput = {
   action?: Prisma.EnumActivityActionFieldUpdateOperationsInput | $Enums.ActivityAction
   payload?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutEventNestedInput
 }
 
 export type ActivityEventUncheckedUpdateManyWithoutActorInput = {
@@ -811,6 +907,7 @@ export type ActivityEventUpdateWithoutWorkspaceInput = {
   project?: Prisma.ProjectUpdateOneWithoutActivityNestedInput
   task?: Prisma.TaskUpdateOneWithoutActivityNestedInput
   actor?: Prisma.UserUpdateOneRequiredWithoutActivityEventsNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutEventNestedInput
 }
 
 export type ActivityEventUncheckedUpdateWithoutWorkspaceInput = {
@@ -821,6 +918,7 @@ export type ActivityEventUncheckedUpdateWithoutWorkspaceInput = {
   action?: Prisma.EnumActivityActionFieldUpdateOperationsInput | $Enums.ActivityAction
   payload?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutEventNestedInput
 }
 
 export type ActivityEventUncheckedUpdateManyWithoutWorkspaceInput = {
@@ -851,6 +949,7 @@ export type ActivityEventUpdateWithoutProjectInput = {
   workspace?: Prisma.WorkspaceUpdateOneRequiredWithoutActivityNestedInput
   task?: Prisma.TaskUpdateOneWithoutActivityNestedInput
   actor?: Prisma.UserUpdateOneRequiredWithoutActivityEventsNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutEventNestedInput
 }
 
 export type ActivityEventUncheckedUpdateWithoutProjectInput = {
@@ -861,6 +960,7 @@ export type ActivityEventUncheckedUpdateWithoutProjectInput = {
   action?: Prisma.EnumActivityActionFieldUpdateOperationsInput | $Enums.ActivityAction
   payload?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutEventNestedInput
 }
 
 export type ActivityEventUncheckedUpdateManyWithoutProjectInput = {
@@ -891,6 +991,7 @@ export type ActivityEventUpdateWithoutTaskInput = {
   workspace?: Prisma.WorkspaceUpdateOneRequiredWithoutActivityNestedInput
   project?: Prisma.ProjectUpdateOneWithoutActivityNestedInput
   actor?: Prisma.UserUpdateOneRequiredWithoutActivityEventsNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutEventNestedInput
 }
 
 export type ActivityEventUncheckedUpdateWithoutTaskInput = {
@@ -901,6 +1002,7 @@ export type ActivityEventUncheckedUpdateWithoutTaskInput = {
   action?: Prisma.EnumActivityActionFieldUpdateOperationsInput | $Enums.ActivityAction
   payload?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutEventNestedInput
 }
 
 export type ActivityEventUncheckedUpdateManyWithoutTaskInput = {
@@ -913,6 +1015,35 @@ export type ActivityEventUncheckedUpdateManyWithoutTaskInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
+
+/**
+ * Count Type ActivityEventCountOutputType
+ */
+
+export type ActivityEventCountOutputType = {
+  notifications: number
+}
+
+export type ActivityEventCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  notifications?: boolean | ActivityEventCountOutputTypeCountNotificationsArgs
+}
+
+/**
+ * ActivityEventCountOutputType without action
+ */
+export type ActivityEventCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ActivityEventCountOutputType
+   */
+  select?: Prisma.ActivityEventCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * ActivityEventCountOutputType without action
+ */
+export type ActivityEventCountOutputTypeCountNotificationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.NotificationWhereInput
+}
 
 
 export type ActivityEventSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -928,6 +1059,8 @@ export type ActivityEventSelect<ExtArgs extends runtime.Types.Extensions.Interna
   project?: boolean | Prisma.ActivityEvent$projectArgs<ExtArgs>
   task?: boolean | Prisma.ActivityEvent$taskArgs<ExtArgs>
   actor?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  notifications?: boolean | Prisma.ActivityEvent$notificationsArgs<ExtArgs>
+  _count?: boolean | Prisma.ActivityEventCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["activityEvent"]>
 
 export type ActivityEventSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -977,6 +1110,8 @@ export type ActivityEventInclude<ExtArgs extends runtime.Types.Extensions.Intern
   project?: boolean | Prisma.ActivityEvent$projectArgs<ExtArgs>
   task?: boolean | Prisma.ActivityEvent$taskArgs<ExtArgs>
   actor?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  notifications?: boolean | Prisma.ActivityEvent$notificationsArgs<ExtArgs>
+  _count?: boolean | Prisma.ActivityEventCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type ActivityEventIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   workspace?: boolean | Prisma.WorkspaceDefaultArgs<ExtArgs>
@@ -998,6 +1133,7 @@ export type $ActivityEventPayload<ExtArgs extends runtime.Types.Extensions.Inter
     project: Prisma.$ProjectPayload<ExtArgs> | null
     task: Prisma.$TaskPayload<ExtArgs> | null
     actor: Prisma.$UserPayload<ExtArgs>
+    notifications: Prisma.$NotificationPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1406,6 +1542,7 @@ export interface Prisma__ActivityEventClient<T, Null = never, ExtArgs extends ru
   project<T extends Prisma.ActivityEvent$projectArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ActivityEvent$projectArgs<ExtArgs>>): Prisma.Prisma__ProjectClient<runtime.Types.Result.GetResult<Prisma.$ProjectPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   task<T extends Prisma.ActivityEvent$taskArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ActivityEvent$taskArgs<ExtArgs>>): Prisma.Prisma__TaskClient<runtime.Types.Result.GetResult<Prisma.$TaskPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   actor<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  notifications<T extends Prisma.ActivityEvent$notificationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ActivityEvent$notificationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1879,6 +2016,30 @@ export type ActivityEvent$taskArgs<ExtArgs extends runtime.Types.Extensions.Inte
    */
   include?: Prisma.TaskInclude<ExtArgs> | null
   where?: Prisma.TaskWhereInput
+}
+
+/**
+ * ActivityEvent.notifications
+ */
+export type ActivityEvent$notificationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Notification
+   */
+  select?: Prisma.NotificationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Notification
+   */
+  omit?: Prisma.NotificationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.NotificationInclude<ExtArgs> | null
+  where?: Prisma.NotificationWhereInput
+  orderBy?: Prisma.NotificationOrderByWithRelationInput | Prisma.NotificationOrderByWithRelationInput[]
+  cursor?: Prisma.NotificationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.NotificationScalarFieldEnum | Prisma.NotificationScalarFieldEnum[]
 }
 
 /**

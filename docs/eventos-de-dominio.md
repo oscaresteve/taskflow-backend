@@ -60,6 +60,10 @@ Guarda lo que la frase necesita y no es resoluble por id: `from` y `to`, el núm
 tarea en ese momento, y los ids mencionados. **No** guarda el nombre del actor: ese se resuelve con
 un join a `User` para que el feed muestre siempre el nombre actual.
 
+Tampoco guarda el nombre de la persona de la que habla ("asignó la tarea a X"): el id vive en el
+payload y la persona se resuelve al leer, igual que el actor. Va resuelta en el DTO y no la pide el
+cliente porque la campanita cruza espacios y no tiene uno con el que preguntar por sus miembros.
+
 Tampoco guarda texto ya compuesto. El evento guarda `from: "TODO"` y `to: "IN_PROGRESS"`; la frase
 la compone el catálogo de mensajes del frontend. Por eso el historial sale traducido en los dos
 idiomas sin tocar datos.
@@ -75,8 +79,9 @@ tener evento. Los repositorios ya abren su propia transacción por dentro, así 
 construye los eventos y se los pasa al repositorio, que escribe mutación y eventos juntos. Cuesta un
 parámetro más por función mutadora; a cambio el log no puede mentir.
 
-La publicación (fan-out de notificaciones y emisión por socket) va **después** del commit: emitir
-dentro de la transacción difunde cambios que todavía pueden revertirse.
+El fan-out de notificaciones va **dentro** de la misma transacción, por lo mismo: son filas, y tienen
+que aparecer y desaparecer con su evento. Lo que sí va **después** del commit es la emisión por
+socket, que no se puede deshacer.
 
 ## Qué enseña cada feed
 
@@ -114,17 +119,25 @@ Por eso la campanita sale casi gratis una vez existe el feed.
 | `TASK_STATUS_CHANGED` | Asignado y creador |
 | `TASK_DUE_DATE_CHANGED` | El asignado |
 | `PROJECT_MEMBER_ADDED` | El miembro añadido |
+| `WORKSPACE_MEMBER_INVITED` | El invitado |
 | El resto | Nadie — van al historial y al socket, no a la campanita |
 
 El actor se descuenta siempre: nadie se notifica a sí mismo. El `@@unique([userId, eventId])`
 resuelve el caso de que un comentario te mencione *y* además seas el asignado.
 
-### Menciones
+### Menciones: `@username`
 
-El comentario se guarda con un token estable en el texto: `@[Nombre visible](userId)`. Lleva el id
-porque es lo único inmutable, y lleva el nombre para que degrade de forma legible si el usuario ya no
-pertenece al proyecto; el renderizador pinta el nombre actual resolviendo el id contra los miembros y
-solo cae al texto guardado cuando no lo encuentra.
+Se menciona a alguien por su **username**, no por su nombre y apellidos: es corto, único y se puede
+escribir de seguido sin espacios, que es lo que un `@` necesita. El modelo de usuario no lo tenía, así
+que se añadió con el resto: único, en minúsculas (para que la unicidad no dependa de cómo se escriba),
+de 3 a 30 caracteres de `[a-z0-9_]`, pedido en el alta y editable en preferencias. Los usuarios que ya
+existían se rellenaron desde la parte local de su email en la propia migración.
+
+El comentario se guarda con un token estable en el texto: `@[username](userId)`. Lleva el id porque es
+lo único inmutable — cambiar de username no puede romper las menciones ya escritas — y lleva el
+username para que degrade de forma legible si el usuario ya no pertenece al proyecto; el renderizador
+pinta el actual resolviendo el id contra los miembros y solo cae al texto guardado cuando no lo
+encuentra.
 
 El backend no se fía de lo que llegue: al crear el comentario reresuelve los ids mencionados contra
 los miembros activos del proyecto y descarta los que no lo sean. No es una regla nueva ni más
@@ -132,6 +145,10 @@ estricta — es la misma pertenencia que ya exige `getTaskContext` para poder co
 
 No hace falta una tabla `CommentMention`: la única consulta que la justificaría, "comentarios que me
 mencionan", ya la cubre `Notification`.
+
+**Editar un comentario no notifica.** Si se añade una mención al editar, no sale notificación: para
+hacerlo bien habría que diferenciar las menciones nuevas de las que ya estaban, y no vale la pena
+hasta que moleste. `COMMENT_EDITED` sí entra en el historial.
 
 ## Tiempo real
 

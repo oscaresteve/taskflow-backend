@@ -62,6 +62,7 @@ export const ModelName = {
   TaskFavorite: 'TaskFavorite',
   Comment: 'Comment',
   ActivityEvent: 'ActivityEvent',
+  Notification: 'Notification',
   RefreshToken: 'RefreshToken'
 } as const
 
@@ -85,6 +86,7 @@ export const UserScalarFieldEnum = {
   id: 'id',
   firstName: 'firstName',
   lastName: 'lastName',
+  username: 'username',
   email: 'email',
   passwordHash: 'passwordHash',
   avatarUrl: 'avatarUrl',
@@ -236,6 +238,17 @@ export const ActivityEventScalarFieldEnum = {
 } as const
 
 export type ActivityEventScalarFieldEnum = (typeof ActivityEventScalarFieldEnum)[keyof typeof ActivityEventScalarFieldEnum]
+
+
+export const NotificationScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  eventId: 'eventId',
+  readAt: 'readAt',
+  createdAt: 'createdAt'
+} as const
+
+export type NotificationScalarFieldEnum = (typeof NotificationScalarFieldEnum)[keyof typeof NotificationScalarFieldEnum]
 
 
 export const RefreshTokenScalarFieldEnum = {

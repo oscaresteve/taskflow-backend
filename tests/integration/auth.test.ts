@@ -7,6 +7,7 @@ describe("POST /auth/sign-up", () => {
     const res = await request(app).post("/api/auth/sign-up").send({
       firstName: "Alice",
       lastName: "Doe",
+      username: "alice",
       email: "alice@example.com",
       password: "Password123",
       confirmPassword: "Password123",
@@ -15,7 +16,12 @@ describe("POST /auth/sign-up", () => {
     });
 
     expect(res.status).toBe(201);
-    expect(res.body.user).toMatchObject({ firstName: "Alice", lastName: "Doe", email: "alice@example.com" });
+    expect(res.body.user).toMatchObject({
+      firstName: "Alice",
+      lastName: "Doe",
+      username: "alice",
+      email: "alice@example.com",
+    });
     expect(res.body.accessToken).toBeUndefined();
     expect(res.body.refreshToken).toBeUndefined();
 
@@ -34,6 +40,7 @@ describe("POST /auth/sign-up", () => {
     const res = await request(app).post("/api/auth/sign-up").send({
       firstName: "Bob",
       lastName: "Doe",
+      username: "bob",
       email: "duplicate@example.com",
       password: "Password123",
       confirmPassword: "Password123",
@@ -44,10 +51,59 @@ describe("POST /auth/sign-up", () => {
     expect(res.status).toBe(409);
   });
 
+  it("409s when the username is already taken", async () => {
+    await signUp({ username: "taken" });
+
+    const res = await request(app).post("/api/auth/sign-up").send({
+      firstName: "Dave",
+      lastName: "Doe",
+      username: "taken",
+      email: "dave@example.com",
+      password: "Password123",
+      confirmPassword: "Password123",
+      timezone: "UTC",
+      locale: "en",
+    });
+
+    expect(res.status).toBe(409);
+  });
+
+  it("400s when the username has characters a mention could not carry", async () => {
+    const res = await request(app).post("/api/auth/sign-up").send({
+      firstName: "Erin",
+      lastName: "Doe",
+      username: "erin doe!",
+      email: "erin@example.com",
+      password: "Password123",
+      confirmPassword: "Password123",
+      timezone: "UTC",
+      locale: "en",
+    });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("lowercases the username so uniqueness does not depend on how it was typed", async () => {
+    const res = await request(app).post("/api/auth/sign-up").send({
+      firstName: "Frank",
+      lastName: "Doe",
+      username: "FRANK",
+      email: "frank@example.com",
+      password: "Password123",
+      confirmPassword: "Password123",
+      timezone: "UTC",
+      locale: "en",
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.user.username).toBe("frank");
+  });
+
   it("400s with an unsupported locale", async () => {
     const res = await request(app).post("/api/auth/sign-up").send({
       firstName: "Carol",
       lastName: "Doe",
+      username: "carol",
       email: "carol@example.com",
       password: "Password123",
       confirmPassword: "Password123",

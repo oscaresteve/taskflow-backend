@@ -49,7 +49,7 @@ export const activityPayloadSchemas = {
   }),
   TASK_ARCHIVED: taskRefSchema,
 
-  COMMENT_CREATED: commentRefSchema,
+  COMMENT_CREATED: commentRefSchema.extend({ mentions: z.array(z.cuid()) }),
   COMMENT_EDITED: commentRefSchema,
   COMMENT_DELETED: commentRefSchema,
 

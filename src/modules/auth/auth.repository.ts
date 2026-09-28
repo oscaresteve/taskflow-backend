@@ -15,10 +15,19 @@ export async function findByEmail(email: string): Promise<User | null> {
   });
 }
 
+export async function findByUsername(username: string): Promise<User | null> {
+  return prisma.user.findUnique({
+    where: {
+      username,
+    },
+  });
+}
+
 export async function create(data: SignUpDto): Promise<User> {
   return prisma.user.create({
     data: {
       email: data.email,
+      username: data.username,
       passwordHash: data.password,
       firstName: data.firstName,
       lastName: data.lastName,

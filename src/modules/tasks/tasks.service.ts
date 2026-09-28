@@ -7,7 +7,7 @@ import { NotFoundError } from "../../shared/errors/not-found-error.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import { requireProjectManager } from "../../shared/auth/permissions.ts";
-import { buildTaskArchivedEvent, buildTaskMoveEvents, buildTaskUpdateEvents } from "./tasks.events.ts";
+import { buildTaskArchivedEvents, buildTaskMoveEvents, buildTaskUpdateEvents } from "./tasks.events.ts";
 
 // LLamar al repository y realizar toda la lógica necesaria
 
@@ -300,14 +300,14 @@ export async function archive({
     throw new BadRequestError("Task is already archived");
   }
 
-  const event = buildTaskArchivedEvent({
+  const events = buildTaskArchivedEvents({
     workspaceId: project.workspaceId,
     projectId: project.id,
     actorId: userId,
     task,
   });
 
-  await tasksRepository.archive({ projectId: project.id, taskNumber, events: [event] });
+  await tasksRepository.archive({ projectId: project.id, taskNumber, events });
 }
 
 export async function favorite({

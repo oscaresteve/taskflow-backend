@@ -11,6 +11,9 @@ model User {
   id                String    @id @default(cuid())
   firstName         String
   lastName          String 
+  // Identificador publico con el que se menciona a alguien en un comentario (@usuario). Es mutable,
+  // asi que una mencion guarda el id y resuelve el username al pintarla.
+  username          String    @unique
   email             String    @unique
   passwordHash      String
   avatarUrl         String?
@@ -36,6 +39,7 @@ model User {
   favoriteTasks      TaskFavorite[]
 
   activityEvents     ActivityEvent[]
+  notifications      Notification[]
 }
 
 model Workspace {
@@ -345,11 +349,41 @@ model ActivityEvent {
   // Un evento sin autor no es un evento. Los usuarios se desactivan, no se borran.
   actor       User      @relation(fields: [actorId], references: [id], onDelete: Restrict)
 
-  // Los tres feeds: espacio, proyecto y tarea. Todos ordenan por fecha descendente.
-  @@index([workspaceId, createdAt(sort: Desc)])
+  notifications Notification[]
+
+  // Los tres feeds: espacio, proyecto y tarea. Todos ordenan por fecha descendente. El de espacio
+  // ademas descarta lo que cuelga de una tarea, que es la mayoria de las filas, asi que taskId va
+  // en su indice: sin el, recorreria todo el historial del espacio para quedarse con poco.
+  @@index([workspaceId, taskId, createdAt(sort: Desc)])
   @@index([projectId, createdAt(sort: Desc)])
   @@index([taskId, createdAt(sort: Desc)])
   @@index([actorId])
+}
+
+// Una fila por destinatario de un evento. El contenido no se duplica: la frase se compone desde el
+// evento, igual que en el historial. Se materializa al escribir y no se deriva al leer porque el
+// contador de no leidas se consulta en cada carga de pagina, y resolverlo recorriendo eventos seria
+// un escaneo.
+model Notification {
+  id        String        @id @default(cuid())
+
+  userId    String
+  eventId   String
+
+  readAt    DateTime?
+
+  createdAt DateTime      @default(now())
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     ActivityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  // Un mismo evento no puede notificarte dos veces aunque te mencione y ademas seas el asignado.
+  @@unique([userId, eventId])
+
+  // El listado de la campanita ordena por fecha sin filtrar por estado de lectura, y el contador
+  // filtra por estado sin ordenar: con un solo indice uno de los dos acaba ordenando a mano.
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, readAt])
 }
 
 model RefreshToken {

@@ -86,3 +86,28 @@ export async function findComment(commentId: string): Promise<Comment | null> {
     },
   });
 }
+
+// Los ids que de verdad son miembros activos del proyecto, de entre los que se le pasen. Sirve para
+// no fiarse de las menciones que llegan en el cuerpo de un comentario.
+export async function findActiveProjectMemberIds({
+  projectId,
+  userIds,
+}: {
+  projectId: string;
+  userIds: string[];
+}): Promise<Set<string>> {
+  if (userIds.length === 0) return new Set();
+
+  const members = await prisma.projectMember.findMany({
+    where: {
+      projectId,
+      userId: { in: userIds },
+      isActive: true,
+    },
+    select: {
+      userId: true,
+    },
+  });
+
+  return new Set(members.map((member) => member.userId));
+}

@@ -15,7 +15,13 @@ export async function create({
   taskId: string;
   authorId: string;
   data: CreateCommentDto;
-  activity: { workspaceId: string; projectId: string; taskNumber: number; taskTitle: string };
+  activity: {
+    workspaceId: string;
+    projectId: string;
+    taskNumber: number;
+    taskTitle: string;
+    mentions: string[];
+  };
 }): Promise<Comment> {
   return prisma.$transaction(async (tx) => {
     const comment = await tx.comment.create({
@@ -39,6 +45,7 @@ export async function create({
           taskNumber: activity.taskNumber,
           taskTitle: activity.taskTitle,
           commentId: comment.id,
+          mentions: activity.mentions,
         },
       },
     ]);

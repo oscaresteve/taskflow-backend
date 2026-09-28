@@ -135,6 +135,9 @@ async function seedNimbusStudio(passwordHash: string) {
       data: {
         firstName,
         lastName,
+        // Mismo criterio que el relleno de la migracion: la parte local del email, con guiones
+        // bajos, que es el juego de caracteres que acepta un username.
+        username: slugify(firstName).replaceAll("-", "_"),
         email: `${slugify(firstName)}@taskflow.dev`,
         passwordHash,
         timezone: "Europe/Madrid",
@@ -679,6 +682,7 @@ async function seedLogistica(passwordHash: string, demoId: string) {
         data: {
           firstName,
           lastName,
+          username: `${slugify(firstName)}_${slugify(lastName)}`.replaceAll("-", "_"),
           email: `${slugify(firstName)}.${slugify(lastName)}@logistica.dev`,
           passwordHash,
           timezone: "Europe/Madrid",

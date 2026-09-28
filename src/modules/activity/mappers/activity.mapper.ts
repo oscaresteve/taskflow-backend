@@ -6,7 +6,7 @@ import type { ActivityEventWithActor } from "../types/activity.types.ts";
 
 // Devuelve null si el payload no encaja con su accion. Es la unica salida del Json de la base de
 // datos, y un evento suelto mal formado no debe tumbar el feed entero.
-function toActivityEventResponse(event: ActivityEventWithActor): ActivityEventResponseDto | null {
+export function toActivityEventResponse(event: ActivityEventWithActor): ActivityEventResponseDto | null {
   const parsed = activityPayloadSchemas[event.action].safeParse(event.payload);
 
   if (!parsed.success) return null;
@@ -22,12 +22,8 @@ function toActivityEventResponse(event: ActivityEventWithActor): ActivityEventRe
     taskId: event.taskId,
     project: event.project,
 
-    actor: {
-      id: event.actor.id,
-      firstName: event.actor.firstName,
-      lastName: event.actor.lastName,
-      avatarUrl: event.actor.avatarUrl,
-    },
+    actor: event.actor,
+    target: event.target,
 
     createdAt: event.createdAt,
   } as ActivityEventResponseDto;
