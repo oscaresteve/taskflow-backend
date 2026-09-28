@@ -46,6 +46,21 @@ function contains(search: string) {
 // tocado: para cinco filas es el desempate mas util que tenemos.
 const ORDER_BY_RECENT = { updatedAt: "desc" } as const;
 
+// "TFX-12" es como se nombra una tarea en el tablero y en su detalle, pero no existe como columna:
+// se compone de la key de su proyecto y de su numero. Para buscar por ahi hay que partir el texto en
+// esas dos mitades. La key es [A-Z0-9]{2,10} (projects.schema.ts) y no admite guiones, asi que el
+// separador nunca es ambiguo.
+const TASK_KEY_PATTERN = /^([A-Za-z0-9]{2,10})-(\d{1,9})$/;
+
+function taskKeyMatch(query: string): Prisma.TaskWhereInput | null {
+  const match = TASK_KEY_PATTERN.exec(query);
+  if (!match) return null;
+
+  // Las keys se guardan siempre en mayusculas, asi que normalizar la entrada evita tener que pedir
+  // una comparacion insensible aqui.
+  return { project: { key: match[1].toUpperCase() }, taskNumber: Number(match[2]) };
+}
+
 export async function search({
   userId,
   search: query,
@@ -55,6 +70,10 @@ export async function search({
   search: string;
   limit: number;
 }): Promise<SearchRows> {
+  // El OR de texto no puede encontrar la etiqueta de una tarea en ninguna columna, asi que cuando el
+  // termino tiene esa forma se le suma la busqueda por key + numero.
+  const byTaskKey = taskKeyMatch(query);
+
   const [workspaces, projects, tasks] = await Promise.all([
     prisma.workspace.findMany({
       where: {
@@ -79,7 +98,7 @@ export async function search({
     prisma.task.findMany({
       where: {
         ...myTasks(userId),
-        OR: [{ title: contains(query) }, { description: contains(query) }],
+        OR: [{ title: contains(query) }, { description: contains(query) }, ...(byTaskKey ? [byTaskKey] : [])],
       },
       include: {
         project: {

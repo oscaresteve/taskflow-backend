@@ -76,6 +76,66 @@ describe("GET /api/me/search", () => {
     expect(body.projects.map((p) => p.slug)).toContain(project.slug);
   });
 
+  it("encuentra una tarea por su etiqueta (key del proyecto + numero)", async () => {
+    const key = "YANKEE7";
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const project = await createProject(owner.accessToken, workspace.slug, { key });
+    const first = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Primera" });
+    await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Segunda" });
+
+    const body = (await search(owner.accessToken, { search: `${key}-${first.taskNumber}` })).body as SearchBody;
+
+    expect(body.tasks.map((t) => t.title)).toEqual(["Primera"]);
+  });
+
+  it("acepta la etiqueta en minusculas", async () => {
+    const key = "XRAY7";
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const project = await createProject(owner.accessToken, workspace.slug, { key });
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Minuscula" });
+
+    const label = `${key}-${task.taskNumber}`.toLowerCase();
+    const body = (await search(owner.accessToken, { search: label })).body as SearchBody;
+
+    expect(body.tasks.map((t) => t.title)).toEqual(["Minuscula"]);
+  });
+
+  // El numero solo vale dentro de su proyecto: dos proyectos distintos tienen cada uno su tarea 1.
+  it("no cruza la etiqueta con la tarea del mismo numero en otro proyecto", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const mine = await createProject(owner.accessToken, workspace.slug, { key: "WHISKEY7" });
+    const other = await createProject(owner.accessToken, workspace.slug, { key: "VICTOR7" });
+    const task = await createTask(owner.accessToken, workspace.slug, mine.slug, { title: "La buena" });
+    await createTask(owner.accessToken, workspace.slug, other.slug, { title: "La otra" });
+
+    const body = (await search(owner.accessToken, { search: `WHISKEY7-${task.taskNumber}` })).body as SearchBody;
+
+    expect(body.tasks.map((t) => t.title)).toEqual(["La buena"]);
+  });
+
+  it("no devuelve por etiqueta una tarea de un proyecto del que no eres miembro", async () => {
+    const key = "UNIFORM7";
+    const owner = await signUp();
+    const teammate = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: teammate.user.id,
+      role: "MEMBER",
+    });
+
+    const project = await createProject(owner.accessToken, workspace.slug, { key });
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Privada" });
+
+    const body = (await search(teammate.accessToken, { search: `${key}-${task.taskNumber}` })).body as SearchBody;
+
+    expect(body.tasks).toEqual([]);
+  });
+
   it("no devuelve nada de un espacio del que no eres miembro", async () => {
     const term = unique("ajeno");
     const owner = await signUp();
