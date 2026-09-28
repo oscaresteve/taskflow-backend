@@ -329,13 +329,14 @@ export async function getWorkspaceOverview({ userId, workspaceId }: { userId: st
   const now = new Date();
   const velocitySince = new Date(now.getTime() - VELOCITY_DAYS * 24 * 60 * 60 * 1000);
 
-  // El espacio resume con cinco numeros y dos listas: el reparto por estado y por fecha limite se
-  // ve dentro de cada proyecto, y aqui cada proyecto trae los suyos en su tarjeta.
+  // El espacio resume con cinco numeros y una lista: el reparto por estado y por fecha limite se
+  // ve dentro de cada proyecto, aqui cada proyecto trae los suyos en su tarjeta, y lo que se movio
+  // ultimamente lo cuenta el feed de actividad, que ademas dice quien y que.
   const projects: Prisma.ProjectWhereInput = { ...myProjects(userId), workspaceId };
   const tasks: Prisma.TaskWhereInput = { project: projects, isArchived: false };
   const openTasks: Prisma.TaskWhereInput = { ...tasks, status: { not: TaskStatus.DONE } };
 
-  const [projectsCount, open, overdue, unassigned, completedLast7Days, myTasks, recentTasks] = await Promise.all([
+  const [projectsCount, open, overdue, unassigned, completedLast7Days, myTasks] = await Promise.all([
     prisma.project.count({ where: projects }),
 
     prisma.task.count({ where: openTasks }),
@@ -355,13 +356,6 @@ export async function getWorkspaceOverview({ userId, workspaceId }: { userId: st
       take: TASK_LIST_LIMIT,
       include: overviewTaskInclude,
     }),
-
-    prisma.task.findMany({
-      where: tasks,
-      orderBy: { updatedAt: "desc" },
-      take: TASK_LIST_LIMIT,
-      include: overviewTaskInclude,
-    }),
   ]);
 
   return {
@@ -371,14 +365,13 @@ export async function getWorkspaceOverview({ userId, workspaceId }: { userId: st
     unassigned,
     completedLast7Days,
     myTasks: await attachFavorites(userId, myTasks as OverviewTaskRowWithoutFavorite[]),
-    recentTasks: await attachFavorites(userId, recentTasks as OverviewTaskRowWithoutFavorite[]),
   };
 }
 
-export async function getProjectOverview({ userId, projectId }: { userId: string; projectId: string }) {
+export async function getProjectOverview({ projectId }: { projectId: string }) {
   const velocitySince = new Date(Date.now() - VELOCITY_DAYS * 24 * 60 * 60 * 1000);
 
-  const [tasksByStatus, tasksByPriority, byDueDate, unassigned, completedLast7Days, recentTasks] = await Promise.all([
+  const [tasksByStatus, tasksByPriority, byDueDate, unassigned, completedLast7Days] = await Promise.all([
     prisma.task.groupBy({
       by: ["status"],
       where: { projectId, isArchived: false },
@@ -400,13 +393,6 @@ export async function getProjectOverview({ userId, projectId }: { userId: string
     prisma.task.count({
       where: { projectId, isArchived: false, completedAt: { gte: velocitySince } },
     }),
-
-    prisma.task.findMany({
-      where: { projectId, isArchived: false },
-      orderBy: { updatedAt: "desc" },
-      take: TASK_LIST_LIMIT,
-      include: overviewTaskInclude,
-    }),
   ]);
 
   return {
@@ -415,6 +401,5 @@ export async function getProjectOverview({ userId, projectId }: { userId: string
     byDueDate,
     unassigned,
     completedLast7Days,
-    recentTasks: await attachFavorites(userId, recentTasks as OverviewTaskRowWithoutFavorite[]),
   };
 }

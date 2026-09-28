@@ -57,5 +57,5 @@ export async function getProjectOverview({
   // Obtener el contexto (comprueba que el usuario es miembro activo del proyecto)
   const { project } = await authorizationService.getProjectContext({ userId, workspaceSlug, projectSlug });
 
-  return overviewRepository.getProjectOverview({ userId, projectId: project.id });
+  return overviewRepository.getProjectOverview({ projectId: project.id });
 }

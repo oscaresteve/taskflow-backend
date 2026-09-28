@@ -166,7 +166,6 @@ export function toWorkspaceOverviewResponseDto(data: {
   unassigned: number;
   completedLast7Days: number;
   myTasks: OverviewTaskRow[];
-  recentTasks: OverviewTaskRow[];
 }): WorkspaceOverviewResponseDto {
   return {
     projectsCount: data.projectsCount,
@@ -179,7 +178,6 @@ export function toWorkspaceOverviewResponseDto(data: {
     },
 
     myTasks: data.myTasks.map(toOverviewTaskDto),
-    recentTasks: data.recentTasks.map(toOverviewTaskDto),
   };
 }
 
@@ -189,7 +187,6 @@ export function toProjectOverviewResponseDto(data: {
   byDueDate: DueDateBucketRows;
   unassigned: number;
   completedLast7Days: number;
-  recentTasks: OverviewTaskRow[];
 }): ProjectOverviewResponseDto {
   const byStatus = fillStatusCounts(data.tasksByStatus);
   const total = Object.values(byStatus).reduce((sum, count) => sum + count, 0);
@@ -206,6 +203,5 @@ export function toProjectOverviewResponseDto(data: {
       completionRate: computeRate(byStatus.DONE, total),
     },
 
-    recentTasks: data.recentTasks.map(toOverviewTaskDto),
   };
 }

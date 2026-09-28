@@ -282,9 +282,6 @@ describe("GET /workspaces/:workspaceSlug/overview", () => {
     expect(res.body.projectsCount).toBe(2);
     // La unica abierta no tiene fecha ni responsable; la tarea DONE ya no cuenta como abierta.
     expect(res.body.tasks).toEqual({ open: 1, overdue: 0, unassigned: 1, completedLast7Days: 1 });
-    expect(res.body.recentTasks).toHaveLength(2);
-    // Cada fila trae ya la key del proyecto, que es lo que la UI pinta como "PRJ-1".
-    expect(res.body.recentTasks[0].project.key).toBe(project.key);
   });
 
   it("counts only what the caller can reach: projects they belong to", async () => {
@@ -308,7 +305,6 @@ describe("GET /workspaces/:workspaceSlug/overview", () => {
     expect(res.status).toBe(200);
     expect(res.body.projectsCount).toBe(0);
     expect(res.body.tasks).toEqual({ open: 0, overdue: 0, unassigned: 0, completedLast7Days: 0 });
-    expect(res.body.recentTasks).toEqual([]);
   });
 
   it("leaves out archived projects and their work", async () => {
@@ -329,7 +325,6 @@ describe("GET /workspaces/:workspaceSlug/overview", () => {
     expect(res.status).toBe(200);
     expect(res.body.projectsCount).toBe(1);
     expect(res.body.tasks.open).toBe(1);
-    expect(res.body.recentTasks).toHaveLength(1);
   });
 
   it("returns the caller's own queue for this workspace, not everyone's", async () => {
@@ -348,8 +343,6 @@ describe("GET /workspaces/:workspaceSlug/overview", () => {
     expect(res.status).toBe(200);
     expect(res.body.myTasks).toHaveLength(1);
     expect(res.body.myTasks[0].id).toBe(mine.id);
-    // Y la actividad reciente sigue enseñando las dos, sean de quien sean.
-    expect(res.body.recentTasks).toHaveLength(2);
   });
 });
 
@@ -514,6 +507,5 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/overview", () => 
     expect(res.body.tasks.completionRate).toBe(33); // 1 DONE de 3 tareas
     // De las 2 abiertas, una vencio ayer y la otra no tiene fecha.
     expect(res.body.tasks.byDueDate).toEqual({ overdue: 1, dueSoon: 0, scheduled: 0, noDueDate: 1 });
-    expect(res.body.recentTasks).toHaveLength(3);
   });
 });
