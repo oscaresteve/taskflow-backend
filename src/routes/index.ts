@@ -8,6 +8,7 @@ import { projectMembersRouter } from "../modules/project-members/index.ts";
 import { commentsRouter } from "../modules/comments/index.ts";
 import { usersRouter } from "../modules/users/index.ts";
 import { overviewRouter } from "../modules/overview/index.ts";
+import { searchRouter } from "../modules/search/index.ts";
 
 export const router = Router();
 
@@ -20,3 +21,4 @@ router.use(projectMembersRouter);
 router.use(commentsRouter);
 router.use(usersRouter);
 router.use(overviewRouter);
+router.use(searchRouter);
