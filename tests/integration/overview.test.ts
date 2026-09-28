@@ -162,6 +162,92 @@ describe("GET /me/overview", () => {
   });
 });
 
+describe("GET /me/overview (alcance)", () => {
+  it("leaves out my tasks in archived projects, which no screen can open", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const archived = await createProject(owner.accessToken, workspace.slug, { key: "OLD" });
+
+    await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Live", assigneeId: owner.user.id });
+    await createTask(owner.accessToken, workspace.slug, archived.slug, { title: "Parked", assigneeId: owner.user.id });
+
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${archived.slug}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app).get("/api/me/overview").set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.tasks.open).toBe(1);
+    expect(res.body.myTasks).toHaveLength(1);
+  });
+});
+
+describe("GET /me/overview/workspaces", () => {
+  it("401s without authentication", async () => {
+    const res = await request(app).get("/api/me/overview/workspaces");
+
+    expect(res.status).toBe(401);
+  });
+
+  it("lists the caller's workspaces with their own load in each one", async () => {
+    const owner = await signUp();
+    const busy = await createWorkspace(owner.accessToken, "Alpha");
+    await createWorkspace(owner.accessToken, "Beta"); // sin proyectos ni tareas
+    const project = await createProject(owner.accessToken, busy.slug);
+
+    const late = await createTask(owner.accessToken, busy.slug, project.slug, {
+      title: "Mine, late",
+      assigneeId: owner.user.id,
+    });
+    await setDueDate({
+      actorAccessToken: owner.accessToken,
+      workspaceSlug: busy.slug,
+      projectSlug: project.slug,
+      taskNumber: late.taskNumber,
+      dueDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    });
+
+    await createTask(owner.accessToken, busy.slug, project.slug, {
+      title: "Mine, on time",
+      assigneeId: owner.user.id,
+    });
+
+    // De otro: no entra en la carga propia de nadie mas que su responsable.
+    await createTask(owner.accessToken, busy.slug, project.slug, { title: "Nobody's" });
+
+    const res = await request(app)
+      .get("/api/me/overview/workspaces")
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.pagination).toEqual({ page: 1, limit: 10, total: 2, pages: 1 });
+    expect(res.body.data.map((item: { name: string }) => item.name)).toEqual(["Alpha", "Beta"]);
+    expect(res.body.data[0].stats).toEqual({ open: 2, overdue: 1 });
+    expect(res.body.data[1].stats).toEqual({ open: 0, overdue: 0 });
+  });
+
+  it("searches by name and leaves out workspaces the user does not belong to", async () => {
+    const owner = await signUp();
+    await createWorkspace(owner.accessToken, "Product design");
+    await createWorkspace(owner.accessToken, "Backoffice");
+
+    const outsider = await signUp();
+
+    const found = await request(app)
+      .get("/api/me/overview/workspaces")
+      .query({ search: "design" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(found.body.data.map((item: { name: string }) => item.name)).toEqual(["Product design"]);
+
+    const asOutsider = await request(app)
+      .get("/api/me/overview/workspaces")
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
+
+    expect(asOutsider.body.data).toEqual([]);
+  });
+});
+
 describe("GET /workspaces/:workspaceSlug/overview", () => {
   it("403s when the user is not a member of the workspace", async () => {
     const { workspace } = await setupOwnerProject();
@@ -199,6 +285,51 @@ describe("GET /workspaces/:workspaceSlug/overview", () => {
     expect(res.body.recentTasks).toHaveLength(2);
     // Cada fila trae ya la key del proyecto, que es lo que la UI pinta como "PRJ-1".
     expect(res.body.recentTasks[0].project.key).toBe(project.key);
+  });
+
+  it("counts only what the caller can reach: projects they belong to", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Out of reach" });
+
+    // Miembro del espacio, pero de ninguno de sus proyectos: los contadores y la rejilla tienen que
+    // decir lo mismo, y la rejilla no le ensena nada.
+    const member = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/overview`)
+      .set("Cookie", `accessToken=${member.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.projectsCount).toBe(0);
+    expect(res.body.tasks).toEqual({ open: 0, overdue: 0, unassigned: 0, completedLast7Days: 0 });
+    expect(res.body.recentTasks).toEqual([]);
+  });
+
+  it("leaves out archived projects and their work", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const archived = await createProject(owner.accessToken, workspace.slug, { key: "OLD" });
+
+    await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Live" });
+    await createTask(owner.accessToken, workspace.slug, archived.slug, { title: "Parked" });
+
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${archived.slug}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/overview`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.projectsCount).toBe(1);
+    expect(res.body.tasks.open).toBe(1);
+    expect(res.body.recentTasks).toHaveLength(1);
   });
 
   it("returns the caller's own queue for this workspace, not everyone's", async () => {

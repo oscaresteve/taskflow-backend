@@ -1,6 +1,7 @@
 import type { TaskPriority, TaskStatus } from "../../../shared/types/prisma.types.ts";
 import type { TaskResponseDto } from "../../tasks/dtos/tasks.dto.ts";
 import type { ProjectResponseDto } from "../../projects/dtos/projects.dto.ts";
+import type { WorkspaceResponseDto } from "../../workspaces/dtos/workspaces.dto.ts";
 
 // Fila de tarea de los overviews: la tarea mas el contexto que la UI necesita para pintarla
 // entera (identificador tipo CORE-113, proyecto al que pertenece y responsable).
@@ -49,6 +50,16 @@ export type ProjectStatsDto = {
 
 export type OverviewProjectDto = ProjectResponseDto & {
   stats: ProjectStatsDto;
+};
+
+// Carga propia del usuario en un espacio: las mismas tareas que cuenta su resumen de My Space.
+export type MyWorkspaceStatsDto = {
+  open: number;
+  overdue: number;
+};
+
+export type OverviewWorkspaceDto = WorkspaceResponseDto & {
+  stats: MyWorkspaceStatsDto;
 };
 
 // El espacio no reparte sus tareas en graficas: eso se ve dentro de cada proyecto, y cada proyecto

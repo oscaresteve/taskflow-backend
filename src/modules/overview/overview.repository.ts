@@ -1,7 +1,7 @@
 import { prisma } from "../../config/prisma.ts";
-import { TaskStatus } from "../../shared/types/prisma.types.ts";
+import { TaskStatus, WorkspaceMemberStatus } from "../../shared/types/prisma.types.ts";
 import { Prisma } from "../../prisma/generated/prisma/client.ts";
-import type { Project, Task } from "../../shared/types/prisma.types.ts";
+import type { Project, Task, Workspace } from "../../shared/types/prisma.types.ts";
 
 // Solo comunicarse con el ORM o DB
 
@@ -63,6 +63,21 @@ async function countOpenByDueDate(scope: Prisma.TaskWhereInput): Promise<DueDate
   return { overdue, dueSoon, noDueDate };
 }
 
+// Un proyecto solo cuenta para el usuario si esta activo y el es miembro activo de el: lo que no
+// cumple eso no se puede abrir desde ninguna pantalla, asi que tampoco debe sumar en ningun
+// contador ni aparecer en ninguna lista. Los contadores del espacio y la rejilla de proyectos
+// tienen que cuadrar, y antes no lo hacian: el espacio contaba todo y la rejilla solo lo tuyo.
+function myProjects(userId: string): Prisma.ProjectWhereInput {
+  return { isArchived: false, members: { some: { userId, isActive: true } } };
+}
+
+// Las dos rejillas buscan igual: por nombre o descripcion, sin distinguir mayusculas.
+function nameOrDescriptionContains(search: string) {
+  const contains = { contains: search, mode: "insensitive" } as const;
+
+  return [{ name: contains }, { description: contains }];
+}
+
 export type ProjectStatsRow = {
   total: number;
   done: number;
@@ -76,7 +91,7 @@ export type OverviewProjectRow = Project & {
   stats: ProjectStatsRow;
 };
 
-const EMPTY_STATS: ProjectStatsRow = { total: 0, done: 0, open: 0, overdue: 0, lastActivityAt: null };
+const EMPTY_PROJECT_STATS: ProjectStatsRow = { total: 0, done: 0, open: 0, overdue: 0, lastActivityAt: null };
 
 // Los numeros que pinta la tarjeta de cada proyecto, en una sola pasada sobre las tareas de la
 // pagina. Va en SQL crudo porque el _count de Prisma solo admite un filtro por relacion y aqui
@@ -123,17 +138,10 @@ export async function findWorkspaceProjects({
   limit: number;
   search?: string;
 }): Promise<{ items: OverviewProjectRow[]; total: number }> {
-  const where: Prisma.ProjectWhereInput = {
-    workspaceId,
-    isArchived: false,
-    members: { some: { userId, isActive: true } },
-  };
+  const where: Prisma.ProjectWhereInput = { ...myProjects(userId), workspaceId };
 
   if (search) {
-    where.OR = [
-      { name: { contains: search, mode: "insensitive" } },
-      { description: { contains: search, mode: "insensitive" } },
-    ];
+    where.OR = nameOrDescriptionContains(search);
   }
 
   const [projects, total] = await Promise.all([
@@ -166,7 +174,110 @@ export async function findWorkspaceProjects({
     items: projects.map((project) => ({
       ...project,
       isFavorite: favoritedIds.has(project.id),
-      stats: stats.get(project.id) ?? EMPTY_STATS,
+      stats: stats.get(project.id) ?? EMPTY_PROJECT_STATS,
+    })),
+    total,
+  };
+}
+
+type MyWorkspaceStatsRow = {
+  open: number;
+  overdue: number;
+};
+
+export type OverviewWorkspaceRow = Workspace & {
+  isFavorite: boolean;
+  stats: MyWorkspaceStatsRow;
+};
+
+const EMPTY_MY_WORKSPACE_STATS: MyWorkspaceStatsRow = { open: 0, overdue: 0 };
+
+// Cuanto trabajo propio tiene el usuario en cada espacio, en una sola pasada. Son las mismas tareas
+// que cuenta getMyOverview (asignadas, sin cerrar y en un proyecto activo del que eres miembro), asi
+// que las tarjetas suman siempre el total del donut de "Foco".
+async function countMyWorkspaceStats({
+  userId,
+  workspaceIds,
+  now,
+}: {
+  userId: string;
+  workspaceIds: string[];
+  now: Date;
+}): Promise<Map<string, MyWorkspaceStatsRow>> {
+  const rows = await prisma.$queryRaw<({ workspaceId: string } & MyWorkspaceStatsRow)[]>`
+    SELECT
+      project."workspaceId" AS "workspaceId",
+      COUNT(*)::int AS "open",
+      COUNT(*) FILTER (WHERE task."dueDate" < ${now.toISOString()}::timestamp)::int AS "overdue"
+    FROM "Task" task
+    JOIN "Project" project ON project."id" = task."projectId"
+    JOIN "ProjectMember" member
+      ON member."projectId" = project."id" AND member."userId" = ${userId} AND member."isActive" = true
+    WHERE project."workspaceId" IN (${Prisma.join(workspaceIds)})
+      AND project."isArchived" = false
+      AND task."assigneeId" = ${userId}
+      AND task."isArchived" = false
+      AND task.status <> 'DONE'
+    GROUP BY 1
+  `;
+
+  return new Map(rows.map(({ workspaceId, ...stats }) => [workspaceId, stats]));
+}
+
+// La rejilla de espacios de My Space: los espacios activos de los que el usuario es miembro activo,
+// con la carga propia de cada uno. Misma membresia y mismo orden fijo por nombre que el listado de
+// gestion, sin sus filtros.
+export async function findMyWorkspaces({
+  userId,
+  page,
+  limit,
+  search,
+}: {
+  userId: string;
+  page: number;
+  limit: number;
+  search?: string;
+}): Promise<{ items: OverviewWorkspaceRow[]; total: number }> {
+  const where: Prisma.WorkspaceWhereInput = {
+    isActive: true,
+    members: { some: { userId, status: WorkspaceMemberStatus.ACTIVE } },
+  };
+
+  if (search) {
+    where.OR = nameOrDescriptionContains(search);
+  }
+
+  const [workspaces, total] = await Promise.all([
+    prisma.workspace.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+
+    prisma.workspace.count({ where }),
+  ]);
+
+  if (workspaces.length === 0) return { items: [], total };
+
+  const workspaceIds = workspaces.map((workspace) => workspace.id);
+
+  const [stats, favorites] = await Promise.all([
+    countMyWorkspaceStats({ userId, workspaceIds, now: new Date() }),
+
+    prisma.workspaceFavorite.findMany({
+      where: { userId, workspaceId: { in: workspaceIds } },
+      select: { workspaceId: true },
+    }),
+  ]);
+
+  const favoritedIds = new Set(favorites.map((favorite) => favorite.workspaceId));
+
+  return {
+    items: workspaces.map((workspace) => ({
+      ...workspace,
+      isFavorite: favoritedIds.has(workspace.id),
+      stats: stats.get(workspace.id) ?? EMPTY_MY_WORKSPACE_STATS,
     })),
     total,
   };
@@ -175,23 +286,31 @@ export async function findWorkspaceProjects({
 export async function getMyOverview({ userId }: { userId: string }) {
   const velocitySince = new Date(Date.now() - VELOCITY_DAYS * 24 * 60 * 60 * 1000);
 
+  // Lo propio, pero solo donde se puede llegar: proyecto activo del que eres miembro, en un espacio
+  // que sigue activo.
+  const mine: Prisma.TaskWhereInput = {
+    assigneeId: userId,
+    isArchived: false,
+    project: { ...myProjects(userId), workspace: { isActive: true } },
+  };
+
   const [tasksByStatus, byDueDate, completedLast7Days, myTasks] = await Promise.all([
     prisma.task.groupBy({
       by: ["status"],
-      where: { assigneeId: userId, isArchived: false },
+      where: mine,
       _count: true,
     }),
 
-    countOpenByDueDate({ assigneeId: userId }),
+    countOpenByDueDate(mine),
 
     prisma.task.count({
-      where: { assigneeId: userId, isArchived: false, completedAt: { gte: velocitySince } },
+      where: { ...mine, completedAt: { gte: velocitySince } },
     }),
 
     // Cola de trabajo, no historial: solo tareas vivas y ordenadas por urgencia (lo que vence
     // antes primero, lo que no tiene fecha al final), que es el orden en el que hay que atacarlas.
     prisma.task.findMany({
-      where: { assigneeId: userId, isArchived: false, status: { not: TaskStatus.DONE } },
+      where: { ...mine, status: { not: TaskStatus.DONE } },
       orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { priority: "desc" }],
       take: TASK_LIST_LIMIT,
       include: overviewTaskInclude,
@@ -212,16 +331,12 @@ export async function getWorkspaceOverview({ userId, workspaceId }: { userId: st
 
   // El espacio resume con cinco numeros y dos listas: el reparto por estado y por fecha limite se
   // ve dentro de cada proyecto, y aqui cada proyecto trae los suyos en su tarjeta.
-  const openTasks: Prisma.TaskWhereInput = {
-    project: { workspaceId },
-    isArchived: false,
-    status: { not: TaskStatus.DONE },
-  };
+  const projects: Prisma.ProjectWhereInput = { ...myProjects(userId), workspaceId };
+  const tasks: Prisma.TaskWhereInput = { project: projects, isArchived: false };
+  const openTasks: Prisma.TaskWhereInput = { ...tasks, status: { not: TaskStatus.DONE } };
 
   const [projectsCount, open, overdue, unassigned, completedLast7Days, myTasks, recentTasks] = await Promise.all([
-    prisma.project.count({
-      where: { workspaceId, isArchived: false },
-    }),
+    prisma.project.count({ where: projects }),
 
     prisma.task.count({ where: openTasks }),
 
@@ -230,7 +345,7 @@ export async function getWorkspaceOverview({ userId, workspaceId }: { userId: st
     prisma.task.count({ where: { ...openTasks, assigneeId: null } }),
 
     prisma.task.count({
-      where: { project: { workspaceId }, isArchived: false, completedAt: { gte: velocitySince } },
+      where: { ...tasks, completedAt: { gte: velocitySince } },
     }),
 
     // La misma cola que My Space, acotada a este espacio: lo que vence antes primero.
@@ -242,7 +357,7 @@ export async function getWorkspaceOverview({ userId, workspaceId }: { userId: st
     }),
 
     prisma.task.findMany({
-      where: { project: { workspaceId }, isArchived: false },
+      where: tasks,
       orderBy: { updatedAt: "desc" },
       take: TASK_LIST_LIMIT,
       include: overviewTaskInclude,

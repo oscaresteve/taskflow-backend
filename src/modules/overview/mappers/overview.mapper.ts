@@ -1,11 +1,19 @@
 import { TaskPriority, TaskStatus } from "../../../shared/types/prisma.types.ts";
 import { toTaskResponseDto } from "../../tasks/mappers/tasks.mapper.ts";
 import { toProjectResponseDto } from "../../projects/mappers/projects.mapper.ts";
+import { toWorkspaceResponseDto } from "../../workspaces/mappers/workspaces.mapper.ts";
 import type { PaginatedResponseDto } from "../../../shared/dtos/pagination.dto.ts";
-import type { DueDateBucketRows, OverviewProjectRow, OverviewTaskRow, ProjectStatsRow } from "../overview.repository.ts";
+import type {
+  DueDateBucketRows,
+  OverviewProjectRow,
+  OverviewTaskRow,
+  OverviewWorkspaceRow,
+  ProjectStatsRow,
+} from "../overview.repository.ts";
 import type {
   DueDateBucketsDto,
   OverviewProjectDto,
+  OverviewWorkspaceDto,
   ProjectStatsDto,
   MyOverviewResponseDto,
   OverviewTaskDto,
@@ -60,12 +68,11 @@ function toDueDateBucketsDto(rows: DueDateBucketRows, open: number): DueDateBuck
   };
 }
 
-// Redondeado a un entero porcentual; 0 si el proyecto no tiene tareas sobre las que calcularlo.
 function toProjectStatsDto(stats: ProjectStatsRow): ProjectStatsDto {
   return {
     open: stats.open,
     overdue: stats.overdue,
-    completionRate: stats.total === 0 ? 0 : Math.round((stats.done / stats.total) * 100),
+    completionRate: computeRate(stats.done, stats.total),
     lastActivityAt: stats.lastActivityAt,
   };
 }
@@ -90,6 +97,30 @@ export function toPaginatedOverviewProjectDto({
       limit,
       total: projects.total,
       pages: Math.ceil(projects.total / limit),
+    },
+  };
+}
+
+export function toPaginatedOverviewWorkspaceDto({
+  workspaces,
+  page,
+  limit,
+}: {
+  workspaces: { items: OverviewWorkspaceRow[]; total: number };
+  page: number;
+  limit: number;
+}): PaginatedResponseDto<OverviewWorkspaceDto> {
+  return {
+    data: workspaces.items.map((workspace) => ({
+      ...toWorkspaceResponseDto(workspace),
+      stats: { open: workspace.stats.open, overdue: workspace.stats.overdue },
+    })),
+
+    pagination: {
+      page,
+      limit,
+      total: workspaces.total,
+      pages: Math.ceil(workspaces.total / limit),
     },
   };
 }

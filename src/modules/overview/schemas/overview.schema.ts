@@ -1,12 +1,12 @@
 import z from "zod";
 import { limitSchema, pageSchema, searchSchema } from "../../../shared/schemas/common.schema.ts";
 
-// La rejilla de proyectos del overview pagina y busca; el orden es fijo (por nombre), asi que no
-// se expone.
-export const overviewProjectQuerySchema = z.object({
+// Las rejillas del overview (proyectos de un espacio, espacios del usuario) paginan y buscan; el
+// orden es fijo por nombre, asi que no se expone.
+export const overviewGridQuerySchema = z.object({
   page: pageSchema,
   limit: limitSchema,
   search: searchSchema,
 });
 
-export type OverviewProjectQueryDto = z.infer<typeof overviewProjectQuerySchema>;
+export type OverviewGridQueryDto = z.infer<typeof overviewGridQuerySchema>;

@@ -3,11 +3,12 @@ import * as overviewService from "./overview.service.ts";
 import {
   toMyOverviewResponseDto,
   toPaginatedOverviewProjectDto,
+  toPaginatedOverviewWorkspaceDto,
   toProjectOverviewResponseDto,
   toWorkspaceOverviewResponseDto,
 } from "./mappers/overview.mapper.ts";
 import type { ProjectParamsDto, WorkspaceParamsDto } from "../../shared/schemas/common.schema.ts";
-import type { OverviewProjectQueryDto } from "./schemas/overview.schema.ts";
+import type { OverviewGridQueryDto } from "./schemas/overview.schema.ts";
 
 // Llamar al servicio y mappear la respuesta.
 // Responder HTTP
@@ -20,6 +21,19 @@ export async function findMyOverview(req: Request, res: Response, next: NextFunc
     const overview = await overviewService.getMyOverview({ userId });
 
     res.json(toMyOverviewResponseDto(overview));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function findMyWorkspaces(req: Request, res: Response, next: NextFunction) {
+  try {
+    const query = req.validated.query as OverviewGridQueryDto;
+    const userId = req.user.id;
+
+    const workspaces = await overviewService.getMyWorkspaces({ userId, query });
+
+    res.json(toPaginatedOverviewWorkspaceDto({ workspaces, page: query.page, limit: query.limit }));
   } catch (error) {
     next(error);
   }
@@ -42,7 +56,7 @@ export async function findWorkspaceOverview(req: Request, res: Response, next: N
 export async function findWorkspaceProjects(req: Request, res: Response, next: NextFunction) {
   try {
     const params = req.validated.params as WorkspaceParamsDto;
-    const query = req.validated.query as OverviewProjectQueryDto;
+    const query = req.validated.query as OverviewGridQueryDto;
     const userId = req.user.id;
 
     const projects = await overviewService.getWorkspaceProjects({ userId, workspaceSlug: params.workspaceSlug, query });
