@@ -80,8 +80,13 @@ construye los eventos y se los pasa al repositorio, que escribe mutación y even
 parámetro más por función mutadora; a cambio el log no puede mentir.
 
 El fan-out de notificaciones va **dentro** de la misma transacción, por lo mismo: son filas, y tienen
-que aparecer y desaparecer con su evento. Lo que sí va **después** del commit es la emisión por
-socket, que no se puede deshacer.
+que aparecer y desaparecer con su evento.
+
+La emisión por socket sale **del mismo sitio**, también dentro de la transacción. Se eligió por
+simple: las alternativas eran propagar los eventos hacia arriba por las 21 firmas que ya los reciben,
+o montar un búfer por petición que se vacíe al terminar la respuesta. Lo que se difunde de más se
+autocorrige, porque el cliente invalida en vez de aplicar el payload — con el límite que queda
+apuntado en las aristas conocidas.
 
 ## Qué enseña cada feed
 
@@ -163,12 +168,33 @@ el modelado de eventos, no en reimplementar un multiplexor.
 
 | Sala | Mensaje | Qué lleva |
 | --- | --- | --- |
-| `project:<id>` | `activity:new` | El evento ya mapeado a DTO |
-| `project:<id>` | `task:reordered` | Id, columna y rank — no es evento de dominio |
-| `user:<id>` | `notification:new` | La notificación y el nuevo contador |
+| `project:<id>` | `activity:new` | `actorId` y el evento ya mapeado a DTO |
+| `project:<id>` | `task:reordered` | `actorId`, id, columna y rank — no es evento de dominio |
+| `user:<id>` | `notification:new` | Solo `actorId` |
+
+`notification:new` va vacío a propósito. El cliente invalida `notificationKeys.all`, que ya refresca
+la lista y el contador, así que mandar la notificación y el número obligaría a `createManyAndReturn`
+y a un `count` por destinatario **dentro** de la transacción — justo donde `move` mantiene su
+advisory lock — para un payload que nadie lee. Si algún día hay un aviso emergente con el contenido,
+se añade entonces.
+
+Un socket está en **una sola sala de proyecto**, la del que se está viendo: entra al suscribirse y
+sale de la anterior. Así el cliente nunca necesita aprender el `projectId`.
 
 ### Aristas conocidas
 
+- **Se emite dentro de la transacción.** Un rollback difunde algo que no pasó, y en teoría el mensaje
+  puede salir antes de que el commit sea visible: un refetch disparado por él podría leer el estado
+  viejo. En la práctica `record()` es lo último de cada transacción, así que solo queda el COMMIT
+  frente a un ida y vuelta de red. A cambio, un fallo al publicar **no puede tumbar la escritura**:
+  todo el bloque va envuelto en `try/catch`.
+- **El feed de espacio no se actualiza en vivo.** Los eventos del propio espacio no cuelgan de un
+  proyecto, así que no tienen sala. La campanita sí se entera, porque va por la sala del usuario.
+  Una sala `workspace:<id>` es la ampliación evidente, pero duplica la lógica de entrada para el feed
+  menos mirado.
+- **El arrastre no está blindado.** Durante un arrastre la caché del tablero *es* el estado del
+  arrastre, así que una invalidación que llegue por socket puede pisar la previsualización. Solo
+  choca si dos personas arrastran a la vez en el mismo tablero y se corrige al soltar.
 - **El access token caduca y el socket vive más.** El handshake solo autentica al conectar, así que
   al caducar el servidor cierra la conexión y el cliente reconecta; si la reconexión falla con 401,
   pide un refresh y reintenta una vez — el mismo patrón que ya hace `lib/http/client.ts`.
@@ -193,10 +219,10 @@ Cada fase es entregable por sí sola.
    los services, endpoints de lectura por proyecto y por tarea, y el feed en la UI.
 2. **Notificaciones y menciones.** Tabla `Notification`, fan-out, campanita con contador y el editor
    de menciones en el cuadro de comentarios.
-3. **Tiempo real.** socket.io, salas, publicación tras commit, provider e invalidaciones.
+3. **Tiempo real.** socket.io, salas, publicación e invalidaciones.
 
-El tiempo real va el último a propósito: si en esa fase no hace falta tocar el esquema, la espina
-estaba bien diseñada.
+El tiempo real fue el último a propósito, y **no hizo falta tocar el esquema**: la espina estaba bien
+puesta.
 
 **Lo que la espina no abarata:** el autocompletado de menciones en el editor y el transporte de
 sockets con su autenticación y reconexión. Ninguno de los dos se abarata por tener una tabla de

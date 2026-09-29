@@ -80,6 +80,29 @@ A third minimal workspace, `herrera-vidal`, is deactivated (`isActive: false`) s
 
 Dates are relative to `new Date()`, so a re-seed always lands "current".
 
+### Tiempo real (`src/socket/`)
+
+`server.ts` crea el servidor HTTP a mano y le engancha socket.io; `app.ts` no sabe nada de sockets.
+
+- `socket/realtime.ts` — el contrato de mensajes y el publicador. Guarda un `io` seteable y **cada
+  emisor es no-op sin servidor**, que es lo que permite que los repositorios sigan siendo importables
+  desde los tests con supertest y desde el seed. Importa los DTO **solo como tipos**: si importara
+  algo en tiempo de ejecución de `src/modules/`, el grafo cerraría sobre `activity.repository` y
+  reventaría al arrancar con un TDZ en `personSelect`.
+- `socket/socket.server.ts` — `createSocketServer(httpServer)`, que es lo que montan `server.ts` y
+  los tests. Tiene su **propio CORS**: el `cors()` de Express no corre en el handshake de Engine.IO.
+  El handshake lee la cookie `accessToken` a mano (no pasa por `cookieParser`) y las salas reusan
+  `authorizationService.getProjectContext`, así que no hay autorización nueva.
+
+La publicación sale de `activity.repository.record`, **dentro de la transacción** y envuelta en
+`try/catch` para que un fallo del canal en vivo no tumbe una escritura que ya fue bien. La excepción
+es `task:reordered`, que se emite desde `tasks.service.move` porque una reordenación pura no deja
+evento.
+
+**Límite conocido: el emisor es en proceso.** Con más de una instancia de Node la mitad de los
+clientes no recibiría nada; haría falta el adaptador de Redis. La ruta del socket es `/socket.io`,
+**fuera de `/api`**, así que cualquier proxy inverso tiene que enrutarla aparte.
+
 ### Testing
 
 `tests/integration/<module>.test.ts` — one file per module (`auth`, `workspaces`, `workspace-members`, `projects`, `project-members`, `tasks`; `users` has no tests since that module isn't implemented). Tests run with Vitest + Supertest against the real Express `app` and a dedicated local Postgres container (`postgres-test` in `docker-compose.yml`, `localhost:5433`, separate from the dev container on `5432`):

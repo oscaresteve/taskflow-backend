@@ -5,11 +5,19 @@ import type { ActivityAction } from "../../shared/types/prisma.types.ts";
 import type { ActivityEventInput, ActivityEventWithActor, ActivityPerson } from "./types/activity.types.ts";
 import type { ActivityQueryDto } from "./schemas/activity.schema.ts";
 import { resolveRecipients } from "./activity.recipients.ts";
+import { toActivityEventResponse } from "./mappers/activity.mapper.ts";
+import { emitActivityEvent, emitNotification } from "../../socket/realtime.ts";
 
 // Recibe el cliente de la transaccion que abre la mutacion que origina los eventos: un evento que
 // afirma algo que despues hizo rollback es peor que no tener evento. Las notificaciones se escriben
-// aqui dentro por lo mismo: son filas, y tienen que aparecer y desaparecer con su evento. Lo que si
-// va despues del commit es la emision por socket, que no se puede deshacer.
+// aqui dentro por lo mismo: son filas, y tienen que aparecer y desaparecer con su evento.
+//
+// La emision por socket tambien sale de aqui, dentro de la transaccion. Es la opcion simple: las
+// alternativas eran propagar los eventos hacia arriba por las 21 firmas que ya los reciben, o
+// montar un buffer por peticion. Lo que se difunde por adelantado se autocorrige, porque el cliente
+// invalida en vez de aplicar el payload; el limite conocido esta escrito en docs/eventos-de-dominio.md.
+type CreatedEvent = Omit<ActivityEventWithActor, "target">;
+
 export async function record(tx: Prisma.TransactionClient, events: ActivityEventInput[]): Promise<void> {
   // Una actualizacion puede no cambiar nada narrable (solo el titulo en blanco, el mismo estado...)
   if (events.length === 0) return;
@@ -20,6 +28,7 @@ export async function record(tx: Prisma.TransactionClient, events: ActivityEvent
   // notificaciones, y el orden de vuelta de una insercion multiple no es algo que Prisma prometa.
   // En la practica casi todas las mutaciones emiten un solo evento, asi que es una consulta.
   const notifications: { userId: string; eventId: string }[] = [];
+  const createdEvents: CreatedEvent[] = [];
 
   for (const [index, event] of events.entries()) {
     const created = await tx.activityEvent.create({
@@ -31,8 +40,13 @@ export async function record(tx: Prisma.TransactionClient, events: ActivityEvent
         action: event.action,
         payload: event.payload,
       },
-      select: { id: true },
+      include: {
+        actor: { select: personSelect },
+        project: { select: projectSelect },
+      },
     });
+
+    createdEvents.push(created);
 
     for (const userId of recipientsByEvent[index]) {
       notifications.push({ userId, eventId: created.id });
@@ -41,6 +55,37 @@ export async function record(tx: Prisma.TransactionClient, events: ActivityEvent
 
   if (notifications.length > 0) {
     await tx.notification.createMany({ data: notifications });
+  }
+
+  await broadcast(tx, createdEvents, recipientsByEvent);
+}
+
+// Un fallo del canal en vivo no puede tumbar una escritura que ya fue bien, y al emitir desde dentro
+// de la transaccion podria: de ahi el try/catch que envuelve todo.
+async function broadcast(
+  tx: Prisma.TransactionClient,
+  createdEvents: CreatedEvent[],
+  recipientsByEvent: string[][],
+): Promise<void> {
+  try {
+    const events = await attachTargets(createdEvents, tx);
+
+    events.forEach((event, index) => {
+      const dto = toActivityEventResponse(event);
+
+      // Los eventos del propio espacio no cuelgan de un proyecto, asi que no tienen sala; el feed
+      // de espacio no se actualiza en vivo.
+      if (dto && event.projectId) {
+        emitActivityEvent(event.projectId, { actorId: event.actor.id, event: dto });
+      }
+
+      for (const userId of recipientsByEvent[index]) {
+        emitNotification(userId, { actorId: event.actor.id });
+      }
+    });
+  } catch {
+    // Silencio a proposito: el historial y la campanita ya estan escritos, y el cliente los vera en
+    // su siguiente lectura.
   }
 }
 
@@ -62,6 +107,7 @@ export const projectSelect = {
 // lo traiga: se leen de una sola consulta para toda la pagina y se reparten.
 export async function attachTargets<T extends { action: ActivityAction; payload: unknown }>(
   events: T[],
+  client: Pick<Prisma.TransactionClient, "user"> = prisma,
 ): Promise<(T & { target: ActivityPerson | null })[]> {
   const targetIdByEvent = events.map((event) => targetUserIdOf(event.action, event.payload));
   const targetIds = [...new Set(targetIdByEvent.filter((id) => id !== null))];
@@ -70,7 +116,7 @@ export async function attachTargets<T extends { action: ActivityAction; payload:
     return events.map((event) => ({ ...event, target: null }));
   }
 
-  const people = await prisma.user.findMany({
+  const people = await client.user.findMany({
     where: { id: { in: targetIds } },
     select: personSelect,
   });

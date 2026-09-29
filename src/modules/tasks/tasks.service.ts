@@ -8,6 +8,7 @@ import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import { requireProjectManager } from "../../shared/auth/permissions.ts";
 import { buildTaskArchivedEvents, buildTaskMoveEvents, buildTaskUpdateEvents } from "./tasks.events.ts";
+import { emitTaskReordered } from "../../socket/realtime.ts";
 
 // LLamar al repository y realizar toda la lógica necesaria
 
@@ -267,6 +268,17 @@ export async function move({
   if (!movedTask) {
     throw new NotFoundError("Anchor task not found");
   }
+
+  // El unico mensaje que no sale de record: una reordenacion dentro de la misma columna no narra
+  // nada, asi que no deja evento, pero el tablero de los demas si tiene que enterarse. Se manda
+  // siempre; el cliente solo invalida, asi que repetirlo cuando ademas hubo cambio de columna no
+  // cuesta nada.
+  emitTaskReordered(project.id, {
+    actorId: userId,
+    taskId: movedTask.id,
+    status: movedTask.status,
+    rank: movedTask.rank,
+  });
 
   const isFavorite = await tasksRepository.isFavorited({ userId, taskId: movedTask.id });
 
