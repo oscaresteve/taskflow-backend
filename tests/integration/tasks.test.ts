@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { prisma } from "../../src/config/prisma.ts";
 import { getThisWeekRange } from "../../src/shared/utils/date-range.ts";
@@ -18,6 +18,11 @@ async function setupOwnerProject(overrides: Partial<{ timezone: string }> = {}) 
   const project = await createProject(owner.accessToken, workspace.slug);
   return { owner, workspace, project };
 }
+
+// Los dos filtros de fecha fijan el reloj, asi que hay que devolverlo aunque el test falle.
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("POST /workspaces/:workspaceSlug/projects/:projectSlug/tasks", () => {
   it("lets any project member (not just a manager) create tasks, numbered sequentially", async () => {
@@ -143,7 +148,12 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/tasks", () => {
     expect(res.body.data[0].isFavorite).toBe(true);
   });
 
+  // Reloj fijado a un miercoles. Con la hora real, "ahora + 1h" se desborda a la semana siguiente
+  // durante la ultima hora del domingo UTC y THIS_WEEK dejaba de encontrar la tarea.
   it("filters by dueDate=OVERDUE, THIS_WEEK and NONE", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-01-07T12:00:00.000Z"));
+
     const { owner, workspace, project } = await setupOwnerProject();
     const now = new Date();
     const overdue = await createTask(owner.accessToken, workspace.slug, project.slug, {
@@ -175,11 +185,18 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/tasks", () => {
     expect(noneRes.body.data.map((task: { id: string }) => task.id)).toEqual([noDueDate.id]);
   });
 
+  // Reloj fijado al lunes 2026-01-05 a las 02:00 UTC, el mismo instante que documenta
+  // tests/unit/date-range.test.ts: en Etc/GMT+12 (12h detras) todavia es domingo, asi que las dos
+  // zonas estan en semanas ISO distintas. Es la unica situacion en la que este test tiene
+  // material, y con la hora real solo se daba los lunes entre las 00:00 y las 12:00 UTC: el resto
+  // de la semana las dos zonas comparten semana, la de GMT+12 se desplaza 12h hacia delante y el
+  // limite de abajo se queda fuera de las dos.
   it("resolves dueDate=THIS_WEEK against the requesting user's own timezone, not the server's", async () => {
-    // 6h antes del inicio (UTC) de la semana actual: cae fuera de la semana en UTC, pero un
-    // usuario en Etc/GMT+12 (12h detras) todavia lo ve dentro de su propia semana, ya sea porque
-    // su lunes local empieza 12h mas tarde en UTC (misma semana) o porque para el todavia no ha
-    // empezado la semana nueva (semana anterior completa). En los dos casos el limite queda dentro.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-01-05T02:00:00.000Z"));
+
+    // 6h antes del inicio (UTC) de la semana actual: fuera de la semana que ve UTC, pero dentro de
+    // la que ve GMT+12, que para ese instante es la anterior y no acaba hasta el lunes a las 12:00.
     const utcWeek = getThisWeekRange(new Date(), "UTC");
     const dueDate = new Date(utcWeek.start.getTime() - 6 * 60 * 60 * 1000).toISOString();
 
