@@ -2,6 +2,24 @@
 
 Este repositorio es el backend de **TaskFlow**, una aplicación de gestión de proyectos y tareas organizada en workspaces. Es un proyecto pensado para aprender: la idea es tener una API REST "de verdad" (con auth, roles, tests...) pero con un código lo más simple y directo posible.
 
+El frontend vive en un repositorio aparte: [`taskflow-frontend`](https://github.com/oscaresteve/taskflow-frontend).
+
+## Demo
+
+**[taskflow.oscaresteve.dev](https://taskflow.oscaresteve.dev)** — `demo@taskflow.dev` / `Password123`, o directamente el botón **"Entrar como demo"** de la pantalla de login.
+
+Para levantarlo en local, con Docker corriendo:
+
+```bash
+pnpm demo
+```
+
+Encadena los cinco pasos de la puesta en marcha: copia el `.env` si no está, instala, levanta Docker, aplica las migraciones, carga los datos de ejemplo y arranca la API. **Vacía la base de datos de desarrollo** cada vez, porque siembra siempre.
+
+El frontend va aparte, en su repositorio: `pnpm dev` en `../taskflow-frontend`, y queda en `http://localhost:3000`.
+
+Si vas a tocar el código, mejor los pasos de uno en uno, que es el resto de este README.
+
 ## Stack
 
 - **Node.js** + **TypeScript**
@@ -9,8 +27,10 @@ Este repositorio es el backend de **TaskFlow**, una aplicación de gestión de p
 - **Prisma 7** como ORM, con **PostgreSQL** como base de datos (adaptador `pg`)
 - **Zod** para validar lo que llega en `body`/`params`/`query`
 - **JWT** (access + refresh token) para la autenticación, y **bcrypt** para las contraseñas
+- **socket.io** para los eventos en tiempo real (tablero, comentarios, notificaciones)
+- **S3** para los archivos subidos: **Cloudflare R2** en producción y **MinIO** en local, que habla la misma API
 - **Vitest** + **Supertest** para los tests de integración
-- **Docker Compose** para levantar Postgres en local (uno para dev y otro para tests)
+- **Docker Compose** para levantar Postgres y MinIO en local (de cada uno, una instancia para desarrollo y otra para los tests)
 
 Gestor de paquetes: **pnpm** (es el único soportado en este proyecto, no uses `npm` ni `yarn`).
 
@@ -18,7 +38,7 @@ Gestor de paquetes: **pnpm** (es el único soportado en este proyecto, no uses `
 
 - Node.js
 - pnpm
-- Docker y Docker Compose (para la base de datos)
+- Docker y Docker Compose (para la base de datos y el almacenamiento)
 
 ## Puesta en marcha
 
@@ -30,36 +50,43 @@ pnpm install
 
 ### 2. Variables de entorno
 
-Copia estas variables a un archivo `.env` en la raíz del proyecto:
-
-```env
-DATABASE_URL="postgresql://taskflow:taskflow@localhost:5432/taskflow?schema=public"
-PORT=3000
-BCRYPT_SALT_ROUNDS=12
-JWT_ACCESS_SECRET=cambia-esto-por-un-secreto-de-al-menos-32-caracteres
-JWT_ACCESS_EXPIRES_IN=15m
-JWT_REFRESH_SECRET=cambia-esto-tambien-por-otro-secreto-de-32-caracteres
-JWT_REFRESH_EXPIRES_IN=30d
+```bash
+cp .env.example .env
 ```
 
-Un par de notas sobre estas variables (se validan al arrancar el servidor, así que si falta alguna o no cumple el formato, el proceso no arranca):
+`.env.example` trae las 16 variables con valores que funcionan en local tal cual: son los que esperan los contenedores de `docker-compose.yml`, así que no hay que editar nada para arrancar.
+
+Las valida zod al arrancar (`src/config/env.ts`), de forma que si falta alguna o no cumple el formato el proceso no arranca y dice cuál. Las que tienen reglas que no se adivinan:
 
 - `BCRYPT_SALT_ROUNDS` tiene que estar entre 10 y 15.
-- `JWT_ACCESS_SECRET` y `JWT_REFRESH_SECRET` tienen que tener mínimo 32 caracteres. No hace falta que sean nada especial, solo texto largo y distinto en cada uno.
+- `JWT_ACCESS_SECRET` y `JWT_REFRESH_SECRET` tienen que tener mínimo 32 caracteres, y ser distintos entre sí. En local no hace falta que sean nada especial, solo texto largo.
+- `CORS_ORIGIN` es el origen del frontend (`http://localhost:3000`). Lo usan el `cors()` de Express y, por separado, el servidor de socket.io, porque el handshake de Engine.IO no pasa por los middlewares de Express. Admite un solo origen, no una lista.
+- Las `S3_*` apuntan al MinIO de Docker. `S3_FORCE_PATH_STYLE` va a `true` en local porque MinIO necesita path-style; R2 y S3 usan virtual-hosted-style.
 
-### 3. Levantar Postgres con Docker
+Para los valores de producción, mira [`docs/despliegue.md`](./docs/despliegue.md).
 
-El proyecto trae un `docker-compose.yml` con dos contenedores: uno para desarrollo (`localhost:5432`) y otro exclusivo para los tests (`localhost:5433`), para no mezclar datos.
+### 3. Levantar la base de datos y el almacenamiento con Docker
+
+`docker-compose.yml` levanta cuatro servicios, por parejas de desarrollo y tests para no mezclar datos:
+
+| Servicio        | Qué es                        | Puerto                     |
+| --------------- | ----------------------------- | -------------------------- |
+| `postgres`      | Postgres de desarrollo        | `5432`                     |
+| `postgres-test` | Postgres de los tests         | `5433`                     |
+| `minio`         | Almacenamiento de archivos    | `9000`, consola en `9001`  |
+| `minio-test`    | El de los tests               | `9002`, consola en `9003`  |
 
 ```bash
-pnpm db:up    # levanta los dos contenedores y espera a que estén listos
+pnpm db:up    # los levanta, espera a que estén listos y crea los buckets
 pnpm db:down  # los para
 ```
+
+`pnpm db:up` hace además una cosa que no se ve: lanza los jobs `minio-init` y `minio-test-init`, que crean el bucket y lo marcan como lectura pública. Están en su propio _profile_ de Compose precisamente para quedarse fuera del `up --wait`, porque un contenedor que termina —aunque termine bien— rompe el `--wait`.
 
 ### 4. Aplicar las migraciones
 
 ```bash
-pnpm dlx prisma migrate deploy
+pnpm exec prisma migrate deploy
 ```
 
 ### 5. (Opcional) Cargar datos de prueba
@@ -86,25 +113,26 @@ Las fechas son relativas al momento de ejecutarla, así que **cada vez que la re
 pnpm dev
 ```
 
-Arranca en `http://localhost:3000` (o el puerto que hayas puesto en `PORT`) con recarga automática al guardar cambios.
+Arranca en `http://localhost:4000` (el `PORT` de `.env.example`, que es el que espera el frontend por defecto) con recarga automática al guardar cambios. La API cuelga de `/api`; el socket, de `/socket.io`, fuera de `/api`.
 
 ## Scripts disponibles
 
 | Script            | Qué hace                                                 |
 | ----------------- | -------------------------------------------------------- |
 | `pnpm dev`        | Arranca el servidor en modo desarrollo (con hot reload)  |
+| `pnpm demo`       | Encadena la puesta en marcha entera y arranca la API (siembra siempre) |
 | `pnpm test`       | Corre toda la suite de tests una vez                     |
 | `pnpm test:watch` | Corre los tests en modo watch                            |
-| `pnpm db:up`      | Levanta los contenedores de Postgres (dev + test)        |
+| `pnpm db:up`      | Levanta los contenedores de Postgres y MinIO (dev + test)|
 | `pnpm db:down`    | Para los contenedores                                    |
 | `pnpm db:seed`    | Resetea la base de dev y la rellena con datos de ejemplo |
 
 Comandos de Prisma que se usan a menudo:
 
 ```bash
-pnpm dlx prisma migrate dev --name <nombre>    # crear y aplicar una migración nueva
-pnpm dlx prisma generate                       # regenerar el cliente de Prisma
-pnpm dlx prisma studio                         # abrir una UI para ver/editar la base de datos
+pnpm exec prisma migrate dev --name <nombre>   # crear y aplicar una migración nueva
+pnpm exec prisma generate                      # regenerar el cliente de Prisma
+pnpm exec prisma studio                        # abrir una UI para ver/editar la base de datos
 ```
 
 ## Estructura del proyecto
@@ -224,3 +252,12 @@ pnpm test:watch  # en modo watch
 ```
 
 Los tests son de integración: levantan la app de Express de verdad y le hacen peticiones HTTP con Supertest, usando el contenedor de Postgres dedicado a tests (`localhost:5433`, ver `pnpm db:up`). Antes de cada test se borran todas las filas de todas las tablas, así que cada test empieza siempre con la base de datos vacía.
+## Despliegue
+
+En producción el frontend va en Vercel, el backend en un servicio con dominio propio, la base de datos en Neon y los archivos subidos en Cloudflare R2. Todo está en [`docs/despliegue.md`](./docs/despliegue.md): variables de cada entorno, por qué el backend necesita un subdominio del mismo dominio que el frontend (si no, el login no funciona), y el checklist de lo que falta resolver antes del primer despliegue.
+
+## Documentación
+
+- [`docs/decisiones.md`](./docs/decisiones.md) — por qué este stack y no otro, backend y frontend.
+- [`docs/eventos-de-dominio.md`](./docs/eventos-de-dominio.md) — el diseño de la tabla de eventos que sostiene el historial, las notificaciones y el tiempo real.
+- [`docs/despliegue.md`](./docs/despliegue.md) — poner esto en producción.

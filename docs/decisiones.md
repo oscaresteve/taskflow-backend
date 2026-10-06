@@ -50,6 +50,14 @@ Para el transporte en vivo, socket.io en vez de `ws` a pelo: hacen falta salas p
 
 El diseño completo (esquema, catálogo de acciones, reglas de destinatarios, menciones, aristas conocidas y fases) está en `eventos-de-dominio.md`.
 
+### Hosting: Vercel (frontend) + subdominios del mismo dominio
+
+Frontend en Vercel bajo `taskflow.oscaresteve.dev`, y backend en un servicio de contenedores con un subdominio propio, `taskflow-api.oscaresteve.dev`.
+
+**Por qué el backend lleva dominio propio y no la URL que da la plataforma:** las cookies de sesión se emiten con `sameSite: "lax"`, que es el valor correcto para una aplicación como esta (no necesita que terceros sitios manden la cookie), pero exige que frontend y backend sean _same-site_. Dos subdominios de `oscaresteve.dev` lo son; `taskflow.vercel.app` y `taskflow-api.up.railway.app` no, porque son dominios registrables distintos, y ahí el navegador descarta la cookie y el login deja de funcionar. Poner el subdominio cuesta un `CNAME` y evita tener que relajar las cookies a `sameSite: "none"`.
+
+El detalle de cada variable, y lo que falta resolver antes del primer despliegue, está en [`despliegue.md`](./despliegue.md).
+
 ### Gestor de paquetes: pnpm (obligatorio)
 
 pnpm es seguro por defecto — sobre todo relevante después de los ataques recientes a la cadena de suministro de npm. Es el único gestor soportado en el proyecto.

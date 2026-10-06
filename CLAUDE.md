@@ -8,22 +8,24 @@ TaskFlow backend: an Express 5 + TypeScript REST API (project/task management, w
 
 ## Commands
 
-This project uses **pnpm** exclusively (enforced via `devEngines` in `package.json`) — never suggest `npm`/`npx`/`yarn` commands, including for one-off package runs (`pnpm dlx` instead of `npx`).
+This project uses **pnpm** exclusively (enforced via `devEngines` in `package.json`) — never suggest `npm`/`npx`/`yarn` commands, including for one-off package runs (`pnpm dlx` instead of `npx`). For a CLI that is already a dependency of the project, such as `prisma`, use `pnpm exec` so it runs the pinned version.
 
-- `pnpm db:up` — start local Postgres via Docker Compose (`docker-compose.yml`: a `postgres` container for dev on `localhost:5432` and a `postgres-test` container on `localhost:5433`), waiting for both to be healthy. `pnpm db:down` stops them. Required before `pnpm dev` or `pnpm test`.
-- `pnpm dev` — run the server with hot reload (`tsx watch src/server.ts`). There is no `build` or `start` script.
+- `pnpm db:up` — start the local infrastructure via Docker Compose, waiting for it to be healthy: `postgres` (dev, `localhost:5432`), `postgres-test` (`localhost:5433`), `minio` (dev file storage, `localhost:9000`, console on `9001`) and `minio-test` (`9002`/`9003`). It then runs the `minio-init`/`minio-test-init` one-shot jobs that create the upload bucket and make it publicly readable — they sit in their own Compose profile precisely so they stay out of `up --wait`, which a container that exits (even successfully) would break. `pnpm db:down` stops everything. Required before `pnpm dev` or `pnpm test`.
+- `pnpm dev` — run the server with hot reload (`tsx watch src/server.ts`). There is no `build` or `start` script (see `docs/despliegue.md` — that's a deployment blocker, not an oversight).
+- `pnpm demo` (`scripts/demo.sh`) — the setup steps in one command, backend only: copies `.env` from `.env.example` if missing, `pnpm install`, `db:up`, `migrate deploy`, `db:seed`, then `pnpm dev`. **It always seeds, so it wipes the dev database**; use `pnpm db:up && pnpm dev` to start without touching the data. It deliberately knows nothing about the frontend repo.
 - `pnpm test` — run the integration test suite once (`vitest run`); `pnpm test:watch` for watch mode. See Testing below.
 - No lint/format script is configured.
 - Prisma (schema lives at `src/prisma/schema.prisma`, migrations at `src/prisma/migrations`, config in `prisma.config.ts`):
-  - `pnpm dlx prisma migrate dev --name <name>` — create/apply a migration in dev.
-  - `pnpm dlx prisma generate` — regenerate the client into `src/prisma/generated/prisma`.
-  - `pnpm dlx prisma studio` — browse the dev DB.
+  - **`pnpm exec prisma ...`, never `pnpm dlx prisma ...`.** `dlx` fetches the latest Prisma, which is now an entirely different CLI (8.x, the Prisma Developer Platform): `migrate` was renamed to `migration` and `generate`/`studio` are gone, so every `dlx` invocation fails. `exec` runs the 7.9 pinned in `package.json`.
+  - `pnpm exec prisma migrate dev --name <name>` — create/apply a migration in dev.
+  - `pnpm exec prisma generate` — regenerate the client into `src/prisma/generated/prisma`.
+  - `pnpm exec prisma studio` — browse the dev DB.
   - `pnpm db:seed` (= `prisma db seed`, configured via `migrations.seed` in `prisma.config.ts`) — wipes the dev DB (same table order as `tests/setup/db.ts`) and recreates the demo dataset. Re-runnable any time (~2s), not run automatically by migrations. See Seed below.
   - The `prisma-cli` and `prisma-client-api` skills cover the rest of the CLI/query surface in detail.
 
 ### Required environment variables (`src/config/env.ts`, validated with zod at startup)
 
-`DATABASE_URL`, `PORT` (default 3000), `BCRYPT_SALT_ROUNDS` (10–15), `JWT_SECRET` (min 32 chars), `JWT_EXPIRES_IN`.
+Sixteen, all of them in `.env.example` with working local values (`cp .env.example .env` and the project runs): `DATABASE_URL`, `PORT` (default 3000, but 4000 in `.env.example` because that's what the frontend defaults to), `NODE_ENV` (`development`/`test`/`production`, default `development` — `cookies.ts` derives `secure` from it), `BCRYPT_SALT_ROUNDS` (10–15), `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` (min 32 chars each), `JWT_ACCESS_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN`, `CORS_ORIGIN` (a single origin, no list), and seven `S3_*` (`S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `S3_FORCE_PATH_STYLE`, `S3_PUBLIC_URL_BASE`). Production values and the deployment checklist live in `docs/despliegue.md`.
 
 ## Architecture
 
