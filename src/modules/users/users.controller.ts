@@ -1,8 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import type { UserParamsDto, UsersQueryDto } from "./schemas/users.schema.ts";
 import * as usersService from "./users.service.ts";
-import { toPaginatedUserResponseDto } from "./mappers/users.mapper.ts";
-import { toUserResponseDto } from "../auth/mappers/auth.mapper.ts";
+import { toPaginatedUserSummaryResponseDto, toUserProfileResponseDto } from "./mappers/users.mapper.ts";
 
 export async function findAll(req: Request, res: Response, next: NextFunction) {
   try {
@@ -11,7 +10,7 @@ export async function findAll(req: Request, res: Response, next: NextFunction) {
 
     const users = await usersService.findAll({ query, userId });
 
-    const usersResponse = toPaginatedUserResponseDto({
+    const usersResponse = toPaginatedUserSummaryResponseDto({
       users,
       page: query.page,
       limit: query.limit,
@@ -27,9 +26,9 @@ export async function findOne(req: Request, res: Response, next: NextFunction) {
   try {
     const params = req.validated.params as UserParamsDto;
 
-    const user = await usersService.findOne({ targetUserId: params.userId });
+    const user = await usersService.findOne({ targetUserId: params.userId, viewerId: req.user.id });
 
-    res.json(toUserResponseDto(user));
+    res.json(toUserProfileResponseDto(user));
   } catch (error) {
     next(error);
   }

@@ -107,7 +107,7 @@ clientes no recibiría nada; haría falta el adaptador de Redis. La ruta del soc
 
 ### Testing
 
-`tests/integration/<module>.test.ts` — one file per module (`auth`, `workspaces`, `workspace-members`, `projects`, `project-members`, `tasks`; `users` has no tests since that module isn't implemented). Tests run with Vitest + Supertest against the real Express `app` and a dedicated local Postgres container (`postgres-test` in `docker-compose.yml`, `localhost:5433`, separate from the dev container on `5432`):
+`tests/integration/<module>.test.ts` — one file per module (`auth`, `users`, `workspaces`, `workspace-members`, `projects`, `project-members`, `tasks`, `comments`, `overview`, `search`, `activity`, `notifications`, plus `socket` for the realtime channel). Tests run with Vitest + Supertest against the real Express `app` and a dedicated local Postgres container (`postgres-test` in `docker-compose.yml`, `localhost:5433`, separate from the dev container on `5432`):
 
 - `tests/setup/test-database-url.ts` — the shared `TEST_DATABASE_URL` constant pointing at the `postgres-test` container, imported by both `vitest.config.ts` and `global-setup.ts` so it lives in one place.
 - `tests/setup/global-setup.ts` — drops and recreates the `public` schema once per run via a raw `pg` client, then provisions it with `prisma migrate deploy`. Requires `pnpm db:up` to have been run first.

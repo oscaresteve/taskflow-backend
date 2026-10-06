@@ -7,9 +7,11 @@ export const usersQuerySchema = z.object({
 
   search: searchSchema,
 
-  // Al buscar usuarios para añadir a un workspace, excluye a quien ya tenga una fila de
-  // membresia en el (cualquier status: ACTIVE, PENDING o REMOVED).
-  workspaceSlug: slugSchema.optional(),
+  // Obligatorio: el unico alta a la que sirve este directorio es la de un workspace, asi que el
+  // slug hace dos cosas. Excluye a quien ya tenga una fila de membresia en el (cualquier status:
+  // ACTIVE, PENDING o REMOVED), y dice de que alta se trata, que es lo que decide quien puede
+  // mirar la lista.
+  workspaceSlug: slugSchema,
 });
 
 export const userParamsSchema = z.object({

@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { addActiveMember, app, createWorkspace, deactivateUser, signUp } from "../helpers/api.ts";
 
+const SUMMARY_KEYS = ["id", "firstName", "lastName", "avatarUrl", "email"].sort();
+const PROFILE_KEYS = [...SUMMARY_KEYS, "isActive", "createdAt", "lastLoginAt"].sort();
+
 describe("GET /users", () => {
   it("401s without a token", async () => {
     const res = await request(app).get("/api/users");
@@ -9,11 +12,23 @@ describe("GET /users", () => {
     expect(res.status).toBe(401);
   });
 
+  it("400s without a workspaceSlug", async () => {
+    const self = await signUp();
+
+    const res = await request(app).get("/api/users").set("Cookie", `accessToken=${self.accessToken}`);
+
+    expect(res.status).toBe(400);
+  });
+
   it("lists other active users but excludes the requester", async () => {
     const self = await signUp({ name: "Self User" });
     const other = await signUp({ name: "Other User" });
+    const workspace = await createWorkspace(self.accessToken);
 
-    const res = await request(app).get("/api/users").set("Cookie", `accessToken=${self.accessToken}`);
+    const res = await request(app)
+      .get("/api/users")
+      .query({ workspaceSlug: workspace.slug })
+      .set("Cookie", `accessToken=${self.accessToken}`);
 
     expect(res.status).toBe(200);
     const ids = res.body.data.map((u: { id: string }) => u.id);
@@ -21,12 +36,35 @@ describe("GET /users", () => {
     expect(ids).not.toContain(self.user.id);
   });
 
+  // El directorio lo ve gente que todavia no comparte espacio con estos candidatos, asi que la
+  // ficha entera (ultimo acceso, verificacion, zona horaria...) no sale de aqui.
+  it("returns only the candidate fields the picker needs", async () => {
+    const self = await signUp();
+    await signUp({ name: "Ada Lovelace" });
+    const workspace = await createWorkspace(self.accessToken);
+
+    const res = await request(app)
+      .get("/api/users")
+      .query({ workspaceSlug: workspace.slug })
+      .set("Cookie", `accessToken=${self.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBeGreaterThan(0);
+    for (const candidate of res.body.data) {
+      expect(Object.keys(candidate).sort()).toEqual(SUMMARY_KEYS);
+    }
+  });
+
   it("excludes deactivated users", async () => {
     const self = await signUp();
     const other = await signUp({ name: "Inactive User" });
     await deactivateUser(other.user.id);
+    const workspace = await createWorkspace(self.accessToken);
 
-    const res = await request(app).get("/api/users").set("Cookie", `accessToken=${self.accessToken}`);
+    const res = await request(app)
+      .get("/api/users")
+      .query({ workspaceSlug: workspace.slug })
+      .set("Cookie", `accessToken=${self.accessToken}`);
 
     const ids = res.body.data.map((u: { id: string }) => u.id);
     expect(ids).not.toContain(other.user.id);
@@ -36,28 +74,45 @@ describe("GET /users", () => {
     const self = await signUp();
     const match = await signUp({ name: "Ada Lovelace" });
     await signUp({ name: "Someone Else" });
+    const workspace = await createWorkspace(self.accessToken);
 
     const res = await request(app)
       .get("/api/users")
-      .query({ search: "ada" })
+      .query({ workspaceSlug: workspace.slug, search: "ada" })
       .set("Cookie", `accessToken=${self.accessToken}`);
 
     const ids = res.body.data.map((u: { id: string }) => u.id);
     expect(ids).toEqual([match.user.id]);
   });
 
-  it("filters by search matching email, case-insensitively", async () => {
+  it("filters by search matching a full email address, case-insensitively", async () => {
     const self = await signUp();
     const match = await signUp({ name: "Grace Hopper", email: "grace.hopper@example.com" });
     await signUp({ name: "Someone Else" });
+    const workspace = await createWorkspace(self.accessToken);
 
     const res = await request(app)
       .get("/api/users")
-      .query({ search: "GRACE.HOPPER" })
+      .query({ workspaceSlug: workspace.slug, search: "GRACE.HOPPER@EXAMPLE.COM" })
       .set("Cookie", `accessToken=${self.accessToken}`);
 
     const ids = res.body.data.map((u: { id: string }) => u.id);
     expect(ids).toEqual([match.user.id]);
+  });
+
+  // Dar de alta a quien ya conoces necesita su direccion entera; recolectar las de un dominio, no.
+  it("does not match a partial email address", async () => {
+    const self = await signUp();
+    await signUp({ name: "Grace Hopper", email: "grace.hopper@example.com" });
+    const workspace = await createWorkspace(self.accessToken);
+
+    const res = await request(app)
+      .get("/api/users")
+      .query({ workspaceSlug: workspace.slug, search: "@example.com" })
+      .set("Cookie", `accessToken=${self.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
   });
 
   it("paginates the results", async () => {
@@ -65,15 +120,58 @@ describe("GET /users", () => {
     for (let i = 0; i < 3; i += 1) {
       await signUp();
     }
+    const workspace = await createWorkspace(self.accessToken);
 
     const res = await request(app)
       .get("/api/users")
-      .query({ page: 1, limit: 2 })
+      .query({ workspaceSlug: workspace.slug, page: 1, limit: 2 })
       .set("Cookie", `accessToken=${self.accessToken}`);
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
     expect(res.body.pagination).toEqual(expect.objectContaining({ page: 1, limit: 2, total: 3 }));
+  });
+
+  // Mismo permiso que POST /members: quien no puede dar de alta a nadie tampoco lista candidatos.
+  it("403s when the requester is a plain MEMBER of the workspace", async () => {
+    const owner = await signUp();
+    const member = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get("/api/users")
+      .query({ workspaceSlug: workspace.slug })
+      .set("Cookie", `accessToken=${member.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("lets an ADMIN of the workspace list candidates", async () => {
+    const owner = await signUp();
+    const admin = await signUp();
+    const outsider = await signUp({ name: "Outsider" });
+    const workspace = await createWorkspace(owner.accessToken);
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: admin.user.id,
+      role: "ADMIN",
+    });
+
+    const res = await request(app)
+      .get("/api/users")
+      .query({ workspaceSlug: workspace.slug })
+      .set("Cookie", `accessToken=${admin.accessToken}`);
+
+    expect(res.status).toBe(200);
+    const ids = res.body.data.map((u: { id: string }) => u.id);
+    expect(ids).toContain(outsider.user.id);
   });
 
   describe("workspaceSlug filter", () => {
@@ -197,7 +295,7 @@ describe("GET /users/:userId", () => {
     expect(res.status).toBe(401);
   });
 
-  it("returns your own profile without exposing the password hash", async () => {
+  it("returns your own profile, with only the fields the card shows", async () => {
     const self = await signUp({ name: "Ada Lovelace", email: "ada@example.com" });
 
     const res = await request(app).get(`/api/users/${self.user.id}`).set("Cookie", `accessToken=${self.accessToken}`);
@@ -210,7 +308,7 @@ describe("GET /users/:userId", () => {
       email: "ada@example.com",
       isActive: true,
     });
-    expect(res.body).not.toHaveProperty("passwordHash");
+    expect(Object.keys(res.body).sort()).toEqual(PROFILE_KEYS);
   });
 
   it("returns a user you share a workspace with", async () => {
@@ -232,7 +330,8 @@ describe("GET /users/:userId", () => {
     expect(res.body.id).toBe(owner.user.id);
   });
 
-  it("returns a user you share no workspace with", async () => {
+  // 404 y no 403, para no confirmar que la cuenta existe a quien no comparte nada con ella.
+  it("404s for a user you share no workspace with", async () => {
     const self = await signUp();
     const stranger = await signUp();
 
@@ -240,8 +339,7 @@ describe("GET /users/:userId", () => {
       .get(`/api/users/${stranger.user.id}`)
       .set("Cookie", `accessToken=${self.accessToken}`);
 
-    expect(res.status).toBe(200);
-    expect(res.body.id).toBe(stranger.user.id);
+    expect(res.status).toBe(404);
   });
 
   it("404s when the user does not exist", async () => {
