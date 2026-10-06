@@ -26,6 +26,37 @@ describe("POST /workspaces/:workspaceSlug/projects", () => {
     expect(members.body.data).toContainEqual(expect.objectContaining({ userId: owner.user.id, role: "OWNER" }));
   });
 
+  // Un nombre que empieza por emoji daba el slug "-launch", que slugSchema rechaza: el proyecto se
+  // creaba y salía en el listado, pero ninguna ruta volvía a encontrarlo.
+  it("keeps the project reachable when the name does not slugify cleanly", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "🚀 Launch", key: "LNCH" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.slug).toBe("launch");
+
+    const reread = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${res.body.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(reread.status).toBe(200);
+  });
+
+  it("rejects a name with no sluggable characters instead of creating an unreachable project", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "日本語", key: "JP" });
+
+    expect(res.status).toBe(400);
+  });
+
   it("forbids a plain workspace MEMBER from creating a project", async () => {
     const { owner, workspace } = await setupOwnerWorkspace();
     const memberUser = await signUp();
@@ -229,6 +260,27 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug", () => {
       .send({ name: "New Name" });
 
     expect(res.status).toBe(200);
+  });
+
+  // Renombrar recalcula el slug, así que es la otra puerta al mismo fallo: el proyecto quedaba
+  // inalcanzable después de un rename, y el propio PATCH para deshacerlo también pide el slug.
+  it("renames into a slug the routes accept", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "🚀 Launch" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.slug).toBe("launch");
+
+    const reread = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${res.body.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(reread.status).toBe(200);
   });
 });
 

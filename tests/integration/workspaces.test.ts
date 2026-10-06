@@ -18,6 +18,32 @@ describe("POST /workspaces", () => {
       expect.objectContaining({ userId: owner.user.id, role: "OWNER", status: "ACTIVE" }),
     );
   });
+
+  // Un nombre que empieza por emoji daba el slug "-launch", que slugSchema rechaza: la fila se
+  // creaba y salía en el listado, pero ninguna ruta volvía a encontrarla.
+  it("keeps the workspace reachable when the name does not slugify cleanly", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken, "🚀 Launch");
+
+    expect(workspace.slug).toBe("launch");
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects a name with no sluggable characters instead of creating an unreachable workspace", async () => {
+    const owner = await signUp();
+
+    const res = await request(app)
+      .post("/api/workspaces")
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "日本語" });
+
+    expect(res.status).toBe(400);
+  });
 });
 
 describe("GET /workspaces", () => {
@@ -191,6 +217,27 @@ describe("PATCH /workspaces/:slug", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.name).toBe("New Name");
+  });
+
+  // Renombrar recalcula el slug, así que es la otra puerta al mismo fallo: el workspace quedaba
+  // inalcanzable después de un rename, y el propio PATCH para deshacerlo también pide el slug.
+  it("renames into a slug the routes accept", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "🚀 Launch" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.slug).toBe("launch");
+
+    const reread = await request(app)
+      .get(`/api/workspaces/${res.body.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(reread.status).toBe(200);
   });
 });
 

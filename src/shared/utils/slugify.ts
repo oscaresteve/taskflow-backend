@@ -7,5 +7,6 @@ export default function slugify(text: string) {
     .trim()
     .replace(/[^a-z0-9\s-]/g, "") // Elimina caracteres especiales
     .replace(/\s+/g, "-") // Espacios -> -
-    .replace(/-+/g, "-"); // Evita -- repetidos
+    .replace(/-+/g, "-") // Evita -- repetidos
+    .replace(/^-+|-+$/g, ""); // Sin guiones en los extremos: slugSchema los rechaza
 }

@@ -3,28 +3,20 @@ import {
   booleanQueryParamSchema,
   descriptionSchema,
   limitSchema,
+  nameSchema,
   pageSchema,
   searchSchema,
   sortOrderSchema,
 } from "../../../shared/schemas/common.schema.ts";
 
 export const createWorkspaceSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(2, "Name must be at least 2 characters long")
-    .max(100, "Name cannot exceed 100 characters"),
+  name: nameSchema,
   description: descriptionSchema,
 });
 
 export const updateWorkspaceSchema = z
   .object({
-    name: z
-      .string()
-      .trim()
-      .min(2, "Name must be at least 2 characters long")
-      .max(100, "Name cannot exceed 100 characters")
-      .optional(),
+    name: nameSchema.optional(),
     description: descriptionSchema.nullable(),
   })
   .refine((data) => Object.keys(data).length > 0, "At least one field must be provided");

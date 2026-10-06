@@ -1,4 +1,5 @@
 import { z } from "zod";
+import slugify from "../utils/slugify.ts";
 
 // Slug con formato "palabra-palabra", usado en los params de workspaces, projects, etc.
 export const slugSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug format is invalid");
@@ -19,6 +20,16 @@ export const usernameSchema = z
   .min(3, "Username must be at least 3 characters long")
   .max(30, "Username cannot exceed 30 characters")
   .regex(/^[a-z0-9_]+$/, "Username can only contain lowercase letters, numbers and underscores");
+
+// El nombre de un workspace o proyecto. Ademas del largo exige que deje algo slugificable: el slug
+// sale del nombre y toda la API direcciona por slug, asi que un nombre que slugifica a "" crearia
+// una fila que ninguna ruta podria volver a pedir.
+export const nameSchema = z
+  .string()
+  .trim()
+  .min(2, "Name must be at least 2 characters long")
+  .max(100, "Name cannot exceed 100 characters")
+  .refine((value) => slugify(value) !== "", "Name must contain at least one letter or number");
 
 export const descriptionSchema = z.string().trim().max(500, "Description cannot exceed 500 characters").optional();
 
