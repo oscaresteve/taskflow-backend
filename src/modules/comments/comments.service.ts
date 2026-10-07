@@ -1,5 +1,6 @@
 import type { CommentQueryDto, CreateCommentDto, UpdateCommentDto } from "./schemas/comments.schema.ts";
 import type { Comment } from "../../shared/types/prisma.types.ts";
+import type { ActivityEventInput } from "../activity/types/activity.types.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import * as authorizationRepository from "../../shared/auth/authorization.repository.ts";
 import { extractMentionedUserIds } from "../../shared/utils/mentions.ts";
@@ -123,16 +124,28 @@ export async function update({
   const reference = { taskNumber: task.taskNumber, taskTitle: task.title, commentId };
 
   const events: ActivityEventInput[] = [
-      {
-        workspaceId: project.workspaceId,
-        projectId: project.id,
-        taskId: task.id,
-        actorId: userId,
-        action: "COMMENT_EDITED",
-        payload: { taskNumber: task.taskNumber, taskTitle: task.title, commentId },
-      },
-    ],
-  });
+    {
+      workspaceId: project.workspaceId,
+      projectId: project.id,
+      taskId: task.id,
+      actorId: userId,
+      action: "COMMENT_EDITED",
+      payload: reference,
+    },
+  ];
+
+  if (mentions.length > 0) {
+    events.push({
+      workspaceId: project.workspaceId,
+      projectId: project.id,
+      taskId: task.id,
+      actorId: userId,
+      action: "COMMENT_MENTIONED",
+      payload: { ...reference, mentions },
+    });
+  }
+
+  const newComment = await commentsRepository.update({ data, commentId, events });
 
   return newComment;
 }

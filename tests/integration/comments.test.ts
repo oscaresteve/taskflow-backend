@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
+import { prisma } from "../../src/config/prisma.ts";
 import {
   addActiveMember,
   addActiveProjectMember,
@@ -98,6 +99,24 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
     expect(res.status).toBe(200);
     expect(res.body.content).toBe("Updated content");
     expect(res.body.editedAt).not.toBeNull();
+  });
+
+  // Reenviar el mismo texto no es editar. El PATCH sigue respondiendo 200 con el comentario, pero
+  // ni lo marca como editado ni deja una linea en el historial.
+  it("leaves editedAt and the history untouched when the content comes back unchanged", async () => {
+    const { owner, workspace, project, task } = await setupOwnerProjectTask();
+    const comment = await createComment(owner.accessToken, workspace.slug, project.slug, task.taskNumber, {
+      content: "El mismo texto",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments/${comment.id}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ content: "El mismo texto" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.editedAt).toBeNull();
+    await expect(prisma.activityEvent.count({ where: { action: "COMMENT_EDITED" } })).resolves.toBe(0);
   });
 
   it("409s when the comment is already deleted", async () => {
