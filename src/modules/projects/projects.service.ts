@@ -6,7 +6,7 @@ import { ConflictError } from "../../shared/errors/conflict-error.ts";
 import { NotFoundError } from "../../shared/errors/not-found-error.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
-import { requireWorkspaceManager } from "../../shared/auth/permissions.ts";
+import { requireWorkspaceManager, requireWorkspaceOrProjectManager } from "../../shared/auth/permissions.ts";
 import type { ActivityEventInput, ProjectEditedField } from "../activity/types/activity.types.ts";
 
 // LLamar al repository y realizar toda la lógica necesaria
@@ -98,14 +98,15 @@ export async function update({
   projectSlug: string;
 }): Promise<Project & { isFavorite: boolean }> {
   // Obtener el contexto
-  const { workspace, workspaceMember, project } = await authorizationService.getProjectContext({
-    userId,
-    workspaceSlug,
-    projectSlug,
-  });
+  const { workspace, workspaceMember, project, projectMember } =
+    await authorizationService.getProjectContextAllowingWorkspaceManager({
+      userId,
+      workspaceSlug,
+      projectSlug,
+    });
 
   // Comprobar permisos
-  requireWorkspaceManager(workspaceMember);
+  requireWorkspaceOrProjectManager({ workspaceMember, projectMember });
 
   // Si cambia el nombre, generar nuevo slug unico en el workspace
   let newSlug = project.slug;
@@ -156,14 +157,15 @@ export async function archive({
   projectSlug: string;
 }): Promise<void> {
   // Obtener el contexto
-  const { workspace, workspaceMember, project } = await authorizationService.getProjectContext({
-    userId,
-    workspaceSlug,
-    projectSlug,
-  });
+  const { workspace, workspaceMember, project, projectMember } =
+    await authorizationService.getProjectContextAllowingWorkspaceManager({
+      userId,
+      workspaceSlug,
+      projectSlug,
+    });
 
   // Comprobar permisos
-  requireWorkspaceManager(workspaceMember);
+  requireWorkspaceOrProjectManager({ workspaceMember, projectMember });
 
   // Comprobar que no este ya archivado
   if (project.isArchived === true) throw new ConflictError("Project is already archived");

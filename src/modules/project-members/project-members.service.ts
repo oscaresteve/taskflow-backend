@@ -8,9 +8,10 @@ import type {
 import * as projectMembersRepository from "./project-members.repository.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import {
+  isWorkspaceManager,
   requireCanAssignProjectRole,
   requireCanManageProjectMember,
-  requireProjectManager,
+  requireWorkspaceOrProjectManager,
 } from "../../shared/auth/permissions.ts";
 import { WorkspaceMemberStatus, type ProjectMember, type User } from "../../shared/types/prisma.types.ts";
 import { BadRequestError } from "../../shared/errors/bad-request-error.ts";
@@ -105,19 +106,24 @@ export async function create({
   projectSlug: string;
 }): Promise<ProjectMember> {
   // Obtener contexto
-  const { project, projectMember } = await authorizationService.getProjectContext({
-    userId,
-    workspaceSlug,
-    projectSlug,
-  });
+  const { project, workspaceMember, projectMember } =
+    await authorizationService.getProjectContextAllowingWorkspaceManager({
+      userId,
+      workspaceSlug,
+      projectSlug,
+    });
 
   // Comprobar permisos
-  requireProjectManager(projectMember);
+  requireWorkspaceOrProjectManager({ workspaceMember, projectMember });
 
-  requireCanAssignProjectRole({
-    actor: projectMember,
-    role: data.role,
-  });
+  // Si el mando viene del espacio, quien actua esta por encima de cualquier rol del proyecto, asi
+  // que la jerarquia interna (un ADMIN no asigna OWNER) no le aplica.
+  if (!isWorkspaceManager(workspaceMember) && projectMember) {
+    requireCanAssignProjectRole({
+      actor: projectMember,
+      role: data.role,
+    });
+  }
 
   // Comprobar que el objetivo es miembro del workspace
   const { workspaceMemberTarget } = await authorizationService.getWorkspaceMemberTarget({
@@ -172,14 +178,15 @@ export async function update({
   projectMemberUserId: string;
 }): Promise<ProjectMember> {
   // Obtener contexto
-  const { project, projectMember } = await authorizationService.getProjectContext({
-    userId,
-    workspaceSlug,
-    projectSlug,
-  });
+  const { project, workspaceMember, projectMember } =
+    await authorizationService.getProjectContextAllowingWorkspaceManager({
+      userId,
+      workspaceSlug,
+      projectSlug,
+    });
 
   // Comprobar permisos
-  requireProjectManager(projectMember);
+  requireWorkspaceOrProjectManager({ workspaceMember, projectMember });
 
   // Obtener el miembro objetivo
   const { projectMemberTarget } = await authorizationService.getProjectMemberTarget({
@@ -196,17 +203,21 @@ export async function update({
     throw new BadRequestError("Inactive members cannot be updated");
   }
 
-  // ADMIN no puede administrar un OWNER
-  requireCanManageProjectMember({
-    actor: projectMember,
-    target: projectMemberTarget,
-  });
+  // Si el mando viene del espacio, quien actua esta por encima de cualquier rol del proyecto, asi
+  // que la jerarquia interna no le aplica.
+  if (!isWorkspaceManager(workspaceMember) && projectMember) {
+    // ADMIN no puede administrar un OWNER
+    requireCanManageProjectMember({
+      actor: projectMember,
+      target: projectMemberTarget,
+    });
 
-  // ADMIN no puede asignar el rol OWNER
-  requireCanAssignProjectRole({
-    actor: projectMember,
-    role: data.role,
-  });
+    // ADMIN no puede asignar el rol OWNER
+    requireCanAssignProjectRole({
+      actor: projectMember,
+      role: data.role,
+    });
+  }
 
   // Evitar actualización innecesaria
   if (projectMemberTarget.role === data.role) {
@@ -244,14 +255,15 @@ export async function deactivate({
   projectMemberUserId: string;
 }): Promise<void> {
   // Obtener contexto
-  const { project, projectMember } = await authorizationService.getProjectContext({
-    userId,
-    workspaceSlug,
-    projectSlug,
-  });
+  const { project, workspaceMember, projectMember } =
+    await authorizationService.getProjectContextAllowingWorkspaceManager({
+      userId,
+      workspaceSlug,
+      projectSlug,
+    });
 
   // Comprobar permisos
-  requireProjectManager(projectMember);
+  requireWorkspaceOrProjectManager({ workspaceMember, projectMember });
 
   // Obtener el miembro objetivo
   const { projectMemberTarget } = await authorizationService.getProjectMemberTarget({
@@ -263,11 +275,15 @@ export async function deactivate({
     throw new BadRequestError("You cannot deactivate yourself");
   }
 
-  // ADMIN no puede administrar un OWNER
-  requireCanManageProjectMember({
-    actor: projectMember,
-    target: projectMemberTarget,
-  });
+  // Si el mando viene del espacio, quien actua esta por encima de cualquier rol del proyecto, asi
+  // que la jerarquia interna no le aplica.
+  if (!isWorkspaceManager(workspaceMember) && projectMember) {
+    // ADMIN no puede administrar un OWNER
+    requireCanManageProjectMember({
+      actor: projectMember,
+      target: projectMemberTarget,
+    });
+  }
 
   // No modificar inactivos
   if (!projectMemberTarget.isActive) {

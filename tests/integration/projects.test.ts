@@ -8,6 +8,42 @@ async function setupOwnerWorkspace() {
   return { owner, workspace };
 }
 
+// Un manager del espacio que se quedo fuera del proyecto. Quien crea un proyecto queda project
+// OWNER automaticamente, asi que lo tiene que crear otro para que `owner` no sea miembro de el.
+async function setupProjectOwnerIsOutside() {
+  const owner = await signUp();
+  const workspace = await createWorkspace(owner.accessToken);
+  const builder = await signUp();
+  await addActiveMember({
+    managerAccessToken: owner.accessToken,
+    workspaceSlug: workspace.slug,
+    targetUserId: builder.user.id,
+    role: "ADMIN",
+  });
+  const project = await createProject(builder.accessToken, workspace.slug);
+
+  return { owner, workspace, builder, project };
+}
+
+// Un MEMBER raso del espacio, sin rol en el proyecto ni pertenencia a el.
+async function addPlainWorkspaceMember({
+  owner,
+  workspaceSlug,
+}: {
+  owner: Awaited<ReturnType<typeof signUp>>;
+  workspaceSlug: string;
+}) {
+  const user = await signUp();
+  await addActiveMember({
+    managerAccessToken: owner.accessToken,
+    workspaceSlug,
+    targetUserId: user.user.id,
+    role: "MEMBER",
+  });
+
+  return user;
+}
+
 describe("POST /workspaces/:workspaceSlug/projects", () => {
   it("lets a workspace manager create a project and makes them the project OWNER", async () => {
     const { owner, workspace } = await setupOwnerWorkspace();
@@ -210,7 +246,7 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug", () => {
 });
 
 describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug", () => {
-  it("forbids a project OWNER who is only a workspace MEMBER (permission is workspace-level)", async () => {
+  it("lets a project OWNER who is only a workspace MEMBER update the project", async () => {
     const { owner, workspace } = await setupOwnerWorkspace();
     const project = await createProject(owner.accessToken, workspace.slug);
     const memberUser = await signUp();
@@ -233,7 +269,8 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug", () => {
       .set("Cookie", `accessToken=${memberUser.accessToken}`)
       .send({ name: "New Name" });
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe("New Name");
   });
 
   it("lets a workspace ADMIN who is only a project MEMBER update the project", async () => {
@@ -264,6 +301,50 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug", () => {
 
   // Renombrar recalcula el slug, así que es la otra puerta al mismo fallo: el proyecto quedaba
   // inalcanzable después de un rename, y el propio PATCH para deshacerlo también pide el slug.
+  it("lets a workspace OWNER who is not a project member rename it", async () => {
+    const { owner, workspace, project } = await setupProjectOwnerIsOutside();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "New Name" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe("New Name");
+  });
+
+  it("forbids a plain workspace MEMBER who is not a project member", async () => {
+    const { owner, workspace, project } = await setupProjectOwnerIsOutside();
+    const outsider = await addPlainWorkspaceMember({ owner, workspaceSlug: workspace.slug });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`)
+      .send({ name: "New Name" });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("forbids someone who is only a MEMBER of both the workspace and the project", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    const memberUser = await addPlainWorkspaceMember({ owner, workspaceSlug: workspace.slug });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`)
+      .send({ name: "New Name" });
+
+    expect(res.status).toBe(403);
+  });
+
   it("renames into a slug the routes accept", async () => {
     const { owner, workspace } = await setupOwnerWorkspace();
     const project = await createProject(owner.accessToken, workspace.slug);
@@ -294,6 +375,27 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/archive", () =>
       .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(204);
+  });
+
+  it("lets a workspace OWNER who is not a project member archive it", async () => {
+    const { owner, workspace, project } = await setupProjectOwnerIsOutside();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+  });
+
+  it("forbids a plain workspace MEMBER who is not a project member from archiving", async () => {
+    const { owner, workspace, project } = await setupProjectOwnerIsOutside();
+    const outsider = await addPlainWorkspaceMember({ owner, workspaceSlug: workspace.slug });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/archive`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
+
+    expect(res.status).toBe(403);
   });
 
   it("404s on a second archive (an archived project is no longer reachable by slug)", async () => {

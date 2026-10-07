@@ -16,6 +16,24 @@ async function setupOwnerProject() {
   return { owner, workspace, project };
 }
 
+// Igual que setupOwnerProject pero con `owner` fuera del proyecto: lo crea otro, porque quien crea
+// un proyecto queda project OWNER automaticamente. Es el caso que dejaba sin salida al dueño del
+// espacio: no podia administrar el proyecto ni añadirse a el.
+async function setupProjectOwnerIsOutside() {
+  const owner = await signUp();
+  const workspace = await createWorkspace(owner.accessToken);
+  const builder = await signUp();
+  await addActiveMember({
+    managerAccessToken: owner.accessToken,
+    workspaceSlug: workspace.slug,
+    targetUserId: builder.user.id,
+    role: "ADMIN",
+  });
+  const project = await createProject(builder.accessToken, workspace.slug);
+
+  return { owner, workspace, builder, project };
+}
+
 describe("POST /workspaces/:workspaceSlug/projects/:projectSlug/members", () => {
   it("lets the project OWNER add an active workspace member", async () => {
     const { owner, workspace, project } = await setupOwnerProject();
@@ -35,6 +53,18 @@ describe("POST /workspaces/:workspaceSlug/projects/:projectSlug/members", () => 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({ userId: invitee.user.id, role: "MEMBER", isActive: true });
     expect(res.body.joinedAt).not.toBeNull();
+  });
+
+  it("lets a workspace OWNER who is not a project member add one, so they can add themselves back", async () => {
+    const { owner, workspace, project } = await setupProjectOwnerIsOutside();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: owner.user.id, role: "OWNER" });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ userId: owner.user.id, role: "OWNER" });
   });
 
   it("400s when the target is not yet an active workspace member (still PENDING)", async () => {
@@ -308,6 +338,20 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId
     expect(res.status).toBe(400);
   });
 
+  it("lets a workspace manager outside the project change the project OWNER's role", async () => {
+    const { owner, workspace, builder, project } = await setupProjectOwnerIsOutside();
+
+    // El mando viene del espacio, no del proyecto, asi que la jerarquia interna del proyecto
+    // (un ADMIN no toca a un OWNER) no le aplica: aqui `builder` es el OWNER del proyecto.
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${builder.user.id}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ role: "MEMBER" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ userId: builder.user.id, role: "MEMBER" });
+  });
+
   it("forbids an ADMIN from changing an OWNER's role", async () => {
     const { owner, workspace, project } = await setupOwnerProject();
     const adminUser = await signUp();
@@ -400,6 +444,16 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId
       .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(400);
+  });
+
+  it("lets a workspace manager outside the project deactivate the project OWNER", async () => {
+    const { owner, workspace, builder, project } = await setupProjectOwnerIsOutside();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${builder.user.id}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
   });
 
   it("forbids an ADMIN from deactivating an OWNER", async () => {

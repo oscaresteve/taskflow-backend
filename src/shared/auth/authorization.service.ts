@@ -55,6 +55,40 @@ export async function getWorkspaceMemberTarget({
   };
 }
 
+// Igual que getProjectContext pero sin exigir pertenencia al proyecto: `projectMember` viene null si
+// el usuario no esta en el proyecto. Lo usan las acciones que tambien puede hacer quien manda en el
+// espacio, que por eso no pueden dejar que el cargador lance antes de mirar el rol.
+export async function getProjectContextAllowingWorkspaceManager({
+  userId,
+  workspaceSlug,
+  projectSlug,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+}): Promise<{
+  workspace: Workspace;
+  workspaceMember: WorkspaceMember;
+  project: Project;
+  // Puede venir desactivado: quien decide si eso da mando es requireWorkspaceOrProjectManager.
+  projectMember: ProjectMember | null;
+}> {
+  const { workspace, workspaceMember } = await getWorkspaceContext({ userId, workspaceSlug });
+
+  // Proyecto existe
+  const project = await authorizationRepository.findProjectBySlug({ workspaceId: workspace.id, slug: projectSlug });
+  if (!project) throw new NotFoundError("Project not found");
+
+  const projectMember = await authorizationRepository.findProjectMember({ userId, projectId: project.id });
+
+  return {
+    workspace,
+    workspaceMember,
+    project,
+    projectMember,
+  };
+}
+
 export async function getProjectContext({
   userId,
   workspaceSlug,
@@ -69,25 +103,13 @@ export async function getProjectContext({
   project: Project;
   projectMember: ProjectMember;
 }> {
-  // Workspace existe
-  const workspace = await authorizationRepository.findWorkspaceBySlug(workspaceSlug);
-  if (!workspace) throw new NotFoundError("Workspace not found");
+  const { workspace, workspaceMember, project, projectMember } = await getProjectContextAllowingWorkspaceManager({
+    userId,
+    workspaceSlug,
+    projectSlug,
+  });
 
   // El usuario es miembro
-  const workspaceMember = await authorizationRepository.findWorkspaceMember({ userId, workspaceId: workspace.id });
-  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
-
-  // Los miembros pendientes o eliminados no tienen acceso al workspace
-  if (workspaceMember.status !== WorkspaceMemberStatus.ACTIVE) {
-    throw new ForbiddenError("You are not an active member of this workspace");
-  }
-
-  // Proyecto existe
-  const project = await authorizationRepository.findProjectBySlug({ workspaceId: workspace.id, slug: projectSlug });
-  if (!project) throw new NotFoundError("Project not found");
-
-  // El usuario es miembro
-  const projectMember = await authorizationRepository.findProjectMember({ userId, projectId: project.id });
   if (!projectMember) {
     throw new ForbiddenError("You are not a member of this project");
   }

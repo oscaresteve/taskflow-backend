@@ -7,9 +7,13 @@ import {
 } from "../types/prisma.types.ts";
 import { ForbiddenError } from "../errors/forbidden-error.ts";
 
-export function requireWorkspaceManager(workspaceMember: WorkspaceMember): void {
+export function isWorkspaceManager(workspaceMember: WorkspaceMember): boolean {
   // OWNER o ADMIN pueden administrar el workspace
-  if (workspaceMember.role !== WorkspaceRole.OWNER && workspaceMember.role !== WorkspaceRole.ADMIN) {
+  return workspaceMember.role === WorkspaceRole.OWNER || workspaceMember.role === WorkspaceRole.ADMIN;
+}
+
+export function requireWorkspaceManager(workspaceMember: WorkspaceMember): void {
+  if (!isWorkspaceManager(workspaceMember)) {
     throw new ForbiddenError("You have not permissions to manage this workspace");
   }
 }
@@ -34,11 +38,31 @@ export function requireCanAssignWorkspaceRole({ actor, role }: { actor: Workspac
   }
 }
 
-export function requireProjectManager(projectMember: ProjectMember): void {
+export function isProjectManager(projectMember: ProjectMember): boolean {
   // OWNER o ADMIN pueden administrar el proyecto
-  if (projectMember.role !== ProjectRole.OWNER && projectMember.role !== ProjectRole.ADMIN) {
+  return projectMember.role === ProjectRole.OWNER || projectMember.role === ProjectRole.ADMIN;
+}
+
+export function requireProjectManager(projectMember: ProjectMember): void {
+  if (!isProjectManager(projectMember)) {
     throw new ForbiddenError("You have not permissions to manage this project");
   }
+}
+
+// Un proyecto lo administra quien manda en el proyecto o quien manda en el espacio que lo contiene,
+// asi que un OWNER del espacio puede editarlo sin haberse añadido nunca a el. Una pertenencia
+// desactivada no da mando, pero el rol del espacio sigue valiendo.
+export function requireWorkspaceOrProjectManager({
+  workspaceMember,
+  projectMember,
+}: {
+  workspaceMember: WorkspaceMember;
+  projectMember: ProjectMember | null;
+}): void {
+  if (isWorkspaceManager(workspaceMember)) return;
+  if (projectMember?.isActive && isProjectManager(projectMember)) return;
+
+  throw new ForbiddenError("You have not permissions to manage this project");
 }
 
 export function requireCanManageProjectMember({
