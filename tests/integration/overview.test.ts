@@ -17,7 +17,6 @@ async function setupOwnerProject(projectOverrides: Partial<{ name: string; key: 
   return { owner, workspace, project };
 }
 
-// El endpoint de creación no acepta dueDate, así que lo fijamos con un PATCH aparte.
 async function setDueDate({
   actorAccessToken,
   workspaceSlug,
@@ -41,8 +40,8 @@ async function setDueDate({
   }
 }
 
-// Igual que setDueDate: llevar una tarea a DONE fija completedAt, que es lo que alimenta
-// completedLast7Days/completionRate.
+// Llevar una tarea a DONE fija completedAt, que es lo que alimenta completedLast7Days y
+// completionRate.
 async function setStatus({
   actorAccessToken,
   workspaceSlug,
