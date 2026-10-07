@@ -48,6 +48,11 @@ function recipientsFor(event: ActivityEventInput, taskParties: Map<string, TaskP
     case "COMMENT_CREATED":
       return [...event.payload.mentions, parties?.assigneeId ?? null, parties?.createdById ?? null];
 
+    // El evento ya trae a quien avisar, asi que no depende de quien este en la tarea: mencionarte no
+    // es asignarte.
+    case "COMMENT_MENTIONED":
+      return [...event.payload.mentions];
+
     case "TASK_ASSIGNEE_CHANGED":
       return [event.payload.to];
 

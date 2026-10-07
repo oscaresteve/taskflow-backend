@@ -4,10 +4,12 @@ import {
   addActiveMember,
   addActiveProjectMember,
   app,
+  createComment,
   createProject,
   createTask,
   createWorkspace,
   signUp,
+  updateComment,
 } from "../helpers/api.ts";
 
 type Notification = {
@@ -122,6 +124,81 @@ describe("GET /notifications", () => {
     );
 
     expect(comments).toHaveLength(1);
+  });
+
+  // Mencionar a alguien editando le señala igual que mencionarle en un comentario nuevo. Va en su
+  // propio evento porque la frase del historial ("edito un comentario") no le dice al mencionado
+  // por que le suena la campanita.
+  it("notifies a user newly mentioned while editing a comment", async () => {
+    const { owner, workspace, project, member } = await setupProjectWithMember();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    const comment = await createComment(owner.accessToken, workspace.slug, project.slug, task.taskNumber, {
+      content: "Sin menciones",
+    });
+
+    await updateComment(
+      owner.accessToken,
+      workspace.slug,
+      project.slug,
+      task.taskNumber,
+      comment.id,
+      `Ahora si @[Someone](${member.user.id})`,
+    );
+
+    const res = await listNotifications(member.accessToken);
+    const comments = (res.body.data as Notification[]).filter((notification) =>
+      notification.event.action.startsWith("COMMENT_"),
+    );
+
+    expect(comments).toHaveLength(1);
+    expect(comments[0].event.action).toBe("COMMENT_MENTIONED");
+    expect(comments[0].event.payload.mentions).toEqual([member.user.id]);
+  });
+
+  it("does not notify someone who was already mentioned before the edit", async () => {
+    const { owner, workspace, project, member } = await setupProjectWithMember();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    const comment = await createComment(owner.accessToken, workspace.slug, project.slug, task.taskNumber, {
+      content: `Mira esto @[Someone](${member.user.id})`,
+    });
+
+    await updateComment(
+      owner.accessToken,
+      workspace.slug,
+      project.slug,
+      task.taskNumber,
+      comment.id,
+      `Mira esto @[Someone](${member.user.id}), es urgente`,
+    );
+
+    const res = await listNotifications(member.accessToken);
+    const actions = (res.body.data as Notification[])
+      .map((notification) => notification.event.action)
+      .filter((action) => action.startsWith("COMMENT_"));
+
+    expect(actions).toEqual(["COMMENT_CREATED"]);
+  });
+
+  it("drops mentions of users who are not members of the project when editing", async () => {
+    const { owner, workspace, project } = await setupProjectWithMember();
+    const outsider = await signUp();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    const comment = await createComment(owner.accessToken, workspace.slug, project.slug, task.taskNumber, {
+      content: "Sin menciones",
+    });
+
+    await updateComment(
+      owner.accessToken,
+      workspace.slug,
+      project.slug,
+      task.taskNumber,
+      comment.id,
+      `Hola @[Outsider](${outsider.user.id})`,
+    );
+
+    const res = await listNotifications(outsider.accessToken);
+
+    expect(res.body.data).toEqual([]);
   });
 
   it("leaves the noisy actions out of the bell", async () => {

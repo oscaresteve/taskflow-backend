@@ -240,6 +240,31 @@ export async function createComment(
   };
 }
 
+export async function updateComment(
+  actorAccessToken: string,
+  workspaceSlug: string,
+  projectSlug: string,
+  taskNumber: number,
+  commentId: string,
+  content: string,
+) {
+  const res = await request(app)
+    .patch(`/api/workspaces/${workspaceSlug}/projects/${projectSlug}/tasks/${taskNumber}/comments/${commentId}`)
+    .set("Cookie", `accessToken=${actorAccessToken}`)
+    .send({ content });
+
+  if (res.status !== 200) {
+    throw new Error(`updateComment failed: ${res.status} ${JSON.stringify(res.body)}`);
+  }
+
+  return res.body as {
+    id: string;
+    content: string;
+    editedAt: string | null;
+    deletedAt: string | null;
+  };
+}
+
 // PNG válido de 1x1 pixel, para tener un archivo real (no bytes cualquiera) que
 // headObject en el confirm del avatar pueda aceptar como image/png.
 export const TEST_PNG_BASE64 =

@@ -120,6 +120,7 @@ Por eso la campanita sale casi gratis una vez existe el feed.
 | Acción | Quién recibe notificación |
 | --- | --- |
 | `COMMENT_CREATED` | Mencionados, asignado de la tarea y creador de la tarea |
+| `COMMENT_MENTIONED` | Los mencionados que añade esa edición |
 | `TASK_ASSIGNEE_CHANGED` | El nuevo asignado |
 | `TASK_STATUS_CHANGED` | Asignado y creador |
 | `TASK_DUE_DATE_CHANGED` | El asignado |
@@ -151,9 +152,20 @@ estricta — es la misma pertenencia que ya exige `getTaskContext` para poder co
 No hace falta una tabla `CommentMention`: la única consulta que la justificaría, "comentarios que me
 mencionan", ya la cubre `Notification`.
 
-**Editar un comentario no notifica.** Si se añade una mención al editar, no sale notificación: para
-hacerlo bien habría que diferenciar las menciones nuevas de las que ya estaban, y no vale la pena
-hasta que moleste. `COMMENT_EDITED` sí entra en el historial.
+**Editar también notifica, pero solo a quien la edición menciona de nuevo.** Que te mencionen
+editando te señala igual que mencionarte en un comentario nuevo, así que la campanita suena;
+corregir una falta no señala a nadie, así que no. Se compara el texto anterior con el nuevo y solo
+los ids que aparecen por primera vez pasan por la pertenencia al proyecto: a quien ya estaba
+nombrado no se le vuelve a avisar.
+
+Esa edición deja **dos** eventos en la misma transacción, que es la regla de granularidad de
+siempre: `COMMENT_EDITED` para el historial, sin destinatarios, y `COMMENT_MENTIONED` para la
+campanita de los nuevos. Son dos frases porque son dos públicos — «editó un comentario» no le dice
+al mencionado por qué le suena. El payload de `COMMENT_MENTIONED` lleva la lista, no un
+`targetUserId`, así que no resuelve a nadie y su frase no nombra a la persona.
+
+Y una edición que no cambia el texto no deja ni evento ni `editedAt`, igual que un `PATCH` de tarea
+que reenvía los valores que ya tenía.
 
 ## Tiempo real
 

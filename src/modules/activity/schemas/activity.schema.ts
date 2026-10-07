@@ -52,6 +52,9 @@ export const activityPayloadSchemas = {
   COMMENT_CREATED: commentRefSchema.extend({ mentions: z.array(z.cuid()) }),
   COMMENT_EDITED: commentRefSchema,
   COMMENT_DELETED: commentRefSchema,
+  // Solo los mencionados nuevos de esa edicion, no todos los que el comentario nombre: por eso la
+  // lista no puede venir vacia, un evento sin nadie a quien avisar no tendria razon de existir.
+  COMMENT_MENTIONED: commentRefSchema.extend({ mentions: z.array(z.cuid()).min(1) }),
 
   PROJECT_CREATED: projectRefSchema,
   PROJECT_UPDATED: projectRefSchema.extend({ fields: z.array(z.enum(projectEditedFields)).min(1) }),

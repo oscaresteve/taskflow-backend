@@ -300,6 +300,9 @@ enum ActivityAction {
   COMMENT_CREATED
   COMMENT_EDITED
   COMMENT_DELETED
+  // Mencionar a alguien al editar sale aparte del COMMENT_EDITED: el historial cuenta que se edito
+  // y la campanita del mencionado tiene que contarle que le hablaron.
+  COMMENT_MENTIONED
 
   PROJECT_CREATED
   PROJECT_UPDATED
