@@ -19,6 +19,28 @@ async function setupOwnerProject(overrides: Partial<{ timezone: string }> = {}) 
   return { owner, workspace, project };
 }
 
+async function columnOrder({
+  accessToken,
+  workspaceSlug,
+  projectSlug,
+  status,
+}: {
+  accessToken: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  status: string;
+}) {
+  // Se lee del tablero y no del listado paginado: aquel devuelve la columna entera, sin tope de
+  // pagina, que es justo como la consume el kanban.
+  const res = await request(app)
+    .get(`/api/workspaces/${workspaceSlug}/projects/${projectSlug}/tasks/board`)
+    .set("Cookie", `accessToken=${accessToken}`);
+
+  return (res.body as { id: string; status: string }[])
+    .filter((task) => task.status === status)
+    .map((task) => task.id);
+}
+
 // Los dos filtros de fecha fijan el reloj, asi que hay que devolverlo aunque el test falle.
 afterEach(() => {
   vi.useRealTimers();
@@ -47,6 +69,49 @@ describe("POST /workspaces/:workspaceSlug/projects/:projectSlug/tasks", () => {
 
     expect(first.taskNumber).toBe(1);
     expect(second.taskNumber).toBe(2);
+  });
+
+  it("places the task at the end of the column it is created in, not of TODO", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+
+    // La tarea en TODO es la que delata el fallo: con el rank calculado siempre sobre TODO, las dos
+    // de IN_PROGRESS salen de la cola de esta y acaban con el mismo rank.
+    await createTask(owner.accessToken, workspace.slug, project.slug, { title: "En TODO" });
+
+    const first = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Primera en curso",
+      status: "IN_PROGRESS",
+    });
+    const second = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Segunda en curso",
+      status: "IN_PROGRESS",
+    });
+
+    expect(first.rank).not.toBe(second.rank);
+    await expect(
+      columnOrder({
+        accessToken: owner.accessToken,
+        workspaceSlug: workspace.slug,
+        projectSlug: project.slug,
+        status: "IN_PROGRESS",
+      }),
+    ).resolves.toEqual([first.id, second.id]);
+  });
+
+  it("sets completedAt when the task is created straight into DONE", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+
+    const done = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Ya hecha",
+      status: "DONE",
+    });
+    const pending = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Por hacer",
+      status: "TODO",
+    });
+
+    expect(done.completedAt).not.toBeNull();
+    expect(pending.completedAt).toBeNull();
   });
 
   it("404s when assigning the task to someone who is not a project member", async () => {
@@ -370,6 +435,58 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
     expect(reopened.body.completedAt).toBeNull();
   });
 
+  it("recomputes the rank when the status moves the task to another column", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+
+    // Las dos primeras de cada columna reciben el mismo rank (LexoRank.middle), una en cada columna.
+    // Si el PATCH no recalcula, la movida se queda con el de TODO y empata con la que ya estaba.
+    const inProgress = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Ya en curso",
+      status: "IN_PROGRESS",
+    });
+    const todo = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "En TODO" });
+
+    expect(todo.rank).toBe(inProgress.rank);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${todo.taskNumber}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ status: "IN_PROGRESS" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.rank).not.toBe(inProgress.rank);
+    await expect(
+      columnOrder({
+        accessToken: owner.accessToken,
+        workspaceSlug: workspace.slug,
+        projectSlug: project.slug,
+        status: "IN_PROGRESS",
+      }),
+    ).resolves.toEqual([inProgress.id, res.body.id]);
+  });
+
+  it("leaves the rank alone when the patch resends the status the task already has", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const first = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Primera" });
+    const second = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Segunda" });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${first.taskNumber}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ status: "TODO" });
+
+    // Sin el guardia por status distinto, reenviar el mismo status la mandaria al fondo de su columna.
+    expect(res.body.rank).toBe(first.rank);
+    await expect(
+      columnOrder({
+        accessToken: owner.accessToken,
+        workspaceSlug: workspace.slug,
+        projectSlug: project.slug,
+        status: "TODO",
+      }),
+    ).resolves.toEqual([first.id, second.id]);
+  });
+
   it("400s when the task is archived", async () => {
     const { owner, workspace, project } = await setupOwnerProject();
     const task = await createTask(owner.accessToken, workspace.slug, project.slug);
@@ -430,28 +547,6 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
       .patch(`/api/workspaces/${workspaceSlug}/projects/${projectSlug}/tasks/${taskNumber}/move`)
       .set("Cookie", `accessToken=${accessToken}`)
       .send({ status, afterTaskId });
-  }
-
-  async function columnOrder({
-    accessToken,
-    workspaceSlug,
-    projectSlug,
-    status,
-  }: {
-    accessToken: string;
-    workspaceSlug: string;
-    projectSlug: string;
-    status: string;
-  }) {
-    // Se lee del tablero y no del listado paginado: aquel devuelve la columna entera, sin tope de
-    // pagina, que es justo como la consume el kanban.
-    const res = await request(app)
-      .get(`/api/workspaces/${workspaceSlug}/projects/${projectSlug}/tasks/board`)
-      .set("Cookie", `accessToken=${accessToken}`);
-
-    return (res.body as { id: string; status: string }[])
-      .filter((task) => task.status === status)
-      .map((task) => task.id);
   }
 
   it("reorders within a column, placing the task at the top when there is no anchor", async () => {

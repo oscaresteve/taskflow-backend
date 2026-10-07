@@ -38,15 +38,23 @@ export async function create({
     });
   }
 
-  // Las tareas nacen en TODO (createTaskSchema no acepta status), al final de esa columna.
-  const rank = await tasksRepository.getNextTaskRank({ projectId: project.id, status: "TODO" });
+  // El Kanban crea tarjetas directamente en una columna, asi que el rank sale del status que llega.
+  // Sin status la tarea nace en TODO, que es el default del modelo.
+  const status = data.status ?? "TODO";
+
+  const rank = await tasksRepository.getNextTaskRank({ projectId: project.id, status });
+
+  // Nacer en DONE ya es estar completada: completedLast7Days de los overviews solo mira completedAt.
+  const completedAt = status === "DONE" ? new Date() : null;
 
   const task = await tasksRepository.create({
     data,
     userId,
     projectId: project.id,
     workspaceId: project.workspaceId,
+    status,
     rank,
+    completedAt,
   });
 
   // Una tarea recien creada no puede estar marcada como favorita todavia
@@ -175,6 +183,15 @@ export async function update({
     completedAt = null;
   }
 
+  // Cambiar de status mueve la tarjeta de columna, y el rank de la anterior no significa nada ahi.
+  // Va al final de la destino; colocarla en un hueco concreto es lo que hace `move`. El guardia por
+  // status distinto es lo que evita que reenviar el status que ya tiene la mande a su propio fondo.
+  let rank: string | undefined;
+
+  if (data.status !== undefined && data.status !== task.status) {
+    rank = await tasksRepository.getNextTaskRank({ projectId: project.id, status: data.status });
+  }
+
   const events = buildTaskUpdateEvents({
     workspaceId: project.workspaceId,
     projectId: project.id,
@@ -184,7 +201,7 @@ export async function update({
   });
 
   const [updatedTask, isFavorite] = await Promise.all([
-    tasksRepository.update({ projectId: project.id, taskNumber, data, completedAt, events }),
+    tasksRepository.update({ projectId: project.id, taskNumber, data, rank, completedAt, events }),
     tasksRepository.isFavorited({ userId, taskId: task.id }),
   ]);
 

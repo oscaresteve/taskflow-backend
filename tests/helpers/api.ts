@@ -175,11 +175,18 @@ export async function createTask(
   actorAccessToken: string,
   workspaceSlug: string,
   projectSlug: string,
-  overrides: Partial<{ title: string; priority: string; assigneeId: string; dueDate: string }> = {},
+  overrides: Partial<{
+    title: string;
+    priority: string;
+    status: string;
+    assigneeId: string;
+    dueDate: string;
+  }> = {},
 ) {
   const payload = {
     title: overrides.title ?? "Test Task",
     priority: overrides.priority ?? "MEDIUM",
+    status: overrides.status,
     assigneeId: overrides.assigneeId,
     dueDate: overrides.dueDate,
   };
@@ -193,7 +200,14 @@ export async function createTask(
     throw new Error(`createTask failed: ${res.status} ${JSON.stringify(res.body)}`);
   }
 
-  return res.body as { id: string; taskNumber: number; status: string; assigneeId: string | null };
+  return res.body as {
+    id: string;
+    taskNumber: number;
+    status: string;
+    rank: string;
+    completedAt: string | null;
+    assigneeId: string | null;
+  };
 }
 
 export async function createComment(

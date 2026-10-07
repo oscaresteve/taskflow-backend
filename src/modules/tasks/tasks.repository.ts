@@ -49,13 +49,17 @@ export async function create({
   projectId,
   workspaceId,
   userId,
+  status,
   rank,
+  completedAt,
 }: {
   data: CreateTaskDto;
   projectId: string;
   workspaceId: string;
   userId: string;
+  status: TaskStatus;
   rank: string;
+  completedAt: Date | null;
 }): Promise<Task> {
   return prisma.$transaction(async (tx) => {
     // Obtener el taskNumber y luego incrementarlo en el proyecto
@@ -74,7 +78,7 @@ export async function create({
       data: {
         title: data.title,
         priority: data.priority,
-        status: data.status,
+        status,
         assigneeId: data.assigneeId,
         dueDate: data.dueDate,
         description: data.description,
@@ -82,6 +86,7 @@ export async function create({
         createdById: userId,
         taskNumber,
         rank,
+        completedAt,
       },
     });
 
@@ -214,12 +219,14 @@ export async function update({
   data,
   projectId,
   taskNumber,
+  rank,
   completedAt,
   events,
 }: {
   data: UpdateTaskDto;
   projectId: string;
   taskNumber: number;
+  rank: string | undefined;
   completedAt: Date | null;
   events: ActivityEventInput[];
 }): Promise<Task> {
@@ -238,6 +245,7 @@ export async function update({
         status: data.status,
         assigneeId: data.assigneeId,
         dueDate: data.dueDate,
+        rank,
         completedAt,
       },
     });

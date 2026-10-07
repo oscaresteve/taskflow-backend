@@ -507,4 +507,23 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/overview", () => 
     // De las 2 abiertas, una vencio ayer y la otra no tiene fecha.
     expect(res.body.tasks.byDueDate).toEqual({ overdue: 1, dueSoon: 0, scheduled: 0, noDueDate: 1 });
   });
+
+  it("counts a task created straight into DONE, without passing through a PATCH", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+
+    // El resto de los tests llega a DONE con setStatus; esta es la via del kanban, que es la que
+    // dejaba completedAt a null y no contaba aqui.
+    await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Nacida hecha",
+      status: "DONE",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/overview`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.tasks.completedLast7Days).toBe(1);
+    expect(res.body.tasks.completionRate).toBe(100);
+  });
 });
