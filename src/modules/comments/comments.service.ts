@@ -101,10 +101,28 @@ export async function update({
 
   if (comment.authorId !== userId) throw new ForbiddenError("You cannot manage others comments");
 
-  const newComment = await commentsRepository.update({
-    data,
-    commentId,
-    events: [
+  if (comment.deletedAt) throw new ConflictError("Comment is already deleted");
+
+  // Reenviar el mismo texto no es una edicion: ni deja evento ni marca el comentario como editado,
+  // igual que un PATCH de tarea que reenvia los valores que ya tenia.
+  if (data.content === comment.content) return comment;
+
+  // Solo se avisa a quien la edicion menciona de nuevo. El diff compara los ids tal y como salen
+  // del texto, sin pasar los viejos por la pertenencia: a quien ya estaba nombrado no se le vuelve
+  // a avisar aunque entrase en el proyecto despues.
+  const previousIds = new Set(extractMentionedUserIds(comment.content));
+  const addedIds = extractMentionedUserIds(data.content).filter((addedId) => !previousIds.has(addedId));
+
+  const projectMemberIds = await authorizationRepository.findActiveProjectMemberIds({
+    projectId: project.id,
+    userIds: addedIds,
+  });
+
+  const mentions = addedIds.filter((addedId) => projectMemberIds.has(addedId));
+
+  const reference = { taskNumber: task.taskNumber, taskTitle: task.title, commentId };
+
+  const events: ActivityEventInput[] = [
       {
         workspaceId: project.workspaceId,
         projectId: project.id,

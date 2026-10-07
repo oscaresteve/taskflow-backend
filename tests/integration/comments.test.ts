@@ -100,6 +100,23 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
     expect(res.body.editedAt).not.toBeNull();
   });
 
+  it("409s when the comment is already deleted", async () => {
+    const { owner, workspace, project, task } = await setupOwnerProjectTask();
+    const comment = await createComment(owner.accessToken, workspace.slug, project.slug, task.taskNumber);
+    await request(app)
+      .patch(
+        `/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments/${comment.id}/delete`,
+      )
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments/${comment.id}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ content: "Editando un comentario borrado" });
+
+    expect(res.status).toBe(409);
+  });
+
   it("403s when a non-author project member (even the owner) tries to update someone else's comment", async () => {
     const { owner, workspace, project, task } = await setupOwnerProjectTask();
     const memberUser = await signUp();
