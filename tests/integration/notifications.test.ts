@@ -247,12 +247,13 @@ describe("PATCH /notifications", () => {
     expect(readRes.status).toBe(204);
     expect((await unreadCount(member.accessToken)).body).toEqual({ unread: 2 });
 
-    // Marcarla otra vez es un conflicto, no un no-op silencioso.
+    // Marcarla otra vez no es un conflicto: el PATCH es idempotente y no vuelve a descontar.
     const againRes = await request(app)
       .patch(`/api/notifications/${first.id}/read`)
       .set("Cookie", `accessToken=${member.accessToken}`);
 
-    expect(againRes.status).toBe(409);
+    expect(againRes.status).toBe(204);
+    expect((await unreadCount(member.accessToken)).body).toEqual({ unread: 2 });
 
     const allRes = await request(app)
       .patch("/api/notifications/read-all")

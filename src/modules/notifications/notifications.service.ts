@@ -1,5 +1,4 @@
 import { NotFoundError } from "../../shared/errors/not-found-error.ts";
-import { ConflictError } from "../../shared/errors/conflict-error.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import * as notificationsRepository from "./notifications.repository.ts";
 import type { NotificationWithEvent } from "./notifications.repository.ts";
@@ -33,7 +32,10 @@ export async function markAsRead({
 
   if (!notification) throw new NotFoundError("Notification not found");
 
-  if (notification.readAt) throw new ConflictError("Notification is already read");
+  // Marcarla como leida es idempotente. La campanita la marca al abrirla, asi que un doble clic o un
+  // reintento llegan con la notificacion ya leida, y eso no es un conflicto que el cliente pueda
+  // resolver: el estado que pedia ya es el que hay.
+  if (notification.readAt) return;
 
   await notificationsRepository.markAsRead(notificationId);
 }
