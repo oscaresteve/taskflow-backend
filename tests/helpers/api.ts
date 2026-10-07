@@ -242,7 +242,7 @@ export async function createComment(
 
 // PNG válido de 1x1 pixel, para tener un archivo real (no bytes cualquiera) que
 // headObject en el confirm del avatar pueda aceptar como image/png.
-const TEST_PNG_BASE64 =
+export const TEST_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
 // Pide la URL prefirmada y sube el archivo directo al bucket (MinIO de test), como haría el cliente real.
@@ -251,19 +251,17 @@ export async function uploadTestAvatarFile({
   actorAccessToken,
   workspaceSlug,
   contentType = "image/png",
-  fileSize,
 }: {
   actorAccessToken: string;
   workspaceSlug: string;
   contentType?: string;
-  fileSize?: number;
 }) {
   const bytes = Buffer.from(TEST_PNG_BASE64, "base64");
 
   const uploadUrlRes = await request(app)
     .post(`/api/workspaces/${workspaceSlug}/avatar/upload-url`)
     .set("Cookie", `accessToken=${actorAccessToken}`)
-    .send({ contentType, fileSize: fileSize ?? bytes.byteLength });
+    .send({ contentType, fileSize: bytes.byteLength });
 
   if (uploadUrlRes.status !== 200) {
     throw new Error(`uploadTestAvatarFile (upload-url) failed: ${uploadUrlRes.status} ${JSON.stringify(uploadUrlRes.body)}`);

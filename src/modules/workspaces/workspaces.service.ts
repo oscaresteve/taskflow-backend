@@ -233,7 +233,7 @@ export async function getAvatarUploadUrl({
   const extension = AVATAR_EXTENSION_BY_CONTENT_TYPE[data.contentType];
   const key = `workspaces/${workspace.id}/avatar-${randomUUID()}.${extension}`;
 
-  const uploadUrl = await getUploadUrl({ key, contentType: data.contentType });
+  const uploadUrl = await getUploadUrl({ key, contentType: data.contentType, contentLength: data.fileSize });
 
   return { uploadUrl, key };
 }

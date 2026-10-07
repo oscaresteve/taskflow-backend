@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
-import { addActiveMember, app, createWorkspace, signUp, uploadTestAvatarFile } from "../helpers/api.ts";
+import { addActiveMember, app, createWorkspace, signUp, TEST_PNG_BASE64, uploadTestAvatarFile } from "../helpers/api.ts";
 import { MAX_AVATAR_SIZE_BYTES } from "../../src/modules/workspaces/schemas/workspaces.schema.ts";
 
 describe("POST /workspaces", () => {
@@ -402,6 +402,29 @@ describe("POST /workspaces/:slug/avatar/upload-url", () => {
       .send({ contentType: "image/png", fileSize: MAX_AVATAR_SIZE_BYTES + 1 });
 
     expect(res.status).toBe(400);
+  });
+
+  // El fileSize declarado va firmado dentro de la URL, así que el bucket rechaza un archivo de otro
+  // tamaño sin guardarlo. Sin eso, la URL aceptaría cualquier tamaño y el límite de 5MB no se
+  // comprobaría hasta el confirm, con el objeto ya subido.
+  it("signs the declared fileSize, so the bucket rejects a file of another size", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const bytes = Buffer.from(TEST_PNG_BASE64, "base64");
+
+    const uploadUrlRes = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/avatar/upload-url`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ contentType: "image/png", fileSize: bytes.byteLength + 1000 });
+    expect(uploadUrlRes.status).toBe(200);
+
+    const putRes = await fetch(uploadUrlRes.body.uploadUrl as string, {
+      method: "PUT",
+      headers: { "Content-Type": "image/png" },
+      body: bytes,
+    });
+
+    expect(putRes.status).toBe(403);
   });
 });
 

@@ -8,16 +8,21 @@ const DEFAULT_UPLOAD_URL_EXPIRES_IN_SECONDS = 300; // 5 minutos, tiempo de sobra
 export async function getUploadUrl({
   key,
   contentType,
+  contentLength,
   expiresIn = DEFAULT_UPLOAD_URL_EXPIRES_IN_SECONDS,
 }: {
   key: string;
   contentType: string;
+  contentLength: number;
   expiresIn?: number;
 }): Promise<string> {
   const command = new PutObjectCommand({
     Bucket: env.S3_BUCKET_NAME,
     Key: key,
     ContentType: contentType,
+    // El tamaño viaja firmado (sale en X-Amz-SignedHeaders como content-length), así que un PUT
+    // de otro tamaño lo rechaza la firma y esos bytes no llegan nunca al bucket.
+    ContentLength: contentLength,
   });
 
   return getSignedUrl(s3Client, command, { expiresIn });
