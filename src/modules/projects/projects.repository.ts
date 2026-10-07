@@ -2,7 +2,7 @@ import { prisma } from "../../config/prisma.ts";
 import * as activityRepository from "../activity/activity.repository.ts";
 import type { ActivityEventInput } from "../activity/types/activity.types.ts";
 import type { CreateProjectDto, ProjectQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
-import type { Project } from "../../shared/types/prisma.types.ts";
+import type { Project, ProjectRole } from "../../shared/types/prisma.types.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 
@@ -258,6 +258,28 @@ export async function findFavoritedIds({
   });
 
   return new Set(favorites.map((favorite) => favorite.projectId));
+}
+
+export async function findMyRoles({
+  userId,
+  projectIds,
+}: {
+  userId: string;
+  projectIds: string[];
+}): Promise<Map<string, ProjectRole>> {
+  const memberships = await prisma.projectMember.findMany({
+    where: {
+      userId,
+      projectId: { in: projectIds },
+      isActive: true,
+    },
+    select: {
+      projectId: true,
+      role: true,
+    },
+  });
+
+  return new Map(memberships.map((membership) => [membership.projectId, membership.role]));
 }
 
 export async function createFavorite({ userId, projectId }: { userId: string; projectId: string }): Promise<void> {

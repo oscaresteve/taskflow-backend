@@ -1,5 +1,4 @@
 import type { CreateProjectDto, ProjectQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
-import { type Project } from "../../shared/types/prisma.types.ts";
 import * as projectsRepository from "./projects.repository.ts";
 import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
 import { ConflictError } from "../../shared/errors/conflict-error.ts";
@@ -8,6 +7,7 @@ import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import { requireWorkspaceManager, requireWorkspaceOrProjectManager } from "../../shared/auth/permissions.ts";
 import type { ActivityEventInput, ProjectEditedField } from "../activity/types/activity.types.ts";
+import type { ProjectForViewer } from "./types/projects.types.ts";
 
 // LLamar al repository y realizar toda la lógica necesaria
 
@@ -19,7 +19,7 @@ export async function create({
   data: CreateProjectDto;
   userId: string;
   workspaceSlug: string;
-}): Promise<Project & { isFavorite: boolean }> {
+}): Promise<ProjectForViewer> {
   // Obtener contexto
   const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
 
@@ -40,8 +40,9 @@ export async function create({
 
   const project = await projectsRepository.create({ data, slug, workspaceId: workspace.id, userId });
 
-  // Un proyecto recien creado no puede estar marcado como favorito todavia
-  return { ...project, isFavorite: false };
+  // Un proyecto recien creado no puede estar marcado como favorito todavia, y su autor es el OWNER
+  // que le ha puesto el repository en la misma transaccion.
+  return { ...project, isFavorite: false, myRole: "OWNER" };
 }
 
 export async function findAll({
@@ -52,19 +53,28 @@ export async function findAll({
   workspaceSlug: string;
   userId: string;
   query: ProjectQueryDto;
-}): Promise<PaginatedResult<Project & { isFavorite: boolean }>> {
+}): Promise<PaginatedResult<ProjectForViewer>> {
   // Obtener contexto
   const { workspace } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
 
   const projects = await projectsRepository.findAll({ query, userId, workspaceId: workspace.id });
 
-  const favoritedIds = await projectsRepository.findFavoritedIds({
-    userId,
-    projectIds: projects.items.map((project) => project.id),
-  });
+  // Los dos campos que dependen de quien mira se resuelven en lote: una query para toda la pagina
+  // cada uno, no una por proyecto.
+  const projectIds = projects.items.map((project) => project.id);
+
+  const [favoritedIds, rolesByProjectId] = await Promise.all([
+    projectsRepository.findFavoritedIds({ userId, projectIds }),
+    projectsRepository.findMyRoles({ userId, projectIds }),
+  ]);
 
   return {
-    items: projects.items.map((project) => ({ ...project, isFavorite: favoritedIds.has(project.id) })),
+    items: projects.items.map((project) => ({
+      ...project,
+      isFavorite: favoritedIds.has(project.id),
+      // findAll ya filtra por pertenencia activa, asi que aqui siempre hay rol.
+      myRole: rolesByProjectId.get(project.id) ?? null,
+    })),
     total: projects.total,
   };
 }
@@ -77,13 +87,18 @@ export async function findBySlug({
   userId: string;
   workspaceSlug: string;
   projectSlug: string;
-}): Promise<Project & { isFavorite: boolean }> {
+}): Promise<ProjectForViewer> {
   // Obtener el contexto
-  const { project } = await authorizationService.getProjectContext({ userId, workspaceSlug, projectSlug });
+  const { project, projectMember } = await authorizationService.getProjectContext({
+    userId,
+    workspaceSlug,
+    projectSlug,
+  });
 
   const isFavorite = await projectsRepository.isFavorited({ userId, projectId: project.id });
 
-  return { ...project, isFavorite };
+  // getProjectContext ya ha exigido pertenencia activa, asi que el rol sale del contexto sin query.
+  return { ...project, isFavorite, myRole: projectMember.role };
 }
 
 export async function update({
@@ -96,7 +111,7 @@ export async function update({
   userId: string;
   workspaceSlug: string;
   projectSlug: string;
-}): Promise<Project & { isFavorite: boolean }> {
+}): Promise<ProjectForViewer> {
   // Obtener el contexto
   const { workspace, workspaceMember, project, projectMember } =
     await authorizationService.getProjectContextAllowingWorkspaceManager({
@@ -144,7 +159,10 @@ export async function update({
     projectsRepository.isFavorited({ userId, projectId: project.id }),
   ]);
 
-  return { ...updatedProject, isFavorite };
+  // Una pertenencia ausente o desactivada no es un rol: aqui el mando puede venir del espacio.
+  const myRole = projectMember?.isActive ? projectMember.role : null;
+
+  return { ...updatedProject, isFavorite, myRole };
 }
 
 export async function archive({

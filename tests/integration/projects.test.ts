@@ -153,6 +153,45 @@ describe("GET /workspaces/:workspaceSlug/projects", () => {
     expect(slugs).toEqual([mine.slug]);
   });
 
+  // El listado trae el rol de quien pide para que el cliente no tenga que pedir su membership
+  // proyecto a proyecto, que es una peticion por fila.
+  it("carries the caller's own project role on every project", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const asOwner = await createProject(owner.accessToken, workspace.slug, { key: "OWND" });
+    const asMember = await createProject(owner.accessToken, workspace.slug, { key: "MEMB" });
+
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: asOwner.slug,
+      targetUserId: memberUser.user.id,
+      role: "OWNER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: asMember.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    const rolesBySlug = Object.fromEntries(
+      res.body.data.map((project: { slug: string; myRole: string | null }) => [project.slug, project.myRole]),
+    );
+    expect(rolesBySlug).toEqual({ [asOwner.slug]: "OWNER", [asMember.slug]: "MEMBER" });
+  });
+
   it("excludes projects where the user's membership was deactivated", async () => {
     const { owner, workspace } = await setupOwnerWorkspace();
     const project = await createProject(owner.accessToken, workspace.slug, { key: "GONE" });
@@ -196,6 +235,17 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug", () => {
     expect(res.body.workspace).toBeUndefined();
     expect(res.body.members).toBeUndefined();
     expect(res.body.tasks).toBeUndefined();
+  });
+
+  it("reports the caller's own project role", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.myRole).toBe("OWNER");
   });
 
   it("403s when the user is a workspace member but not a project member", async () => {
@@ -311,6 +361,8 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.name).toBe("New Name");
+    // Su mando viene del espacio, no del proyecto: no tiene rol en el que mirar.
+    expect(res.body.myRole).toBeNull();
   });
 
   it("forbids a plain workspace MEMBER who is not a project member", async () => {

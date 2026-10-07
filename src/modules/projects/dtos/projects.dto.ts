@@ -1,3 +1,5 @@
+import type { ProjectRole } from "../../../shared/types/prisma.types.ts";
+
 export type ProjectResponseDto = {
   id: string;
 
@@ -10,6 +12,9 @@ export type ProjectResponseDto = {
 
   isArchived: boolean;
   isFavorite: boolean;
+
+  // El rol de quien pide, para que el cliente no tenga que preguntar por cada proyecto de una lista.
+  myRole: ProjectRole | null;
 
   createdAt: Date;
   updatedAt: Date;

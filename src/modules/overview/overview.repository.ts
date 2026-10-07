@@ -2,7 +2,8 @@ import { prisma } from "../../config/prisma.ts";
 import { DAY_MS, getDayKey, resolveTimeZone } from "../../shared/utils/date-range.ts";
 import { TaskStatus, WorkspaceMemberStatus } from "../../shared/types/prisma.types.ts";
 import { Prisma } from "../../prisma/generated/prisma/client.ts";
-import type { Project, Task, Workspace } from "../../shared/types/prisma.types.ts";
+import type { Task, Workspace } from "../../shared/types/prisma.types.ts";
+import type { ProjectForViewer } from "../projects/types/projects.types.ts";
 
 // Solo comunicarse con el ORM o DB
 
@@ -95,8 +96,9 @@ export type ProjectStatsRow = {
   lastActivityAt: Date | null;
 };
 
-export type OverviewProjectRow = Project & {
-  isFavorite: boolean;
+// Pasa por toProjectResponseDto, asi que arrastra los campos del espectador: tiparla sobre
+// ProjectForViewer hace que el compilador avise si a ese DTO se le añade uno nuevo.
+export type OverviewProjectRow = ProjectForViewer & {
   stats: ProjectStatsRow;
 };
 
@@ -170,21 +172,29 @@ export async function findWorkspaceProjects({
 
   const projectIds = projects.map((project) => project.id);
 
-  const [stats, favorites] = await Promise.all([
+  const [stats, favorites, memberships] = await Promise.all([
     countProjectStats({ projectIds, todayKey: today(timeZone) }),
 
     prisma.projectFavorite.findMany({
       where: { userId, projectId: { in: projectIds } },
       select: { projectId: true },
     }),
+
+    prisma.projectMember.findMany({
+      where: { userId, projectId: { in: projectIds }, isActive: true },
+      select: { projectId: true, role: true },
+    }),
   ]);
 
   const favoritedIds = new Set(favorites.map((favorite) => favorite.projectId));
+  const rolesByProjectId = new Map(memberships.map((membership) => [membership.projectId, membership.role]));
 
   return {
     items: projects.map((project) => ({
       ...project,
       isFavorite: favoritedIds.has(project.id),
+      // myProjects ya filtra por pertenencia activa, asi que aqui siempre hay rol.
+      myRole: rolesByProjectId.get(project.id) ?? null,
       stats: stats.get(project.id) ?? EMPTY_PROJECT_STATS,
     })),
     total,
