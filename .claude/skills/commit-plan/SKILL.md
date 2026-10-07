@@ -50,7 +50,9 @@ Take from it:
 - **Language** — write subjects and bodies in the language of the log, even when
   the conversation or the code comments are in another one.
 - **Subject style** — imperative vs. past tense, capitalisation, length.
-- **Body habits** — prose or bullets, and how much the project tends to explain.
+- **Body habits** — prose or bullets, and the vocabulary the project reaches for.
+  Take *style* from the log, never *length*. A history full of essay-length
+  bodies does not license one more: the cap below wins over the log, always.
 
 If the log is empty, or inconsistent enough that there is no convention to
 follow, use the defaults below and say in one line that you picked them.
@@ -102,6 +104,14 @@ pretend the file can only go in one commit.
 
 ## Bodies: short, and only when the diff needs one
 
+> **Hard cap: 4 lines.** Not a target to fill — a ceiling most commits come in
+> under, and most come in at zero.
+
+An overlong body is the most common way this skill goes wrong. Right after an
+implementation the whole investigation is fresh and wants retelling, and almost
+none of it belongs in the message. The reader has the diff; give them only the
+one thing the diff cannot tell them.
+
 Default to no body. Add one only when the diff leaves a real question open:
 
 - the change is not obviously correct, or looks wrong until you know why
@@ -110,13 +120,29 @@ Default to no body. Add one only when the diff leaves a real question open:
 - something was deliberately left out, or a known limitation remains
 - behaviour changes for an existing caller
 
+Pick the single strongest of those and write only that. If two of them feel
+equally essential, the commit is probably two commits.
+
 Skip the body when the subject already covers it: a new endpoint or feature flag,
 a test added for existing behaviour, a dependency bump, a rename, a typo.
 
-When there is a body: 2–6 lines, wrapped at 72 columns, prose (bullets only for a
-genuine list of independent items). Explain **why**, never restate the file list
-— the diff is right there. No "this commit", no filler like "improves
+When there is a body: **at most 4 lines**, wrapped at 72 columns, prose (bullets
+only for a genuine list of independent items). Explain **why**, never restate the
+file list — the diff is right there. No "this commit", no filler like "improves
 maintainability".
+
+Leave out, every time — this is what the 4 lines are protecting:
+
+- the root-cause story, and which commit introduced the bug
+- the symptom walked through step by step
+- test output, verification steps, literal ids or ranks
+- what you deliberately left alone, unless a caller has to act on it
+- anything the subject already says
+
+Those belong in the conversation, a code comment or an issue, not here.
+
+**Before answering, count the lines of each body.** Over four, cut something out
+— never reflow to fit.
 
 ## Footers
 
