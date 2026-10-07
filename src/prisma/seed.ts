@@ -35,6 +35,15 @@ function daysFromNow(days: number): Date {
   return daysAgo(-days);
 }
 
+// Una fecha limite es un dia de calendario, no un instante: se guarda como la medianoche UTC de ese
+// dia (ver getDayKey en shared/utils/date-range.ts). Sembrar una hora cualquiera descuadraria las
+// cubetas de los overviews, que comparan contra claves de dia.
+function dueInDays(days: number): Date {
+  const date = daysFromNow(days);
+
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+}
+
 // Mismo orden que tests/setup/db.ts: hijos antes que padres por las FKs.
 async function resetDatabase() {
   await prisma.comment.deleteMany();
@@ -251,7 +260,7 @@ async function seedNimbusStudio(passwordHash: string) {
       status: TaskStatus.IN_REVIEW,
       priority: TaskPriority.HIGH,
       assigneeId: demo.id,
-      dueDate: daysFromNow(4), // vence esta semana
+      dueDate: dueInDays(4), // vence esta semana
       createdAt: daysAgo(18),
       comments: [
         {
@@ -293,7 +302,7 @@ async function seedNimbusStudio(passwordHash: string) {
       status: TaskStatus.IN_PROGRESS,
       priority: TaskPriority.HIGH,
       assigneeId: diego.id,
-      dueDate: daysFromNow(6),
+      dueDate: dueInDays(6),
       createdAt: daysAgo(14),
       comments: [
         {
@@ -309,7 +318,7 @@ async function seedNimbusStudio(passwordHash: string) {
       status: TaskStatus.IN_PROGRESS,
       priority: TaskPriority.MEDIUM,
       assigneeId: demo.id,
-      dueDate: daysFromNow(12), // programada, fuera de la ventana de "vence pronto"
+      dueDate: dueInDays(12), // programada, fuera de la ventana de "vence pronto"
       createdAt: daysAgo(11),
     },
     {
@@ -325,7 +334,7 @@ async function seedNimbusStudio(passwordHash: string) {
       status: TaskStatus.TODO,
       priority: TaskPriority.URGENT,
       assigneeId: demo.id,
-      dueDate: daysAgo(4), // vencida y urgente
+      dueDate: dueInDays(-4), // vencida y urgente
       createdAt: daysAgo(10),
       comments: [
         {
@@ -340,7 +349,7 @@ async function seedNimbusStudio(passwordHash: string) {
       status: TaskStatus.TODO,
       priority: TaskPriority.HIGH,
       assigneeId: felix.id, // responsable que ya no es miembro activo del proyecto
-      dueDate: daysAgo(15), // vencida y sin nadie que la recoja
+      dueDate: dueInDays(-15), // vencida y sin nadie que la recoja
       createdAt: daysAgo(60),
     },
     {
@@ -362,7 +371,7 @@ async function seedNimbusStudio(passwordHash: string) {
       status: TaskStatus.TODO,
       priority: TaskPriority.LOW,
       assigneeId: null,
-      dueDate: daysFromNow(30),
+      dueDate: dueInDays(30),
       createdAt: daysAgo(5),
     },
     {
@@ -370,7 +379,7 @@ async function seedNimbusStudio(passwordHash: string) {
       status: TaskStatus.TODO,
       priority: TaskPriority.URGENT,
       assigneeId: ana.id,
-      dueDate: daysFromNow(2),
+      dueDate: dueInDays(2),
       createdAt: daysAgo(3),
     },
     {
@@ -427,7 +436,7 @@ async function seedNimbusStudio(passwordHash: string) {
       status: TaskStatus.IN_PROGRESS,
       priority: TaskPriority.URGENT,
       assigneeId: bruno.id,
-      dueDate: daysFromNow(5),
+      dueDate: dueInDays(5),
       createdAt: daysAgo(30),
       comments: [
         {
@@ -448,7 +457,7 @@ async function seedNimbusStudio(passwordHash: string) {
       status: TaskStatus.IN_REVIEW,
       priority: TaskPriority.URGENT,
       assigneeId: demo.id,
-      dueDate: daysAgo(1), // venció ayer
+      dueDate: dueInDays(-1), // venció ayer
       createdAt: daysAgo(8),
     },
     {
@@ -456,7 +465,7 @@ async function seedNimbusStudio(passwordHash: string) {
       status: TaskStatus.TODO,
       priority: TaskPriority.MEDIUM,
       assigneeId: demo.id,
-      dueDate: daysFromNow(20),
+      dueDate: dueInDays(20),
       createdAt: daysAgo(6),
     },
     {
@@ -788,7 +797,7 @@ async function seedLogistica(passwordHash: string, demoId: string) {
         // semana para que el contador de velocidad no salga a cero.
         completedAt: status === TaskStatus.DONE ? daysAgo(Math.max(createdDaysAgo - 8, position % 7)) : undefined,
         // Una de cada tres abiertas lleva fecha límite, repartida entre vencidas y futuras.
-        dueDate: status !== TaskStatus.DONE && position % 3 === 0 ? daysFromNow((position % 20) - 7) : undefined,
+        dueDate: status !== TaskStatus.DONE && position % 3 === 0 ? dueInDays((position % 20) - 7) : undefined,
         isArchived: status === TaskStatus.DONE && position % 17 === 0,
         // La primera tarea del proyecto grande lleva el hilo largo.
         comments:
