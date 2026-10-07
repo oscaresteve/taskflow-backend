@@ -19,6 +19,8 @@ export const createTaskSchema = z.object({
   priority: z.enum(TaskPriority),
   status: z.enum(TaskStatus).optional(),
   assigneeId: z.cuid().optional(),
+  // Un dia de calendario, que por convencion viaja como la medianoche UTC de ese dia: las cubetas y
+  // el filtro OVERDUE comparan contra claves de dia (getDayKey), no contra instantes.
   dueDate: z.iso.datetime().optional(),
 });
 

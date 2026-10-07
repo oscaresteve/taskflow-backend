@@ -5,7 +5,7 @@ import type { CreateTaskDto, TaskQueryDto, UpdateTaskDto } from "./schemas/tasks
 import { TaskStatus } from "../../shared/types/prisma.types.ts";
 import type { Task } from "../../shared/types/prisma.types.ts";
 import { rankBetween } from "../../shared/utils/lexorank.ts";
-import { getThisWeekRange, resolveTimeZone } from "../../shared/utils/date-range.ts";
+import { getDayKey, getThisWeekRange, resolveTimeZone } from "../../shared/utils/date-range.ts";
 import * as activityRepository from "../activity/activity.repository.ts";
 import type { ActivityEventInput } from "../activity/types/activity.types.ts";
 
@@ -116,14 +116,20 @@ export async function create({
   });
 }
 
+// La columna guarda dias de calendario (medianoche UTC), asi que los tres filtros se resuelven
+// contra claves de dia del timezone del usuario: "vencida" es que su dia limite ya paso, no que su
+// instante ya paso, o lo que vence hoy saldria vencido desde primera hora.
 function buildDueDateWhere(
   filter: TaskQueryDto["dueDate"],
   timeZone: string | null,
 ): Prisma.TaskWhereInput["dueDate"] {
   if (filter === "NONE") return null;
-  if (filter === "OVERDUE") return { lt: new Date() };
+
+  const zone = resolveTimeZone(timeZone);
+
+  if (filter === "OVERDUE") return { lt: getDayKey(new Date(), zone) };
   if (filter === "THIS_WEEK") {
-    const { start, end } = getThisWeekRange(new Date(), resolveTimeZone(timeZone));
+    const { start, end } = getThisWeekRange(new Date(), zone);
     return { gte: start, lt: end };
   }
 
