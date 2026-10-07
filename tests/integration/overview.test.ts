@@ -10,6 +10,15 @@ import {
   signUp,
 } from "../helpers/api.ts";
 
+// Una fecha limite es un dia de calendario guardado como medianoche UTC, no un instante: las cubetas
+// comparan contra la clave del dia de hoy, asi que sembrar una hora cualquiera no representaria lo
+// que manda el cliente.
+function dueInDays(days: number): string {
+  const now = new Date();
+
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + days)).toISOString();
+}
+
 async function setupOwnerProject(projectOverrides: Partial<{ name: string; key: string }> = {}) {
   const owner = await signUp();
   const workspace = await createWorkspace(owner.accessToken);
@@ -84,7 +93,7 @@ describe("GET /me/overview", () => {
       workspaceSlug: workspace.slug,
       projectSlug: project.slug,
       taskNumber: pastDueTask.taskNumber,
-      dueDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      dueDate: dueInDays(-1),
     });
 
     await createTask(owner.accessToken, workspace.slug, project.slug, {
@@ -143,14 +152,14 @@ describe("GET /me/overview", () => {
       workspaceSlug: workspace.slug,
       projectSlug: project.slug,
       taskNumber: later.taskNumber,
-      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      dueDate: dueInDays(30),
     });
     await setDueDate({
       actorAccessToken: owner.accessToken,
       workspaceSlug: workspace.slug,
       projectSlug: project.slug,
       taskNumber: soonest.taskNumber,
-      dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      dueDate: dueInDays(1),
     });
 
     const res = await request(app).get("/api/me/overview").set("Cookie", `accessToken=${owner.accessToken}`);
@@ -158,6 +167,30 @@ describe("GET /me/overview", () => {
     expect(res.status).toBe(200);
     expect(res.body.myTasks.map((task: { id: string }) => task.id)).toEqual([soonest.id, later.id, undated.id]);
     expect(res.body.tasks.byDueDate).toEqual({ overdue: 0, dueSoon: 1, scheduled: 1, noDueDate: 1 });
+  });
+
+  // La fecha limite es un dia, no un instante: su medianoche UTC ya es pasado desde primera hora del
+  // dia, y comparar instantes pintaba y contaba la tarea como vencida durante todo el dia en que
+  // vencia. Solo cuenta como vencida cuando su dia ya ha pasado.
+  it("does not count a task due today as overdue", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+
+    const dueToday = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Due today",
+      assigneeId: owner.user.id,
+    });
+    await setDueDate({
+      actorAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      taskNumber: dueToday.taskNumber,
+      dueDate: dueInDays(0),
+    });
+
+    const res = await request(app).get("/api/me/overview").set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.tasks.byDueDate).toEqual({ overdue: 0, dueSoon: 1, scheduled: 0, noDueDate: 0 });
   });
 });
 
@@ -203,7 +236,7 @@ describe("GET /me/overview/workspaces", () => {
       workspaceSlug: busy.slug,
       projectSlug: project.slug,
       taskNumber: late.taskNumber,
-      dueDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      dueDate: dueInDays(-1),
     });
 
     await createTask(owner.accessToken, busy.slug, project.slug, {
@@ -376,7 +409,7 @@ describe("GET /workspaces/:workspaceSlug/overview/projects", () => {
       workspaceSlug: workspace.slug,
       projectSlug: project.slug,
       taskNumber: lateTask.taskNumber,
-      dueDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      dueDate: dueInDays(-1),
     });
 
     await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Open" });
@@ -490,7 +523,7 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/overview", () => 
       workspaceSlug: workspace.slug,
       projectSlug: project.slug,
       taskNumber: assigned.taskNumber,
-      dueDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      dueDate: dueInDays(-1),
     });
 
     const res = await request(app)

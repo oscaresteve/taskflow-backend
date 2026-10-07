@@ -1,4 +1,5 @@
 import { prisma } from "../../config/prisma.ts";
+import { DAY_MS, getDayKey, resolveTimeZone } from "../../shared/utils/date-range.ts";
 import { TaskStatus, WorkspaceMemberStatus } from "../../shared/types/prisma.types.ts";
 import { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { Project, Task, Workspace } from "../../shared/types/prisma.types.ts";
@@ -8,6 +9,13 @@ import type { Project, Task, Workspace } from "../../shared/types/prisma.types.t
 const TASK_LIST_LIMIT = 8;
 const DUE_SOON_DAYS = 7;
 const VELOCITY_DAYS = 7;
+
+// `Task.dueDate` guarda un dia de calendario como medianoche UTC, asi que todo lo que pregunta por
+// fechas limite compara contra la clave del dia de hoy en el timezone del usuario. "Vencida" es
+// "su dia ya paso": lo que vence hoy no cuenta hasta manana.
+function today(timeZone: string | null): Date {
+  return getDayKey(new Date(), resolveTimeZone(timeZone));
+}
 
 // Todo lo que la fila de tarea de los overviews necesita para pintarse sin pedir nada mas:
 // la key del proyecto para el identificador (CORE-113) y el responsable para el avatar.
@@ -49,14 +57,15 @@ async function attachFavorites<T extends OverviewTaskRowWithoutFavorite>(
 // Las tres vistas reparten sus tareas abiertas en las mismas cubetas de fecha limite y solo cambia
 // el ambito (las mias / las del workspace / las del proyecto), asi que las cuentas se piden aqui.
 // La cuarta cubeta ("scheduled") la deduce el mapper restando estas tres a las tareas abiertas.
-async function countOpenByDueDate(scope: Prisma.TaskWhereInput): Promise<DueDateBucketRows> {
-  const now = new Date();
-  const dueSoonUntil = new Date(now.getTime() + DUE_SOON_DAYS * 24 * 60 * 60 * 1000);
+async function countOpenByDueDate(scope: Prisma.TaskWhereInput, timeZone: string | null): Promise<DueDateBucketRows> {
+  const todayKey = today(timeZone);
+  const dueSoonUntil = new Date(todayKey.getTime() + DUE_SOON_DAYS * DAY_MS);
   const open: Prisma.TaskWhereInput = { ...scope, isArchived: false, status: { not: TaskStatus.DONE } };
 
   const [overdue, dueSoon, noDueDate] = await Promise.all([
-    prisma.task.count({ where: { ...open, dueDate: { lt: now } } }),
-    prisma.task.count({ where: { ...open, dueDate: { gte: now, lte: dueSoonUntil } } }),
+    prisma.task.count({ where: { ...open, dueDate: { lt: todayKey } } }),
+    // "Esta semana" es la ventana de 7 dias que empieza hoy, asi que el limite superior es exclusivo.
+    prisma.task.count({ where: { ...open, dueDate: { gte: todayKey, lt: dueSoonUntil } } }),
     prisma.task.count({ where: { ...open, dueDate: null } }),
   ]);
 
@@ -100,10 +109,10 @@ const EMPTY_PROJECT_STATS: ProjectStatsRow = { total: 0, done: 0, open: 0, overd
 // sesion, y la columna guarda UTC.
 async function countProjectStats({
   projectIds,
-  now,
+  todayKey,
 }: {
   projectIds: string[];
-  now: Date;
+  todayKey: Date;
 }): Promise<Map<string, ProjectStatsRow>> {
   const rows = await prisma.$queryRaw<({ projectId: string } & ProjectStatsRow)[]>`
     SELECT
@@ -111,7 +120,7 @@ async function countProjectStats({
       COUNT(*)::int AS "total",
       COUNT(*) FILTER (WHERE task.status = 'DONE')::int AS "done",
       COUNT(*) FILTER (WHERE task.status <> 'DONE')::int AS "open",
-      COUNT(*) FILTER (WHERE task.status <> 'DONE' AND task."dueDate" < ${now.toISOString()}::timestamp)::int AS "overdue",
+      COUNT(*) FILTER (WHERE task.status <> 'DONE' AND task."dueDate" < ${todayKey.toISOString()}::timestamp)::int AS "overdue",
       MAX(task."updatedAt") AS "lastActivityAt"
     FROM "Task" task
     WHERE task."projectId" IN (${Prisma.join(projectIds)})
@@ -128,12 +137,14 @@ async function countProjectStats({
 export async function findWorkspaceProjects({
   userId,
   workspaceId,
+  timeZone,
   page,
   limit,
   search,
 }: {
   userId: string;
   workspaceId: string;
+  timeZone: string | null;
   page: number;
   limit: number;
   search?: string;
@@ -160,7 +171,7 @@ export async function findWorkspaceProjects({
   const projectIds = projects.map((project) => project.id);
 
   const [stats, favorites] = await Promise.all([
-    countProjectStats({ projectIds, now: new Date() }),
+    countProjectStats({ projectIds, todayKey: today(timeZone) }),
 
     prisma.projectFavorite.findMany({
       where: { userId, projectId: { in: projectIds } },
@@ -198,17 +209,17 @@ const EMPTY_MY_WORKSPACE_STATS: MyWorkspaceStatsRow = { open: 0, overdue: 0 };
 async function countMyWorkspaceStats({
   userId,
   workspaceIds,
-  now,
+  todayKey,
 }: {
   userId: string;
   workspaceIds: string[];
-  now: Date;
+  todayKey: Date;
 }): Promise<Map<string, MyWorkspaceStatsRow>> {
   const rows = await prisma.$queryRaw<({ workspaceId: string } & MyWorkspaceStatsRow)[]>`
     SELECT
       project."workspaceId" AS "workspaceId",
       COUNT(*)::int AS "open",
-      COUNT(*) FILTER (WHERE task."dueDate" < ${now.toISOString()}::timestamp)::int AS "overdue"
+      COUNT(*) FILTER (WHERE task."dueDate" < ${todayKey.toISOString()}::timestamp)::int AS "overdue"
     FROM "Task" task
     JOIN "Project" project ON project."id" = task."projectId"
     JOIN "ProjectMember" member
@@ -229,11 +240,13 @@ async function countMyWorkspaceStats({
 // gestion, sin sus filtros.
 export async function findMyWorkspaces({
   userId,
+  timeZone,
   page,
   limit,
   search,
 }: {
   userId: string;
+  timeZone: string | null;
   page: number;
   limit: number;
   search?: string;
@@ -263,7 +276,7 @@ export async function findMyWorkspaces({
   const workspaceIds = workspaces.map((workspace) => workspace.id);
 
   const [stats, favorites] = await Promise.all([
-    countMyWorkspaceStats({ userId, workspaceIds, now: new Date() }),
+    countMyWorkspaceStats({ userId, workspaceIds, todayKey: today(timeZone) }),
 
     prisma.workspaceFavorite.findMany({
       where: { userId, workspaceId: { in: workspaceIds } },
@@ -283,8 +296,8 @@ export async function findMyWorkspaces({
   };
 }
 
-export async function getMyOverview({ userId }: { userId: string }) {
-  const velocitySince = new Date(Date.now() - VELOCITY_DAYS * 24 * 60 * 60 * 1000);
+export async function getMyOverview({ userId, timeZone }: { userId: string; timeZone: string | null }) {
+  const velocitySince = new Date(Date.now() - VELOCITY_DAYS * DAY_MS);
 
   // Lo propio, pero solo donde se puede llegar: proyecto activo del que eres miembro, en un espacio
   // que sigue activo.
@@ -301,7 +314,7 @@ export async function getMyOverview({ userId }: { userId: string }) {
       _count: true,
     }),
 
-    countOpenByDueDate(mine),
+    countOpenByDueDate(mine, timeZone),
 
     prisma.task.count({
       where: { ...mine, completedAt: { gte: velocitySince } },
@@ -325,9 +338,17 @@ export async function getMyOverview({ userId }: { userId: string }) {
   };
 }
 
-export async function getWorkspaceOverview({ userId, workspaceId }: { userId: string; workspaceId: string }) {
-  const now = new Date();
-  const velocitySince = new Date(now.getTime() - VELOCITY_DAYS * 24 * 60 * 60 * 1000);
+export async function getWorkspaceOverview({
+  userId,
+  workspaceId,
+  timeZone,
+}: {
+  userId: string;
+  workspaceId: string;
+  timeZone: string | null;
+}) {
+  const todayKey = today(timeZone);
+  const velocitySince = new Date(Date.now() - VELOCITY_DAYS * DAY_MS);
 
   // El espacio resume con cinco numeros y una lista: el reparto por estado y por fecha limite se
   // ve dentro de cada proyecto, aqui cada proyecto trae los suyos en su tarjeta, y lo que se movio
@@ -341,7 +362,7 @@ export async function getWorkspaceOverview({ userId, workspaceId }: { userId: st
 
     prisma.task.count({ where: openTasks }),
 
-    prisma.task.count({ where: { ...openTasks, dueDate: { lt: now } } }),
+    prisma.task.count({ where: { ...openTasks, dueDate: { lt: todayKey } } }),
 
     prisma.task.count({ where: { ...openTasks, assigneeId: null } }),
 
@@ -368,8 +389,8 @@ export async function getWorkspaceOverview({ userId, workspaceId }: { userId: st
   };
 }
 
-export async function getProjectOverview({ projectId }: { projectId: string }) {
-  const velocitySince = new Date(Date.now() - VELOCITY_DAYS * 24 * 60 * 60 * 1000);
+export async function getProjectOverview({ projectId, timeZone }: { projectId: string; timeZone: string | null }) {
+  const velocitySince = new Date(Date.now() - VELOCITY_DAYS * DAY_MS);
 
   const [tasksByStatus, tasksByPriority, byDueDate, unassigned, completedLast7Days] = await Promise.all([
     prisma.task.groupBy({
@@ -384,7 +405,7 @@ export async function getProjectOverview({ projectId }: { projectId: string }) {
       _count: true,
     }),
 
-    countOpenByDueDate({ projectId }),
+    countOpenByDueDate({ projectId }, timeZone),
 
     prisma.task.count({
       where: { projectId, isArchived: false, status: { not: TaskStatus.DONE }, assigneeId: null },

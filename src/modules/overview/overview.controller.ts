@@ -18,7 +18,7 @@ export async function findMyOverview(req: Request, res: Response, next: NextFunc
   try {
     const userId = req.user.id;
 
-    const overview = await overviewService.getMyOverview({ userId });
+    const overview = await overviewService.getMyOverview({ userId, timeZone: req.user.timezone });
 
     res.json(toMyOverviewResponseDto(overview));
   } catch (error) {
@@ -31,7 +31,7 @@ export async function findMyWorkspaces(req: Request, res: Response, next: NextFu
     const query = req.validated.query as OverviewGridQueryDto;
     const userId = req.user.id;
 
-    const workspaces = await overviewService.getMyWorkspaces({ userId, query });
+    const workspaces = await overviewService.getMyWorkspaces({ userId, timeZone: req.user.timezone, query });
 
     res.json(toPaginatedOverviewWorkspaceDto({ workspaces, page: query.page, limit: query.limit }));
   } catch (error) {
@@ -45,7 +45,11 @@ export async function findWorkspaceOverview(req: Request, res: Response, next: N
     const userId = req.user.id;
     const workspaceSlug = params.workspaceSlug;
 
-    const overview = await overviewService.getWorkspaceOverview({ userId, workspaceSlug });
+    const overview = await overviewService.getWorkspaceOverview({
+      userId,
+      timeZone: req.user.timezone,
+      workspaceSlug,
+    });
 
     res.json(toWorkspaceOverviewResponseDto(overview));
   } catch (error) {
@@ -59,7 +63,12 @@ export async function findWorkspaceProjects(req: Request, res: Response, next: N
     const query = req.validated.query as OverviewGridQueryDto;
     const userId = req.user.id;
 
-    const projects = await overviewService.getWorkspaceProjects({ userId, workspaceSlug: params.workspaceSlug, query });
+    const projects = await overviewService.getWorkspaceProjects({
+      userId,
+      timeZone: req.user.timezone,
+      workspaceSlug: params.workspaceSlug,
+      query,
+    });
 
     res.json(toPaginatedOverviewProjectDto({ projects, page: query.page, limit: query.limit }));
   } catch (error) {
@@ -74,7 +83,12 @@ export async function findProjectOverview(req: Request, res: Response, next: Nex
     const workspaceSlug = params.workspaceSlug;
     const projectSlug = params.projectSlug;
 
-    const overview = await overviewService.getProjectOverview({ userId, workspaceSlug, projectSlug });
+    const overview = await overviewService.getProjectOverview({
+      userId,
+      timeZone: req.user.timezone,
+      workspaceSlug,
+      projectSlug,
+    });
 
     res.json(toProjectOverviewResponseDto(overview));
   } catch (error) {
