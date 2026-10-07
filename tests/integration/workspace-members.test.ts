@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
-import { app, addActiveMember, createWorkspace, deactivateUser, signUp } from "../helpers/api.ts";
+import {
+  app,
+  addActiveMember,
+  addActiveProjectMember,
+  createProject,
+  createWorkspace,
+  deactivateUser,
+  signUp,
+} from "../helpers/api.ts";
 
 async function setupOwnerWorkspace() {
   const owner = await signUp();
@@ -208,6 +216,75 @@ describe("GET /workspaces/:workspaceSlug/members", () => {
     expect(res.status).toBe(200);
     const userIds = res.body.data.map((m: { userId: string }) => m.userId);
     expect(userIds).toEqual([member.user.id]);
+  });
+
+  it("excludes the members of the project named by excludeProjectSlug", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug, { name: "Web" });
+    const inProject = await signUp();
+    const outOfProject = await signUp();
+    for (const member of [inProject, outOfProject]) {
+      await addActiveMember({
+        managerAccessToken: owner.accessToken,
+        workspaceSlug: workspace.slug,
+        targetUserId: member.user.id,
+        role: "MEMBER",
+      });
+    }
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: inProject.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .query({ excludeProjectSlug: project.slug })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    const userIds = res.body.data.map((m: { userId: string }) => m.userId);
+    expect(userIds).toContain(outOfProject.user.id);
+    expect(userIds).not.toContain(inProject.user.id);
+  });
+
+  // El slug de proyecto solo es unico por workspace, asi que dos espacios pueden tener su propio
+  // «web»: estar en el de uno no puede sacarte del selector de «añadir miembro» del otro.
+  it("does not exclude the members of a project with the same slug in another workspace", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const otherWorkspace = await createWorkspace(owner.accessToken, "Other Workspace");
+    const project = await createProject(owner.accessToken, workspace.slug, { name: "Web" });
+    const otherProject = await createProject(owner.accessToken, otherWorkspace.slug, { name: "Web" });
+    expect(otherProject.slug).toBe(project.slug);
+
+    const member = await signUp();
+    for (const slug of [workspace.slug, otherWorkspace.slug]) {
+      await addActiveMember({
+        managerAccessToken: owner.accessToken,
+        workspaceSlug: slug,
+        targetUserId: member.user.id,
+        role: "MEMBER",
+      });
+    }
+    // Solo entra en el «web» del otro espacio, no en el de este.
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: otherWorkspace.slug,
+      projectSlug: otherProject.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .query({ excludeProjectSlug: project.slug })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    const userIds = res.body.data.map((m: { userId: string }) => m.userId);
+    expect(userIds).toContain(member.user.id);
   });
 });
 

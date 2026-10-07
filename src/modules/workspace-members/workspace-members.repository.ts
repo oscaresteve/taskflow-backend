@@ -50,7 +50,9 @@ function buildWhere(workspaceId: string, query: WorkspaceMembersAllQueryDto): Pr
   if (query.excludeProjectSlug) {
     userWhere.projectMembers = {
       none: {
-        project: { slug: query.excludeProjectSlug },
+        // El slug solo es unico por workspace, asi que sin acotarlo tambien excluiria a los
+        // miembros de un proyecto homonimo de otro espacio.
+        project: { workspaceId, slug: query.excludeProjectSlug },
       },
     };
   }
