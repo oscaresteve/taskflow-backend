@@ -62,17 +62,23 @@ export async function create({
   completedAt: Date | null;
 }): Promise<Task> {
   return prisma.$transaction(async (tx) => {
-    // Obtener el taskNumber y luego incrementarlo en el proyecto
-    const project = await tx.project.findUnique({
+    // El numero se reserva incrementando y leyendo de vuelta en la misma sentencia. El UPDATE
+    // bloquea la fila del proyecto hasta que cierra la transaccion, asi que dos creaciones a la vez
+    // se ponen en fila: si se leyera primero y se incrementara despues, ambas verian el mismo
+    // nextTaskNumber, chocarian contra el unico [projectId, taskNumber] y una devolveria un 409.
+    const project = await tx.project.update({
       where: {
         id: projectId,
+      },
+      data: {
+        nextTaskNumber: { increment: 1 },
       },
       select: {
         nextTaskNumber: true,
       },
     });
 
-    const taskNumber = project!.nextTaskNumber;
+    const taskNumber = project.nextTaskNumber - 1;
 
     const task = await tx.task.create({
       data: {
@@ -87,15 +93,6 @@ export async function create({
         taskNumber,
         rank,
         completedAt,
-      },
-    });
-
-    await tx.project.update({
-      where: {
-        id: task.projectId,
-      },
-      data: {
-        nextTaskNumber: { increment: 1 },
       },
     });
 

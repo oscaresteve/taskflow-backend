@@ -71,6 +71,41 @@ describe("POST /workspaces/:workspaceSlug/projects/:projectSlug/tasks", () => {
     expect(second.taskNumber).toBe(2);
   });
 
+  // El taskNumber se reserva incrementando la fila del proyecto, no leyendola y escribiendola luego:
+  // de la otra forma varias creaciones a la vez leen el mismo numero y todas menos una mueren con un
+  // 409 contra el unico [projectId, taskNumber]. Se repite porque la carrera depende del solape real
+  // de las transacciones.
+  it("numbers concurrent creations in the same project without collisions", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const project = await createProject(owner.accessToken, workspace.slug);
+
+      const responses = await Promise.all(
+        [1, 2, 3, 4].map((index) =>
+          request(app)
+            .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+            .set("Cookie", `accessToken=${owner.accessToken}`)
+            .send({ title: `Task ${index}`, priority: "MEDIUM" }),
+        ),
+      );
+
+      expect(responses.map((res) => res.status)).toEqual([201, 201, 201, 201]);
+
+      const taskNumbers = (responses as { body: { taskNumber: number } }[])
+        .map((res) => res.body.taskNumber)
+        .sort((a, b) => a - b);
+
+      expect(taskNumbers).toEqual([1, 2, 3, 4]);
+
+      // El contador queda listo para la siguiente, sin huecos por los numeros ya repartidos.
+      await expect(
+        prisma.project.findUniqueOrThrow({ where: { id: project.id }, select: { nextTaskNumber: true } }),
+      ).resolves.toEqual({ nextTaskNumber: 5 });
+    }
+  });
+
   it("places the task at the end of the column it is created in, not of TODO", async () => {
     const { owner, workspace, project } = await setupOwnerProject();
 
