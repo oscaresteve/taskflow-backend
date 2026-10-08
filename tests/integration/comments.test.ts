@@ -84,6 +84,25 @@ describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber
 
     expect(res.body.data).toHaveLength(1);
   });
+
+  it("filters by search matching the content, case-insensitively", async () => {
+    const { owner, workspace, project, task } = await setupOwnerProjectTask();
+    const match = await createComment(owner.accessToken, workspace.slug, project.slug, task.taskNumber, {
+      content: "Needs a Deploy before Friday",
+    });
+    await createComment(owner.accessToken, workspace.slug, project.slug, task.taskNumber, {
+      content: "Nothing relevant here",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments`)
+      .query({ search: "DEPLOY" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    const ids = res.body.data.map((comment: { id: string }) => comment.id);
+    expect(ids).toEqual([match.id]);
+  });
 });
 
 describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/comments/:commentId", () => {

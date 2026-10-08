@@ -69,6 +69,7 @@ export async function findAll({
   if (query.search) {
     where.content = {
       contains: query.search,
+      mode: "insensitive",
     };
   }
 
