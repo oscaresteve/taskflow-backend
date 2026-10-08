@@ -124,6 +124,45 @@ describe("POST /workspaces/:workspaceSlug/projects", () => {
   });
 });
 
+// Dos creaciones simultáneas con el mismo nombre chocan en el índice del slug, y con la misma key
+// chocan en el de la key: lo primero se resuelve con el sufijo, lo segundo es un conflicto de verdad
+// y tiene que salir con el mensaje del módulo, no con el genérico de Prisma.
+describe("POST /workspaces/:workspaceSlug/projects (simultaneous)", () => {
+  it("gives each of three simultaneous creations with the same name its own slug", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+
+    const results = await Promise.all(
+      ["AAA", "BBB", "CCC"].map((key) =>
+        request(app)
+          .post(`/api/workspaces/${workspace.slug}/projects`)
+          .set("Cookie", `accessToken=${owner.accessToken}`)
+          .send({ name: "Acme", key }),
+      ),
+    );
+
+    expect(results.map((res) => res.status)).toEqual([201, 201, 201]);
+    expect(results.map((res) => res.body.slug).sort()).toEqual(["acme", "acme-1", "acme-2"]);
+  });
+
+  it("keeps its own message when two simultaneous creations share the key", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+
+    const results = await Promise.all(
+      ["Uno", "Dos"].map((name) =>
+        request(app)
+          .post(`/api/workspaces/${workspace.slug}/projects`)
+          .set("Cookie", `accessToken=${owner.accessToken}`)
+          .send({ name, key: "SAME" }),
+      ),
+    );
+
+    expect(results.map((res) => res.status).sort()).toEqual([201, 409]);
+
+    const conflict = results.find((res) => res.status === 409);
+    expect(conflict?.body.message).toBe("Project key already exists");
+  });
+});
+
 describe("GET /workspaces/:workspaceSlug/projects", () => {
   it("only lists projects the user is a member of", async () => {
     const { owner, workspace } = await setupOwnerWorkspace();

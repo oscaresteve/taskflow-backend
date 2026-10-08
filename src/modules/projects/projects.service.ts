@@ -1,6 +1,7 @@
 import type { CreateProjectDto, ProjectQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
 import * as projectsRepository from "./projects.repository.ts";
 import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
+import retryOnUniqueViolation from "../../shared/utils/retry-on-unique-violation.ts";
 import { ConflictError } from "../../shared/errors/conflict-error.ts";
 import { NotFoundError } from "../../shared/errors/not-found-error.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
@@ -26,19 +27,21 @@ export async function create({
   // Comprobar permisos
   requireWorkspaceManager(workspaceMember);
 
-  // Generar slug unico en el workspace
-  const slug = await generateUniqueSlug({
-    text: data.name,
-    exists: (slug) => projectsRepository.existsBySlugInWorkspace({ slug, workspaceId: workspace.id }),
+  const project = await retryOnUniqueViolation(async () => {
+    // Generar slug unico en el workspace
+    const slug = await generateUniqueSlug({
+      text: data.name,
+      exists: (slug) => projectsRepository.existsBySlugInWorkspace({ slug, workspaceId: workspace.id }),
+    });
+
+    // Comprobar que la key no existe
+    const keyExists = await projectsRepository.existsByKeyInWorkspace({ key: data.key, workspaceId: workspace.id });
+    if (keyExists) {
+      throw new ConflictError("Project key already exists");
+    }
+
+    return projectsRepository.create({ data, slug, workspaceId: workspace.id, userId });
   });
-
-  // Comprobar que la key no existe
-  const keyExists = await projectsRepository.existsByKeyInWorkspace({ key: data.key, workspaceId: workspace.id });
-  if (keyExists) {
-    throw new ConflictError("Project key already exists");
-  }
-
-  const project = await projectsRepository.create({ data, slug, workspaceId: workspace.id, userId });
 
   // Un proyecto recien creado no puede estar marcado como favorito todavia, y su autor es el OWNER
   // que le ha puesto el repository en la misma transaccion.

@@ -44,6 +44,21 @@ describe("POST /workspaces", () => {
 
     expect(res.status).toBe(400);
   });
+
+  // Las tres pasan por el generador de slug antes de que ninguna haya escrito, así que las dos
+  // últimas chocan en el índice único. El sufijo es la respuesta correcta, no un 409.
+  it("gives each of three simultaneous creations with the same name its own slug", async () => {
+    const owner = await signUp();
+
+    const results = await Promise.all(
+      [1, 2, 3].map(() =>
+        request(app).post("/api/workspaces").set("Cookie", `accessToken=${owner.accessToken}`).send({ name: "Acme" }),
+      ),
+    );
+
+    expect(results.map((res) => res.status)).toEqual([201, 201, 201]);
+    expect(results.map((res) => res.body.slug).sort()).toEqual(["acme", "acme-1", "acme-2"]);
+  });
 });
 
 describe("GET /workspaces", () => {

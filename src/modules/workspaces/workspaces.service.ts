@@ -11,6 +11,7 @@ import {
 } from "./schemas/workspaces.schema.ts";
 import { type Workspace } from "../../shared/types/prisma.types.ts";
 import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
+import retryOnUniqueViolation from "../../shared/utils/retry-on-unique-violation.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import { ConflictError } from "../../shared/errors/conflict-error.ts";
 import { NotFoundError } from "../../shared/errors/not-found-error.ts";
@@ -55,12 +56,14 @@ export async function create({
   const text = data.name;
   const exists = workspacesRepository.existsBySlug;
 
-  const slug = await generateUniqueSlug({ text, exists }); // Generar el slug unico
+  const workspace = await retryOnUniqueViolation(async () => {
+    const slug = await generateUniqueSlug({ text, exists }); // Generar el slug unico
 
-  const workspace = await workspacesRepository.create({
-    data,
-    slug,
-    userId,
+    return workspacesRepository.create({
+      data,
+      slug,
+      userId,
+    });
   });
 
   // Un workspace recien creado no puede estar marcado como favorito todavia
