@@ -3,9 +3,11 @@ import slugify from "./slugify.ts";
 type SlugExistsFn = (slug: string) => Promise<boolean>;
 
 export default async function generateUniqueSlug({
+  currentSlug,
   text,
   exists,
 }: {
+  currentSlug?: string;
   text: string;
   exists: SlugExistsFn;
 }): Promise<string> {
@@ -14,7 +16,7 @@ export default async function generateUniqueSlug({
   let slug = baseSlug;
   let counter = 1;
 
-  while (await exists(slug)) {
+  while (slug !== currentSlug && (await exists(slug))) {
     slug = `${baseSlug}-${counter}`;
     counter++;
   }

@@ -128,6 +128,7 @@ export async function update({
 
   if (data.name && data.name !== project.name)
     newSlug = await generateUniqueSlug({
+      currentSlug: project.slug,
       text: data.name,
       exists: (slug) => projectsRepository.existsBySlugInWorkspace({ slug, workspaceId: workspace.id }),
     });

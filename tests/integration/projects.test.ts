@@ -415,6 +415,39 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug", () => {
 
     expect(reread.status).toBe(200);
   });
+
+  // Un rename que no cambia el slug base no es una colisión: el slug ocupado es el del propio
+  // proyecto, así que tiene que quedarse igual en lugar de sufijarse.
+  it("keeps the slug when the new name slugifies the same", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug, { name: "Acme", key: "ACME" });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "Acme!" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.slug).toBe("acme");
+  });
+
+  // Mismo caso pero con el slug propio ya sufijado de nacimiento: "acme" lo tiene otro proyecto del
+  // workspace, así que descartar solo el slug base dejaría el rename en 409.
+  it("keeps a suffixed slug when the new name slugifies the same", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    await createProject(owner.accessToken, workspace.slug, { name: "Acme", key: "ACME" });
+    const project = await createProject(owner.accessToken, workspace.slug, { name: "Acme", key: "ACMETWO" });
+
+    expect(project.slug).toBe("acme-1");
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "Acme!" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.slug).toBe("acme-1");
+  });
 });
 
 describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/archive", () => {
