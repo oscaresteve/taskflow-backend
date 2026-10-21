@@ -19,6 +19,10 @@ const envSchema = z.object({
   S3_BUCKET_NAME: z.string().min(1),
   S3_FORCE_PATH_STYLE: z.stringbool().default(false),
   S3_PUBLIC_URL_BASE: z.string().min(1),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+  AUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

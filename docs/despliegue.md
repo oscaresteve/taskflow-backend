@@ -36,7 +36,7 @@ distintos de verdad, el cambio obligatorio es `sameSite: "none"` + `secure: true
 
 ## Variables de entorno
 
-Las 16 que valida `src/config/env.ts`. La plantilla con los valores de local está en `.env.example`;
+Las 20 que valida `src/config/env.ts`. La plantilla con los valores de local está en `.env.example`;
 esta tabla es solo lo que cambia en producción.
 
 | Variable                 | Producción                                                       |
@@ -132,6 +132,17 @@ aceptar una lista separada por comas y pasarse como array (o como función) a la
 `httpServer.listen(env.PORT)` no pasa host. Funciona, porque Node hace bind a todas las interfaces por
 defecto, pero es la causa número uno de "el despliegue no responde" cuando algo cambia. Dejarlo
 explícito (`listen(env.PORT, "0.0.0.0")`) cuesta nada.
+
+## `trust proxy` y el rate limiting
+
+Railway (y cualquier proxy inverso delante del backend) hace que todas las peticiones lleguen desde
+la IP interna del proxy, no la del cliente real, salvo que Express confíe explícitamente en la
+cabecera `X-Forwarded-For`. `src/app.ts` ya fija `app.set("trust proxy", 1)`, así que el rate
+limiting por IP (`express-rate-limit`, en `src/shared/middlewares/rate-limit.ts`) ve la IP real del
+cliente en vez de compartir el contador entre todo el mundo. `1` (y no `true`) le dice a Express que
+confíe en un único salto de proxy, que es la topología real; `true` confiaría en toda la cadena de
+cabeceras, que un cliente podría falsificar. Si el backend acabara detrás de más de un proxy (por
+ejemplo, un CDN delante de Railway), ese `1` tendría que subir para contar los saltos nuevos.
 
 ## Una sola instancia, sin autoescalado
 

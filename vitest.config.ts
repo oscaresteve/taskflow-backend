@@ -29,6 +29,13 @@ export default defineConfig({
       S3_BUCKET_NAME: TEST_S3_BUCKET_NAME,
       S3_FORCE_PATH_STYLE: "true",
       S3_PUBLIC_URL_BASE: TEST_S3_PUBLIC_URL_BASE,
+      // Altos a proposito: cada archivo de test comparte una sola instancia de `app`
+      // (y por tanto un solo limiter) entre todos sus `it()`. rate-limit.test.ts baja
+      // estos valores el mismo con `vi.stubEnv` sobre una `app` propia.
+      RATE_LIMIT_WINDOW_MS: "900000",
+      RATE_LIMIT_MAX: "100000",
+      AUTH_RATE_LIMIT_WINDOW_MS: "900000",
+      AUTH_RATE_LIMIT_MAX: "100000",
     },
   },
 });
