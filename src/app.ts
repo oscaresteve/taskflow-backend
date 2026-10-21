@@ -1,4 +1,5 @@
 import express from "express";
+import helmet from "helmet";
 import { router } from "./routes/index.ts";
 import { errorHandler } from "./shared/middlewares/error-handler.ts";
 import { env } from "./config/env.ts";
@@ -13,7 +14,7 @@ app.use(cookieParser());
 
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
 
-// TODO: Helmet
+app.use(helmet());
 // TODO: Logger
 
 app.use("/api", router);
