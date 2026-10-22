@@ -190,6 +190,30 @@ describe("PATCH /auth/me", () => {
     expect(res.body.timezone).toBe("America/New_York");
   });
 
+  it("updates the authenticated user's first and last name", async () => {
+    const { accessToken } = await signUp();
+
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Cookie", `accessToken=${accessToken}`)
+      .send({ firstName: "Updated", lastName: "Name" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.firstName).toBe("Updated");
+    expect(res.body.lastName).toBe("Name");
+  });
+
+  it("400s with a first name that is too short", async () => {
+    const { accessToken } = await signUp();
+
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Cookie", `accessToken=${accessToken}`)
+      .send({ firstName: "A" });
+
+    expect(res.status).toBe(400);
+  });
+
   it("400s with an empty timezone", async () => {
     const { accessToken } = await signUp();
 

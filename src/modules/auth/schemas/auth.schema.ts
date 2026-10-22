@@ -1,19 +1,11 @@
 import { z } from "zod";
-import { localeSchema, usernameSchema } from "../../../shared/schemas/common.schema.ts";
+import { firstNameSchema, lastNameSchema, localeSchema, usernameSchema } from "../../../shared/schemas/common.schema.ts";
 
 export const signUpSchema = z
   .object({
-    firstName: z
-      .string()
-      .trim()
-      .min(2, "First name must be at least 2 characters long")
-      .max(100, "First name cannot exceed 100 characters"),
+    firstName: firstNameSchema,
 
-    lastName: z
-      .string()
-      .trim()
-      .min(2, "Last name must be at least 2 characters long")
-      .max(100, "Last name cannot exceed 100 characters"),
+    lastName: lastNameSchema,
 
     username: usernameSchema,
 
@@ -46,6 +38,8 @@ export const signInSchema = z.object({
 
 export const updateMeSchema = z
   .object({
+    firstName: firstNameSchema.optional(),
+    lastName: lastNameSchema.optional(),
     username: usernameSchema.optional(),
     locale: localeSchema.optional(),
     timezone: z.string().min(1, "Timezone is required").optional(),

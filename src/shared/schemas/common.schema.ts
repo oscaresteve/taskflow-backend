@@ -12,6 +12,18 @@ export const booleanQueryParamSchema = z
 
 export const searchSchema = z.string().trim().min(1).optional();
 
+export const firstNameSchema = z
+  .string()
+  .trim()
+  .min(2, "First name must be at least 2 characters long")
+  .max(100, "First name cannot exceed 100 characters");
+
+export const lastNameSchema = z
+  .string()
+  .trim()
+  .min(2, "Last name must be at least 2 characters long")
+  .max(100, "Last name cannot exceed 100 characters");
+
 // El identificador publico con el que se menciona a alguien (@usuario).
 export const usernameSchema = z
   .string()
