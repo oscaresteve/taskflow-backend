@@ -2,7 +2,13 @@ import { prisma } from "../../config/prisma.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { ActivityEventWithActor } from "../activity/types/activity.types.ts";
-import { attachTargets, personSelect, projectSelect, reachableEventsBy } from "../activity/activity.repository.ts";
+import {
+  attachTargets,
+  personSelect,
+  projectSelect,
+  reachableEventsBy,
+  toActivityPerson,
+} from "../activity/activity.repository.ts";
 import type { NotificationQueryDto } from "./schemas/notifications.schema.ts";
 
 export type NotificationWithEvent = {
@@ -60,7 +66,9 @@ export async function findAll({
 
   // La persona de la que habla cada evento se resuelve igual que en el historial: su id vive en el
   // payload y no hay join que lo traiga.
-  const events = await attachTargets(items.map((notification) => notification.event));
+  const events = await attachTargets(
+    items.map((notification) => ({ ...notification.event, actor: toActivityPerson(notification.event.actor) })),
+  );
 
   return {
     items: items.map((notification, index) => ({ ...notification, event: events[index] })),

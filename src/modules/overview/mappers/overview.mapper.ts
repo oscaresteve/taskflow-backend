@@ -2,6 +2,7 @@ import { TaskPriority, TaskStatus } from "../../../shared/types/prisma.types.ts"
 import { toTaskResponseDto } from "../../tasks/mappers/tasks.mapper.ts";
 import { toProjectResponseDto } from "../../projects/mappers/projects.mapper.ts";
 import { toWorkspaceResponseDto } from "../../workspaces/mappers/workspaces.mapper.ts";
+import { buildPublicUrl } from "../../../shared/storage/storage.service.ts";
 import type { PaginatedResponseDto } from "../../../shared/dtos/pagination.dto.ts";
 import type {
   DueDateBucketRows,
@@ -134,7 +135,15 @@ function toOverviewTaskDto(task: OverviewTaskRow): OverviewTaskDto {
       name: task.project.name,
       workspaceSlug: task.project.workspace.slug,
     },
-    assignee: task.assignee,
+    assignee: task.assignee
+      ? {
+          id: task.assignee.id,
+          firstName: task.assignee.firstName,
+          lastName: task.assignee.lastName,
+          // La key se guarda en BD, la URL pública se construye al vuelo a partir de S3_PUBLIC_URL_BASE
+          avatarUrl: task.assignee.avatarKey ? buildPublicUrl({ key: task.assignee.avatarKey }) : null,
+        }
+      : null,
   };
 }
 

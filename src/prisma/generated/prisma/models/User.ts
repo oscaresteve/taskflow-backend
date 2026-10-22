@@ -31,7 +31,7 @@ export type UserMinAggregateOutputType = {
   username: string | null
   email: string | null
   passwordHash: string | null
-  avatarUrl: string | null
+  avatarKey: string | null
   timezone: string | null
   locale: string | null
   isActive: boolean | null
@@ -48,7 +48,7 @@ export type UserMaxAggregateOutputType = {
   username: string | null
   email: string | null
   passwordHash: string | null
-  avatarUrl: string | null
+  avatarKey: string | null
   timezone: string | null
   locale: string | null
   isActive: boolean | null
@@ -65,7 +65,7 @@ export type UserCountAggregateOutputType = {
   username: number
   email: number
   passwordHash: number
-  avatarUrl: number
+  avatarKey: number
   timezone: number
   locale: number
   isActive: number
@@ -84,7 +84,7 @@ export type UserMinAggregateInputType = {
   username?: true
   email?: true
   passwordHash?: true
-  avatarUrl?: true
+  avatarKey?: true
   timezone?: true
   locale?: true
   isActive?: true
@@ -101,7 +101,7 @@ export type UserMaxAggregateInputType = {
   username?: true
   email?: true
   passwordHash?: true
-  avatarUrl?: true
+  avatarKey?: true
   timezone?: true
   locale?: true
   isActive?: true
@@ -118,7 +118,7 @@ export type UserCountAggregateInputType = {
   username?: true
   email?: true
   passwordHash?: true
-  avatarUrl?: true
+  avatarKey?: true
   timezone?: true
   locale?: true
   isActive?: true
@@ -208,7 +208,7 @@ export type UserGroupByOutputType = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl: string | null
+  avatarKey: string | null
   timezone: string | null
   locale: string | null
   isActive: boolean
@@ -246,7 +246,7 @@ export type UserWhereInput = {
   username?: Prisma.StringFilter<"User"> | string
   email?: Prisma.StringFilter<"User"> | string
   passwordHash?: Prisma.StringFilter<"User"> | string
-  avatarUrl?: Prisma.StringNullableFilter<"User"> | string | null
+  avatarKey?: Prisma.StringNullableFilter<"User"> | string | null
   timezone?: Prisma.StringNullableFilter<"User"> | string | null
   locale?: Prisma.StringNullableFilter<"User"> | string | null
   isActive?: Prisma.BoolFilter<"User"> | boolean
@@ -274,7 +274,7 @@ export type UserOrderByWithRelationInput = {
   username?: Prisma.SortOrder
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
-  avatarUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  avatarKey?: Prisma.SortOrderInput | Prisma.SortOrder
   timezone?: Prisma.SortOrderInput | Prisma.SortOrder
   locale?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
@@ -305,7 +305,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   firstName?: Prisma.StringFilter<"User"> | string
   lastName?: Prisma.StringFilter<"User"> | string
   passwordHash?: Prisma.StringFilter<"User"> | string
-  avatarUrl?: Prisma.StringNullableFilter<"User"> | string | null
+  avatarKey?: Prisma.StringNullableFilter<"User"> | string | null
   timezone?: Prisma.StringNullableFilter<"User"> | string | null
   locale?: Prisma.StringNullableFilter<"User"> | string | null
   isActive?: Prisma.BoolFilter<"User"> | boolean
@@ -333,7 +333,7 @@ export type UserOrderByWithAggregationInput = {
   username?: Prisma.SortOrder
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
-  avatarUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  avatarKey?: Prisma.SortOrderInput | Prisma.SortOrder
   timezone?: Prisma.SortOrderInput | Prisma.SortOrder
   locale?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
@@ -356,7 +356,7 @@ export type UserScalarWhereWithAggregatesInput = {
   username?: Prisma.StringWithAggregatesFilter<"User"> | string
   email?: Prisma.StringWithAggregatesFilter<"User"> | string
   passwordHash?: Prisma.StringWithAggregatesFilter<"User"> | string
-  avatarUrl?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  avatarKey?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   timezone?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   locale?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   isActive?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
@@ -373,7 +373,7 @@ export type UserCreateInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -401,7 +401,7 @@ export type UserUncheckedCreateInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -429,7 +429,7 @@ export type UserUpdateInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -457,7 +457,7 @@ export type UserUncheckedUpdateInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -485,7 +485,7 @@ export type UserCreateManyInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -502,7 +502,7 @@ export type UserUpdateManyMutationInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -519,7 +519,7 @@ export type UserUncheckedUpdateManyInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -536,7 +536,7 @@ export type UserCountOrderByAggregateInput = {
   username?: Prisma.SortOrder
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
-  avatarUrl?: Prisma.SortOrder
+  avatarKey?: Prisma.SortOrder
   timezone?: Prisma.SortOrder
   locale?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
@@ -553,7 +553,7 @@ export type UserMaxOrderByAggregateInput = {
   username?: Prisma.SortOrder
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
-  avatarUrl?: Prisma.SortOrder
+  avatarKey?: Prisma.SortOrder
   timezone?: Prisma.SortOrder
   locale?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
@@ -570,7 +570,7 @@ export type UserMinOrderByAggregateInput = {
   username?: Prisma.SortOrder
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
-  avatarUrl?: Prisma.SortOrder
+  avatarKey?: Prisma.SortOrder
   timezone?: Prisma.SortOrder
   locale?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
@@ -773,7 +773,7 @@ export type UserCreateWithoutFavoriteWorkspacesInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -800,7 +800,7 @@ export type UserUncheckedCreateWithoutFavoriteWorkspacesInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -843,7 +843,7 @@ export type UserUpdateWithoutFavoriteWorkspacesInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -870,7 +870,7 @@ export type UserUncheckedUpdateWithoutFavoriteWorkspacesInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -897,7 +897,7 @@ export type UserCreateWithoutWorkspaceMembersInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -924,7 +924,7 @@ export type UserUncheckedCreateWithoutWorkspaceMembersInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -967,7 +967,7 @@ export type UserUpdateWithoutWorkspaceMembersInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -994,7 +994,7 @@ export type UserUncheckedUpdateWithoutWorkspaceMembersInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1021,7 +1021,7 @@ export type UserCreateWithoutFavoriteProjectsInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -1048,7 +1048,7 @@ export type UserUncheckedCreateWithoutFavoriteProjectsInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -1091,7 +1091,7 @@ export type UserUpdateWithoutFavoriteProjectsInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1118,7 +1118,7 @@ export type UserUncheckedUpdateWithoutFavoriteProjectsInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1145,7 +1145,7 @@ export type UserCreateWithoutProjectMembersInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -1172,7 +1172,7 @@ export type UserUncheckedCreateWithoutProjectMembersInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -1215,7 +1215,7 @@ export type UserUpdateWithoutProjectMembersInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1242,7 +1242,7 @@ export type UserUncheckedUpdateWithoutProjectMembersInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1269,7 +1269,7 @@ export type UserCreateWithoutCreatedTasksInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -1296,7 +1296,7 @@ export type UserUncheckedCreateWithoutCreatedTasksInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -1328,7 +1328,7 @@ export type UserCreateWithoutAssignedTasksInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -1355,7 +1355,7 @@ export type UserUncheckedCreateWithoutAssignedTasksInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -1398,7 +1398,7 @@ export type UserUpdateWithoutCreatedTasksInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1425,7 +1425,7 @@ export type UserUncheckedUpdateWithoutCreatedTasksInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1463,7 +1463,7 @@ export type UserUpdateWithoutAssignedTasksInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1490,7 +1490,7 @@ export type UserUncheckedUpdateWithoutAssignedTasksInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1517,7 +1517,7 @@ export type UserCreateWithoutFavoriteTasksInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -1544,7 +1544,7 @@ export type UserUncheckedCreateWithoutFavoriteTasksInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -1587,7 +1587,7 @@ export type UserUpdateWithoutFavoriteTasksInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1614,7 +1614,7 @@ export type UserUncheckedUpdateWithoutFavoriteTasksInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1641,7 +1641,7 @@ export type UserCreateWithoutCommentsInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -1668,7 +1668,7 @@ export type UserUncheckedCreateWithoutCommentsInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -1711,7 +1711,7 @@ export type UserUpdateWithoutCommentsInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1738,7 +1738,7 @@ export type UserUncheckedUpdateWithoutCommentsInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1765,7 +1765,7 @@ export type UserCreateWithoutActivityEventsInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -1792,7 +1792,7 @@ export type UserUncheckedCreateWithoutActivityEventsInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -1835,7 +1835,7 @@ export type UserUpdateWithoutActivityEventsInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1862,7 +1862,7 @@ export type UserUncheckedUpdateWithoutActivityEventsInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1889,7 +1889,7 @@ export type UserCreateWithoutNotificationsInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -1916,7 +1916,7 @@ export type UserUncheckedCreateWithoutNotificationsInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -1959,7 +1959,7 @@ export type UserUpdateWithoutNotificationsInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1986,7 +1986,7 @@ export type UserUncheckedUpdateWithoutNotificationsInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -2013,7 +2013,7 @@ export type UserCreateWithoutRefreshTokensInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -2040,7 +2040,7 @@ export type UserUncheckedCreateWithoutRefreshTokensInput = {
   username: string
   email: string
   passwordHash: string
-  avatarUrl?: string | null
+  avatarKey?: string | null
   timezone?: string | null
   locale?: string | null
   isActive?: boolean
@@ -2083,7 +2083,7 @@ export type UserUpdateWithoutRefreshTokensInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -2110,7 +2110,7 @@ export type UserUncheckedUpdateWithoutRefreshTokensInput = {
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -2258,7 +2258,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   username?: boolean
   email?: boolean
   passwordHash?: boolean
-  avatarUrl?: boolean
+  avatarKey?: boolean
   timezone?: boolean
   locale?: boolean
   isActive?: boolean
@@ -2287,7 +2287,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   username?: boolean
   email?: boolean
   passwordHash?: boolean
-  avatarUrl?: boolean
+  avatarKey?: boolean
   timezone?: boolean
   locale?: boolean
   isActive?: boolean
@@ -2304,7 +2304,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   username?: boolean
   email?: boolean
   passwordHash?: boolean
-  avatarUrl?: boolean
+  avatarKey?: boolean
   timezone?: boolean
   locale?: boolean
   isActive?: boolean
@@ -2321,7 +2321,7 @@ export type UserSelectScalar = {
   username?: boolean
   email?: boolean
   passwordHash?: boolean
-  avatarUrl?: boolean
+  avatarKey?: boolean
   timezone?: boolean
   locale?: boolean
   isActive?: boolean
@@ -2331,7 +2331,7 @@ export type UserSelectScalar = {
   updatedAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "firstName" | "lastName" | "username" | "email" | "passwordHash" | "avatarUrl" | "timezone" | "locale" | "isActive" | "emailVerifiedAt" | "lastLoginAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "firstName" | "lastName" | "username" | "email" | "passwordHash" | "avatarKey" | "timezone" | "locale" | "isActive" | "emailVerifiedAt" | "lastLoginAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   workspaceMembers?: boolean | Prisma.User$workspaceMembersArgs<ExtArgs>
   projectMembers?: boolean | Prisma.User$projectMembersArgs<ExtArgs>
@@ -2371,7 +2371,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     username: string
     email: string
     passwordHash: string
-    avatarUrl: string | null
+    avatarKey: string | null
     timezone: string | null
     locale: string | null
     isActive: boolean
@@ -2819,7 +2819,7 @@ export interface UserFieldRefs {
   readonly username: Prisma.FieldRef<"User", 'String'>
   readonly email: Prisma.FieldRef<"User", 'String'>
   readonly passwordHash: Prisma.FieldRef<"User", 'String'>
-  readonly avatarUrl: Prisma.FieldRef<"User", 'String'>
+  readonly avatarKey: Prisma.FieldRef<"User", 'String'>
   readonly timezone: Prisma.FieldRef<"User", 'String'>
   readonly locale: Prisma.FieldRef<"User", 'String'>
   readonly isActive: Prisma.FieldRef<"User", 'Boolean'>

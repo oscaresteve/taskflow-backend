@@ -7,6 +7,7 @@ import type { ActivityQueryDto } from "./schemas/activity.schema.ts";
 import { resolveRecipients } from "./activity.recipients.ts";
 import { toActivityEventResponse } from "./mappers/activity.mapper.ts";
 import { emitActivityEvent, emitNotification } from "../../socket/realtime.ts";
+import { buildPublicUrl } from "../../shared/storage/storage.service.ts";
 
 // Recibe el cliente de la transaccion que abre la mutacion que origina los eventos: un evento que
 // afirma algo que despues hizo rollback es peor que no tener evento. Las notificaciones se escriben
@@ -46,7 +47,7 @@ export async function record(tx: Prisma.TransactionClient, events: ActivityEvent
       },
     });
 
-    createdEvents.push(created);
+    createdEvents.push({ ...created, actor: toActivityPerson(created.actor) });
 
     for (const userId of recipientsByEvent[index]) {
       notifications.push({ userId, eventId: created.id });
@@ -94,7 +95,7 @@ export const personSelect = {
   firstName: true,
   lastName: true,
   username: true,
-  avatarUrl: true,
+  avatarKey: true,
 } as const;
 
 export const projectSelect = {
@@ -102,6 +103,23 @@ export const projectSelect = {
   key: true,
   name: true,
 } as const;
+
+// La key se guarda en BD, la URL pública se construye al vuelo a partir de S3_PUBLIC_URL_BASE
+export function toActivityPerson(person: {
+  id: string;
+  firstName: string;
+  lastName: string;
+  username: string;
+  avatarKey: string | null;
+}): ActivityPerson {
+  return {
+    id: person.id,
+    firstName: person.firstName,
+    lastName: person.lastName,
+    username: person.username,
+    avatarUrl: person.avatarKey ? buildPublicUrl({ key: person.avatarKey }) : null,
+  };
+}
 
 // El id de la persona de la que habla el evento vive dentro del payload, asi que no hay join que
 // lo traiga: se leen de una sola consulta para toda la pagina y se reparten.
@@ -121,7 +139,7 @@ export async function attachTargets<T extends { action: ActivityAction; payload:
     select: personSelect,
   });
 
-  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const peopleById = new Map(people.map((person) => [person.id, toActivityPerson(person)]));
 
   return events.map((event, index) => {
     const targetId = targetIdByEvent[index];
@@ -174,8 +192,10 @@ async function findAll({
     }),
   ]);
 
+  const itemsWithActor = items.map((item) => ({ ...item, actor: toActivityPerson(item.actor) }));
+
   return {
-    items: await attachTargets(items),
+    items: await attachTargets(itemsWithActor),
     total,
   };
 }

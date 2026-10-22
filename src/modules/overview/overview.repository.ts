@@ -22,13 +22,13 @@ function today(timeZone: string | null): Date {
 // la key del proyecto para el identificador (CORE-113) y el responsable para el avatar.
 const overviewTaskInclude = {
   project: { select: { key: true, slug: true, name: true, workspace: { select: { slug: true } } } },
-  assignee: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+  assignee: { select: { id: true, firstName: true, lastName: true, avatarKey: true } },
 };
 
 export type OverviewTaskRow = Task & {
   isFavorite: boolean;
   project: { key: string; slug: string; name: string; workspace: { slug: string } };
-  assignee: { id: string; firstName: string; lastName: string; avatarUrl: string | null } | null;
+  assignee: { id: string; firstName: string; lastName: string; avatarKey: string | null } | null;
 };
 
 type OverviewTaskRowWithoutFavorite = Omit<OverviewTaskRow, "isFavorite">;

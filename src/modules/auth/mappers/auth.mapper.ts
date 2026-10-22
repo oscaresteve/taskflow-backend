@@ -1,5 +1,6 @@
 import type { AuthResponseDto, UserResponseDto } from "../dtos/auth.dto.ts";
 import type { User } from "../../../shared/types/prisma.types.ts";
+import { buildPublicUrl } from "../../../shared/storage/storage.service.ts";
 
 interface ToAuthResponseDtoInput {
   user: User;
@@ -18,7 +19,8 @@ export function toUserResponseDto(user: User): UserResponseDto {
     username: user.username,
     email: user.email,
     id: user.id,
-    avatarUrl: user.avatarUrl,
+    // La key se guarda en BD, la URL pública se construye al vuelo a partir de S3_PUBLIC_URL_BASE
+    avatarUrl: user.avatarKey ? buildPublicUrl({ key: user.avatarKey }) : null,
     isActive: user.isActive,
     emailVerifiedAt: user.emailVerifiedAt,
     lastLoginAt: user.lastLoginAt,

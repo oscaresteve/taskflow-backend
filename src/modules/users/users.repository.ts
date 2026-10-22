@@ -11,7 +11,7 @@ const userSummarySelect = {
   id: true,
   firstName: true,
   lastName: true,
-  avatarUrl: true,
+  avatarKey: true,
   email: true,
 } as const;
 
@@ -19,7 +19,7 @@ export type UserSummaryRow = {
   id: string;
   firstName: string;
   lastName: string;
-  avatarUrl: string | null;
+  avatarKey: string | null;
   email: string;
 };
 
