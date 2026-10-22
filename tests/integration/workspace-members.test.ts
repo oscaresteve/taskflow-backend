@@ -218,6 +218,26 @@ describe("GET /workspaces/:workspaceSlug/members", () => {
     expect(userIds).toEqual([member.user.id]);
   });
 
+  it("filters members by the user's username via search", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const member = await signUp({ name: "Zendaya Ocampo", username: "zenith" });
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .query({ search: "ZENITH" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    const userIds = res.body.data.map((m: { userId: string }) => m.userId);
+    expect(userIds).toEqual([member.user.id]);
+  });
+
   it("excludes the members of the project named by excludeProjectSlug", async () => {
     const { owner, workspace } = await setupOwnerWorkspace();
     const project = await createProject(owner.accessToken, workspace.slug, { name: "Web" });

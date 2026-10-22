@@ -85,6 +85,21 @@ describe("GET /users", () => {
     expect(ids).toEqual([match.user.id]);
   });
 
+  it("filters by search matching part of the username, case-insensitively", async () => {
+    const self = await signUp();
+    const match = await signUp({ name: "Ada Byron", username: "lovelace_ada" });
+    await signUp({ name: "Someone Else" });
+    const workspace = await createWorkspace(self.accessToken);
+
+    const res = await request(app)
+      .get("/api/users")
+      .query({ workspaceSlug: workspace.slug, search: "LOVELACE" })
+      .set("Cookie", `accessToken=${self.accessToken}`);
+
+    const ids = res.body.data.map((u: { id: string }) => u.id);
+    expect(ids).toEqual([match.user.id]);
+  });
+
   it("filters by search matching a full email address, case-insensitively", async () => {
     const self = await signUp();
     const match = await signUp({ name: "Grace Hopper", email: "grace.hopper@example.com" });

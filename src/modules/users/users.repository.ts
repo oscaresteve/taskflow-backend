@@ -72,6 +72,14 @@ export async function findAll({
         },
       },
       {
+        // El username si casa por trozos, al contrario que el email: es el identificador publico
+        // con el que se menciona a alguien, asi que no hay nada que proteger al dejarlo buscar.
+        username: {
+          contains: query.search,
+          mode: "insensitive",
+        },
+      },
+      {
         // La direccion casa entera y no por trozos: esto sirve para dar de alta a quien ya
         // conoces, no para recolectar las direcciones de un dominio buscando "@empresa.com".
         email: {
