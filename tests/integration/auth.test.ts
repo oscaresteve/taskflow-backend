@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
-import { app, signUp } from "../helpers/api.ts";
+import { app, signUp, uploadTestUserAvatarFile } from "../helpers/api.ts";
+import { MAX_AVATAR_SIZE_BYTES } from "../../src/shared/schemas/common.schema.ts";
 
 describe("POST /auth/sign-up", () => {
   it("creates a user and sets httpOnly auth cookies", async () => {
@@ -246,6 +247,147 @@ describe("PATCH /auth/me", () => {
 
   it("401s without a token", async () => {
     const res = await request(app).patch("/api/auth/me").send({ locale: "es" });
+
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("POST /auth/me/avatar/upload-url", () => {
+  it("signs an upload URL for an allowed content type and size", async () => {
+    const { accessToken } = await signUp();
+
+    const res = await request(app)
+      .post("/api/auth/me/avatar/upload-url")
+      .set("Cookie", `accessToken=${accessToken}`)
+      .send({ contentType: "image/png", fileSize: 1024 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.uploadUrl).toBeTypeOf("string");
+    expect(res.body.key).toBeTypeOf("string");
+  });
+
+  it("400s when fileSize exceeds the max allowed size", async () => {
+    const { accessToken } = await signUp();
+
+    const res = await request(app)
+      .post("/api/auth/me/avatar/upload-url")
+      .set("Cookie", `accessToken=${accessToken}`)
+      .send({ contentType: "image/png", fileSize: MAX_AVATAR_SIZE_BYTES + 1 });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("401s without a token", async () => {
+    const res = await request(app)
+      .post("/api/auth/me/avatar/upload-url")
+      .send({ contentType: "image/png", fileSize: 1024 });
+
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("PUT /auth/me/avatar", () => {
+  it("confirms a real upload and exposes the public avatarUrl afterwards", async () => {
+    const { accessToken } = await signUp();
+    const { key } = await uploadTestUserAvatarFile({ actorAccessToken: accessToken });
+
+    const confirmRes = await request(app)
+      .put("/api/auth/me/avatar")
+      .set("Cookie", `accessToken=${accessToken}`)
+      .send({ key });
+
+    expect(confirmRes.status).toBe(200);
+    expect(confirmRes.body.avatarUrl).toEqual(expect.stringContaining(key));
+
+    const getRes = await request(app).get("/api/auth/me").set("Cookie", `accessToken=${accessToken}`);
+    expect(getRes.body.avatarUrl).toBe(confirmRes.body.avatarUrl);
+
+    const publicRes = await fetch(confirmRes.body.avatarUrl);
+    expect(publicRes.status).toBe(200);
+  });
+
+  it("replaces the previous avatar and deletes the old object from the bucket", async () => {
+    const { accessToken } = await signUp();
+    const first = await uploadTestUserAvatarFile({ actorAccessToken: accessToken });
+    const firstConfirmRes = await request(app)
+      .put("/api/auth/me/avatar")
+      .set("Cookie", `accessToken=${accessToken}`)
+      .send({ key: first.key });
+    const firstAvatarUrl = firstConfirmRes.body.avatarUrl as string;
+
+    const second = await uploadTestUserAvatarFile({ actorAccessToken: accessToken });
+    const secondConfirmRes = await request(app)
+      .put("/api/auth/me/avatar")
+      .set("Cookie", `accessToken=${accessToken}`)
+      .send({ key: second.key });
+
+    expect(secondConfirmRes.body.avatarUrl).not.toBe(firstAvatarUrl);
+
+    const oldObjectRes = await fetch(firstAvatarUrl);
+    expect(oldObjectRes.status).toBe(404);
+  });
+
+  it("400s when the key was never actually uploaded to the bucket", async () => {
+    const { accessToken, user } = await signUp();
+
+    const res = await request(app)
+      .put("/api/auth/me/avatar")
+      .set("Cookie", `accessToken=${accessToken}`)
+      .send({ key: `users/${user.id}/avatar-never-uploaded.png` });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("400s when the key belongs to a different user", async () => {
+    const userA = await signUp();
+    const userB = await signUp();
+    const { key } = await uploadTestUserAvatarFile({ actorAccessToken: userA.accessToken });
+
+    const res = await request(app)
+      .put("/api/auth/me/avatar")
+      .set("Cookie", `accessToken=${userB.accessToken}`)
+      .send({ key });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("401s without a token", async () => {
+    const res = await request(app).put("/api/auth/me/avatar").send({ key: "users/x/avatar-y.png" });
+
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("DELETE /auth/me/avatar", () => {
+  it("clears avatarUrl and removes the object from the bucket", async () => {
+    const { accessToken } = await signUp();
+    const { key } = await uploadTestUserAvatarFile({ actorAccessToken: accessToken });
+    const confirmRes = await request(app)
+      .put("/api/auth/me/avatar")
+      .set("Cookie", `accessToken=${accessToken}`)
+      .send({ key });
+    const avatarUrl = confirmRes.body.avatarUrl as string;
+
+    const deleteRes = await request(app).delete("/api/auth/me/avatar").set("Cookie", `accessToken=${accessToken}`);
+    expect(deleteRes.status).toBe(204);
+
+    const getRes = await request(app).get("/api/auth/me").set("Cookie", `accessToken=${accessToken}`);
+    expect(getRes.body.avatarUrl).toBeNull();
+
+    const objectRes = await fetch(avatarUrl);
+    expect(objectRes.status).toBe(404);
+  });
+
+  it("404s when the user has no avatar", async () => {
+    const { accessToken } = await signUp();
+
+    const res = await request(app).delete("/api/auth/me/avatar").set("Cookie", `accessToken=${accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("401s without a token", async () => {
+    const res = await request(app).delete("/api/auth/me/avatar");
 
     expect(res.status).toBe(401);
   });

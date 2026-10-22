@@ -307,4 +307,40 @@ export async function uploadTestAvatarFile({
   return { key };
 }
 
+// Igual que uploadTestAvatarFile pero contra el avatar del propio usuario autenticado.
+export async function uploadTestUserAvatarFile({
+  actorAccessToken,
+  contentType = "image/png",
+}: {
+  actorAccessToken: string;
+  contentType?: string;
+}) {
+  const bytes = Buffer.from(TEST_PNG_BASE64, "base64");
+
+  const uploadUrlRes = await request(app)
+    .post("/api/auth/me/avatar/upload-url")
+    .set("Cookie", `accessToken=${actorAccessToken}`)
+    .send({ contentType, fileSize: bytes.byteLength });
+
+  if (uploadUrlRes.status !== 200) {
+    throw new Error(
+      `uploadTestUserAvatarFile (upload-url) failed: ${uploadUrlRes.status} ${JSON.stringify(uploadUrlRes.body)}`,
+    );
+  }
+
+  const { uploadUrl, key } = uploadUrlRes.body as { uploadUrl: string; key: string };
+
+  const putRes = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": contentType },
+    body: bytes,
+  });
+
+  if (putRes.status !== 200) {
+    throw new Error(`uploadTestUserAvatarFile (PUT to bucket) failed: ${putRes.status}`);
+  }
+
+  return { key };
+}
+
 export { app };

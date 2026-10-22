@@ -4,6 +4,7 @@ import { toAuthResponseDto, toUserResponseDto } from "./mappers/auth.mapper.ts";
 import { setAccessTokenCookie, setRefreshTokenCookie, clearAuthCookies } from "../../shared/security/cookies.ts";
 import { UnauthorizedError } from "../../shared/errors/unauthorized-error.ts";
 import type { SignInDto, SignUpDto, UpdateMeDto } from "./schemas/auth.schema.ts";
+import type { AvatarUploadUrlDto, ConfirmAvatarDto } from "../../shared/schemas/common.schema.ts";
 
 export async function signUp(req: Request, res: Response, next: NextFunction) {
   try {
@@ -51,6 +52,47 @@ export async function updateMe(req: Request, res: Response, next: NextFunction) 
 
     const userResponse = toUserResponseDto(user);
     res.json(userResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getAvatarUploadUrl(req: Request, res: Response, next: NextFunction) {
+  try {
+    const data = req.validated.body as AvatarUploadUrlDto;
+    const userId = req.user.id;
+
+    const result = await authService.getAvatarUploadUrl({ userId, data });
+
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function confirmAvatar(req: Request, res: Response, next: NextFunction) {
+  try {
+    const data = req.validated.body as ConfirmAvatarDto;
+    const userId = req.user.id;
+    const currentAvatarKey = req.user.avatarKey;
+
+    const user = await authService.confirmAvatar({ userId, currentAvatarKey, data });
+
+    const userResponse = toUserResponseDto(user);
+    res.json(userResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteAvatar(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const currentAvatarKey = req.user.avatarKey;
+
+    await authService.deleteAvatar({ userId, currentAvatarKey });
+
+    res.sendStatus(204);
   } catch (error) {
     next(error);
   }

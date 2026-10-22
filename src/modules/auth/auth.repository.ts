@@ -54,6 +54,17 @@ export async function update({ id, data }: { id: string; data: UpdateMeDto }): P
   });
 }
 
+export async function updateAvatarKey({ id, avatarKey }: { id: string; avatarKey: string | null }): Promise<User> {
+  return prisma.user.update({
+    where: {
+      id,
+    },
+    data: {
+      avatarKey,
+    },
+  });
+}
+
 export async function createRefreshToken({
   userId,
   tokenHash,
