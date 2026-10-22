@@ -45,6 +45,35 @@ export const nameSchema = z
 
 export const descriptionSchema = z.string().trim().max(500, "Description cannot exceed 500 characters").optional();
 
+// Avatar (de workspace o de usuario): tipos de imagen permitidos y tamaño máximo, compartidos entre
+// la validación de la petición (aquí) y la comprobación real del archivo subido (en el service de cada módulo).
+export const avatarContentTypeSchema = z.enum(["image/png", "image/jpeg", "image/webp"]);
+export type AvatarContentType = z.infer<typeof avatarContentTypeSchema>;
+
+export const AVATAR_EXTENSION_BY_CONTENT_TYPE: Record<AvatarContentType, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
+
+export const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+
+export const avatarUploadUrlSchema = z.object({
+  contentType: avatarContentTypeSchema,
+  fileSize: z
+    .number()
+    .int()
+    .positive()
+    .max(MAX_AVATAR_SIZE_BYTES, `File size cannot exceed ${MAX_AVATAR_SIZE_BYTES} bytes`),
+});
+
+export const confirmAvatarSchema = z.object({
+  key: z.string().min(1),
+});
+
+export type AvatarUploadUrlDto = z.infer<typeof avatarUploadUrlSchema>;
+export type ConfirmAvatarDto = z.infer<typeof confirmAvatarSchema>;
+
 // Locales soportados por la app; unica fuente para no repetir el enum en cada schema que
 // use locale (sign-up, update me, ...).
 export const locales = ["en", "es"] as const;

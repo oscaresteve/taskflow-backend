@@ -2,14 +2,12 @@ import { Router } from "express";
 import { auth } from "../../shared/middlewares/auth.ts";
 import { validate } from "../../shared/middlewares/validate.ts";
 import * as workspacesController from "./workspaces.controller.ts";
+import { createWorkspaceSchema, workspaceQuerySchema, updateWorkspaceSchema } from "./schemas/workspaces.schema.ts";
 import {
   avatarUploadUrlSchema,
   confirmAvatarSchema,
-  createWorkspaceSchema,
-  workspaceQuerySchema,
-  updateWorkspaceSchema,
-} from "./schemas/workspaces.schema.ts";
-import { workspaceParamsSchema } from "../../shared/schemas/common.schema.ts";
+  workspaceParamsSchema,
+} from "../../shared/schemas/common.schema.ts";
 
 export const workspacesRouter = Router();
 

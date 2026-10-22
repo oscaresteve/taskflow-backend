@@ -1,14 +1,12 @@
 import { type NextFunction, type Request, type Response } from "express";
 import * as workspacesService from "./workspaces.service.ts";
 import { toPaginatedWorkspaceResponseDto, toWorkspaceResponseDto } from "./mappers/workspaces.mapper.ts";
-import {
-  type AvatarUploadUrlDto,
-  type ConfirmAvatarDto,
-  type CreateWorkspaceDto,
-  type UpdateWorkspaceDto,
-  type WorkspaceQueryDto,
-} from "./schemas/workspaces.schema.ts";
-import type { WorkspaceParamsDto } from "../../shared/schemas/common.schema.ts";
+import { type CreateWorkspaceDto, type UpdateWorkspaceDto, type WorkspaceQueryDto } from "./schemas/workspaces.schema.ts";
+import type {
+  AvatarUploadUrlDto,
+  ConfirmAvatarDto,
+  WorkspaceParamsDto,
+} from "../../shared/schemas/common.schema.ts";
 
 // Llamar al servicio y mappear la respuesta.
 // Responder HTTP

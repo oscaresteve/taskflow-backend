@@ -1,14 +1,12 @@
 import { randomUUID } from "node:crypto";
 import * as workspacesRepository from "./workspaces.repository.ts";
+import { type CreateWorkspaceDto, type UpdateWorkspaceDto, type WorkspaceQueryDto } from "./schemas/workspaces.schema.ts";
 import {
   AVATAR_EXTENSION_BY_CONTENT_TYPE,
   MAX_AVATAR_SIZE_BYTES,
   type AvatarUploadUrlDto,
   type ConfirmAvatarDto,
-  type CreateWorkspaceDto,
-  type UpdateWorkspaceDto,
-  type WorkspaceQueryDto,
-} from "./schemas/workspaces.schema.ts";
+} from "../../shared/schemas/common.schema.ts";
 import { type Workspace } from "../../shared/types/prisma.types.ts";
 import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
 import retryOnUniqueViolation from "../../shared/utils/retry-on-unique-violation.ts";

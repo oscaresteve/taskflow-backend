@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { addActiveMember, app, createWorkspace, signUp, TEST_PNG_BASE64, uploadTestAvatarFile } from "../helpers/api.ts";
-import { MAX_AVATAR_SIZE_BYTES } from "../../src/modules/workspaces/schemas/workspaces.schema.ts";
+import { MAX_AVATAR_SIZE_BYTES } from "../../src/shared/schemas/common.schema.ts";
 
 describe("POST /workspaces", () => {
   it("creates the workspace and makes the creator an active OWNER", async () => {
