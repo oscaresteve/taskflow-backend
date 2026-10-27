@@ -7,8 +7,14 @@ import type {
   WorkspaceMembersQueryDto,
 } from "./schemas/workspace-members.schema.ts";
 import * as workspaceMembersRepository from "./workspace-members.repository.ts";
-import { WorkspaceMemberStatus, type User, type WorkspaceMember } from "../../shared/types/prisma.types.ts";
+import {
+  WorkspaceMemberStatus,
+  WorkspaceRole,
+  type User,
+  type WorkspaceMember,
+} from "../../shared/types/prisma.types.ts";
 import { BadRequestError } from "../../shared/errors/bad-request-error.ts";
+import { ConflictError } from "../../shared/errors/conflict-error.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import {
   requireCanAssignWorkspaceRole,
@@ -228,6 +234,39 @@ export async function update({
         actorId: userId,
         action: "WORKSPACE_MEMBER_ROLE_CHANGED",
         payload: { targetUserId: workspaceMemberUserId, from: workspaceMemberTarget.role, to: data.role },
+      },
+    ],
+  });
+}
+
+export async function leave({ userId, workspaceSlug }: { userId: string; workspaceSlug: string }): Promise<void> {
+  const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  // El ultimo OWNER no puede irse y dejar un espacio que nadie pueda volver a administrar.
+  if (workspaceMember.role === WorkspaceRole.OWNER) {
+    const hasAnotherOwner = await workspaceMembersRepository.hasAnotherActiveOwner({
+      workspaceId: workspace.id,
+      userId,
+    });
+
+    if (!hasAnotherOwner) {
+      throw new ConflictError("You are the last owner of this workspace. Hand the ownership over before leaving.");
+    }
+  }
+
+  // Misma accion que cuando te eliminan: la fila acaba igual y el feed distingue los dos casos
+  // porque al irte por tu cuenta el actor y la persona del evento son la misma.
+  await workspaceMembersRepository.leave({
+    workspaceId: workspace.id,
+    userId,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_MEMBER_REMOVED",
+        payload: { targetUserId: userId },
       },
     ],
   });

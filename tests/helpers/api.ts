@@ -343,4 +343,23 @@ export async function uploadTestUserAvatarFile({
   return { key };
 }
 
+// Salir de un workspace por cuenta propia. Va aparte del `remove` del manager porque es otro
+// endpoint y otras reglas, y otros modulos lo necesitan en su setup para provocar la baja en
+// cascada de los project-members de ese espacio.
+export async function leaveWorkspace({
+  accessToken,
+  workspaceSlug,
+}: {
+  accessToken: string;
+  workspaceSlug: string;
+}) {
+  const res = await request(app)
+    .patch(`/api/workspaces/${workspaceSlug}/members/me/leave`)
+    .set("Cookie", `accessToken=${accessToken}`);
+
+  if (res.status !== 204) {
+    throw new Error(`leaveWorkspace failed: ${res.status} ${JSON.stringify(res.body)}`);
+  }
+}
+
 export { app };

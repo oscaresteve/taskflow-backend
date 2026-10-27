@@ -120,6 +120,20 @@ export async function update(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+export async function leave(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const params = req.validated.params as WorkspaceParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+
+    await workspaceMembersService.leave({ userId, workspaceSlug });
+
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function remove(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user.id;

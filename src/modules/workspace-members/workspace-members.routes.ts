@@ -83,3 +83,12 @@ workspaceMembersRouter.patch(
 
 // No se puede eliminar OWNER
 // Solo OWNER o ADMIN
+
+// 5. Salir del workspace
+// PATCH /workspaces/:workspaceSlug/members/me/leave
+workspaceMembersRouter.patch(
+  "/workspaces/:workspaceSlug/members/me/leave",
+  auth,
+  validate({ params: workspaceParamsSchema }),
+  workspaceMembersController.leave,
+);

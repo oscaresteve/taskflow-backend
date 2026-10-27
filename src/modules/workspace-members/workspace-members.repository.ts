@@ -8,7 +8,13 @@ import type {
   WorkspaceMembersAllQueryDto,
   WorkspaceMembersQueryDto,
 } from "./schemas/workspace-members.schema.ts";
-import { WorkspaceMemberStatus, WorkspaceRole, type User, type WorkspaceMember } from "../../shared/types/prisma.types.ts";
+import {
+  ProjectRole,
+  WorkspaceMemberStatus,
+  WorkspaceRole,
+  type User,
+  type WorkspaceMember,
+} from "../../shared/types/prisma.types.ts";
 
 export async function findWorkspaceMember({
   userId,
@@ -219,6 +225,66 @@ export async function update({
       },
       data: {
         role,
+      },
+    });
+
+    await activityRepository.record(tx, events);
+  });
+}
+
+export async function hasAnotherActiveOwner({
+  workspaceId,
+  userId,
+}: {
+  workspaceId: string;
+  userId: string;
+}): Promise<boolean> {
+  const count = await prisma.workspaceMember.count({
+    where: {
+      workspaceId,
+      status: WorkspaceMemberStatus.ACTIVE,
+      role: WorkspaceRole.OWNER,
+      userId: { not: userId },
+    },
+  });
+
+  return count > 0;
+}
+
+// Salir es la baja propia, pero arrastra un efecto que tiene que caer en la misma transaccion:
+// dejar tambien los proyectos de ese espacio.
+export async function leave({
+  workspaceId,
+  userId,
+  events,
+}: {
+  workspaceId: string;
+  userId: string;
+  events: ActivityEventInput[];
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.workspaceMember.update({
+      where: {
+        userId_workspaceId: {
+          userId,
+          workspaceId,
+        },
+      },
+      data: {
+        status: WorkspaceMemberStatus.REMOVED,
+        role: WorkspaceRole.MEMBER, // Eliminar permisos por si en un futuro se vuelve a activar el usuario
+        joinedAt: null,
+      },
+    });
+
+    // Sin acceso al espacio esas membresias son inalcanzables y solo seguirian contando como
+    // miembro en cada proyecto. Mismo reseteo que la baja de un project-member.
+    await tx.projectMember.updateMany({
+      where: { userId, isActive: true, project: { workspaceId } },
+      data: {
+        role: ProjectRole.MEMBER,
+        isActive: false,
+        joinedAt: null,
       },
     });
 
