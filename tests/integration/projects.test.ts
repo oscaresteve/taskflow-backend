@@ -537,6 +537,85 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/archive", () =>
   });
 });
 
+describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/unarchive", () => {
+  async function archivedProject() {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    return { owner, workspace, project };
+  }
+
+  it("brings the project back and makes it reachable by slug again", async () => {
+    const { owner, workspace, project } = await archivedProject();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/unarchive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+
+    const detail = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(detail.status).toBe(200);
+    expect(detail.body).toEqual(expect.objectContaining({ slug: project.slug, isArchived: false }));
+  });
+
+  it("lets a workspace OWNER who is not a project member unarchive it", async () => {
+    const { owner, workspace, builder, project } = await setupProjectOwnerIsOutside();
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/archive`)
+      .set("Cookie", `accessToken=${builder.accessToken}`);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/unarchive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+  });
+
+  it("409s when the project is not archived", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/unarchive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(409);
+  });
+
+  it("forbids a plain workspace MEMBER who is not a project member from unarchiving", async () => {
+    const { owner, workspace, project } = await archivedProject();
+    const outsider = await addPlainWorkspaceMember({ owner, workspaceSlug: workspace.slug });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/unarchive`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  // El cargador resuelve primero el espacio, y con el estricto: el orden de la vuelta es reactivar
+  // el espacio y solo despues desarchivar sus proyectos.
+  it("404s while the workspace is deactivated", async () => {
+    const { owner, workspace, project } = await archivedProject();
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/unarchive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+});
+
 describe("POST/DELETE /workspaces/:workspaceSlug/projects/:projectSlug/favorite", () => {
   it("lets a project member favorite and unfavorite a project", async () => {
     const { owner, workspace } = await setupOwnerWorkspace();

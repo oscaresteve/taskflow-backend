@@ -207,6 +207,45 @@ export async function archive({
   });
 }
 
+export async function unarchive({
+  userId,
+  workspaceSlug,
+  projectSlug,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+}): Promise<void> {
+  // Obtener el contexto: el unico que resuelve un proyecto archivado. Exige que el espacio este
+  // vivo, asi que primero se reactiva el espacio y luego se desarchiva el proyecto.
+  const { workspace, workspaceMember, project, projectMember } =
+    await authorizationService.getProjectContextIncludingArchivedAllowingWorkspaceManager({
+      userId,
+      workspaceSlug,
+      projectSlug,
+    });
+
+  // Comprobar permisos
+  requireWorkspaceOrProjectManager({ workspaceMember, projectMember });
+
+  // Comprobar que este archivado
+  if (project.isArchived === false) throw new ConflictError("Project is not archived");
+
+  await projectsRepository.unarchive({
+    projectId: project.id,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: project.id,
+        taskId: null,
+        actorId: userId,
+        action: "PROJECT_UNARCHIVED",
+        payload: { projectName: project.name, projectKey: project.key },
+      },
+    ],
+  });
+}
+
 export async function favorite({
   userId,
   workspaceSlug,

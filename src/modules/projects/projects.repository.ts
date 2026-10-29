@@ -224,6 +224,27 @@ export async function archive({
   });
 }
 
+export async function unarchive({
+  projectId,
+  events,
+}: {
+  projectId: string;
+  events: ActivityEventInput[];
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.project.update({
+      where: {
+        id: projectId,
+      },
+      data: {
+        isArchived: false,
+      },
+    });
+
+    await activityRepository.record(tx, events);
+  });
+}
+
 export async function isFavorited({ userId, projectId }: { userId: string; projectId: string }): Promise<boolean> {
   const favorite = await prisma.projectFavorite.findUnique({
     where: {

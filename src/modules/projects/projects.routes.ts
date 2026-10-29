@@ -65,6 +65,16 @@ projectsRouter.patch(
   projectsController.archive,
 );
 
+// 5b. Desarchivar un proyecto
+// La vuelta del archivado, y la unica ruta que resuelve un proyecto archivado.
+// PATCH  /workspaces/:workspaceSlug/projects/:projectSlug/unarchive
+projectsRouter.patch(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/unarchive",
+  auth,
+  validate({ params: projectParamsSchema }),
+  projectsController.unarchive,
+);
+
 // 6. Marcar/desmarcar como favorito (por usuario)
 // POST   /workspaces/:workspaceSlug/projects/:projectSlug/favorite
 // DELETE /workspaces/:workspaceSlug/projects/:projectSlug/favorite
