@@ -149,3 +149,24 @@ export async function remove({
     await activityRepository.record(tx, events);
   });
 }
+
+export async function restore({
+  commentId,
+  events,
+}: {
+  commentId: string;
+  events: ActivityEventInput[];
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.comment.update({
+      where: {
+        id: commentId,
+      },
+      data: {
+        deletedAt: null,
+      },
+    });
+
+    await activityRepository.record(tx, events);
+  });
+}

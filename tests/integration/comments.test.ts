@@ -282,6 +282,77 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
   });
 });
 
+describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/comments/:commentId/restore", () => {
+  async function deletedComment() {
+    const { owner, workspace, project, task } = await setupOwnerProjectTask();
+    const comment = await createComment(owner.accessToken, workspace.slug, project.slug, task.taskNumber);
+    await request(app)
+      .patch(
+        `/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments/${comment.id}/delete`,
+      )
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    return { owner, workspace, project, task, comment };
+  }
+
+  it("brings the comment back into the thread", async () => {
+    const { owner, workspace, project, task, comment } = await deletedComment();
+
+    const res = await request(app)
+      .patch(
+        `/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments/${comment.id}/restore`,
+      )
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+
+    const list = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(list.body.data).toContainEqual(expect.objectContaining({ id: comment.id }));
+  });
+
+  it("409s when the comment is not deleted", async () => {
+    const { owner, workspace, project, task } = await setupOwnerProjectTask();
+    const comment = await createComment(owner.accessToken, workspace.slug, project.slug, task.taskNumber);
+
+    const res = await request(app)
+      .patch(
+        `/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments/${comment.id}/restore`,
+      )
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(409);
+  });
+
+  it("403s when a plain member who is neither the author nor a manager tries to restore", async () => {
+    const { owner, workspace, project, task, comment } = await deletedComment();
+    const outsiderMember = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: outsiderMember.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: outsiderMember.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(
+        `/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments/${comment.id}/restore`,
+      )
+      .set("Cookie", `accessToken=${outsiderMember.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+});
+
 // Una tarea archivada es de solo lectura: su contexto si la resuelve (al contrario que un proyecto
 // archivado), asi que el corte lo pone el service a mano.
 describe("comments on an archived task", () => {

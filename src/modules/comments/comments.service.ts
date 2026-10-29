@@ -202,3 +202,47 @@ export async function remove({
     ],
   });
 }
+
+export async function restore({
+  userId,
+  workspaceSlug,
+  projectSlug,
+  taskNumber,
+  commentId,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  taskNumber: number;
+  commentId: string;
+}): Promise<void> {
+  // Un comentario borrado sigue siendo direccionable, asi que el contexto normal lo resuelve.
+  const { project, projectMember, task, comment } = await authorizationService.getCommentContext({
+    userId,
+    workspaceSlug,
+    projectSlug,
+    taskNumber,
+    commentId,
+  });
+
+  requireUnarchivedTask(task);
+
+  // Misma asimetria que al borrar: el autor siempre, y ademas quien manda en el proyecto.
+  requireCanManageComment({ actor: projectMember, comment, userId });
+
+  if (!comment.deletedAt) throw new ConflictError("Comment is not deleted");
+
+  await commentsRepository.restore({
+    commentId,
+    events: [
+      {
+        workspaceId: project.workspaceId,
+        projectId: project.id,
+        taskId: task.id,
+        actorId: userId,
+        action: "COMMENT_RESTORED",
+        payload: { taskNumber: task.taskNumber, taskTitle: task.title, commentId },
+      },
+    ],
+  });
+}

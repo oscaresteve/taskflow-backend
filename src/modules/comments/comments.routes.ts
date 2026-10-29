@@ -49,4 +49,13 @@ commentsRouter.patch(
   commentsController.remove,
 );
 
+// 4b. Restaurar un comentario borrado
+// PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/comments/:commentId/restore
+commentsRouter.patch(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/comments/:commentId/restore",
+  auth,
+  validate({ params: commentParamsSchema }),
+  commentsController.restore,
+);
+
 // Solo el autor, y OWNER o ADMIN del proyecto
