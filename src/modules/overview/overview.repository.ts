@@ -1,6 +1,6 @@
 import { prisma } from "../../config/prisma.ts";
 import { DAY_MS, getDayKey, resolveTimeZone } from "../../shared/utils/date-range.ts";
-import { TaskStatus, WorkspaceMemberStatus } from "../../shared/types/prisma.types.ts";
+import { TaskStatus, WorkspaceMemberStatus, type WorkspaceRole } from "../../shared/types/prisma.types.ts";
 import { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { Task, Workspace } from "../../shared/types/prisma.types.ts";
 import type { ProjectForViewer } from "../projects/types/projects.types.ts";
@@ -208,6 +208,7 @@ type MyWorkspaceStatsRow = {
 
 export type OverviewWorkspaceRow = Workspace & {
   isFavorite: boolean;
+  myRole: WorkspaceRole;
   stats: MyWorkspaceStatsRow;
 };
 
@@ -285,21 +286,29 @@ export async function findMyWorkspaces({
 
   const workspaceIds = workspaces.map((workspace) => workspace.id);
 
-  const [stats, favorites] = await Promise.all([
+  const [stats, favorites, memberships] = await Promise.all([
     countMyWorkspaceStats({ userId, workspaceIds, todayKey: today(timeZone) }),
 
     prisma.workspaceFavorite.findMany({
       where: { userId, workspaceId: { in: workspaceIds } },
       select: { workspaceId: true },
     }),
+
+    prisma.workspaceMember.findMany({
+      where: { userId, workspaceId: { in: workspaceIds }, status: WorkspaceMemberStatus.ACTIVE },
+      select: { workspaceId: true, role: true },
+    }),
   ]);
 
   const favoritedIds = new Set(favorites.map((favorite) => favorite.workspaceId));
+  const rolesByWorkspaceId = new Map(memberships.map((membership) => [membership.workspaceId, membership.role]));
 
   return {
     items: workspaces.map((workspace) => ({
       ...workspace,
       isFavorite: favoritedIds.has(workspace.id),
+      // El where ya exige pertenencia ACTIVE, asi que aqui siempre hay rol.
+      myRole: rolesByWorkspaceId.get(workspace.id) ?? "MEMBER",
       stats: stats.get(workspace.id) ?? EMPTY_MY_WORKSPACE_STATS,
     })),
     total,

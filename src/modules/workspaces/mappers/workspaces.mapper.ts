@@ -1,10 +1,11 @@
 import type { PaginatedResponseDto } from "../../../shared/dtos/pagination.dto.ts";
 import type { PaginatedResult } from "../../../shared/types/pagination.types.ts";
-import type { WorkspaceResponseDto } from "../dtos/workspaces.dto.ts";
-import type { Workspace } from "../../../shared/types/prisma.types.ts";
+import type { WorkspaceListItemResponseDto, WorkspaceResponseDto } from "../dtos/workspaces.dto.ts";
+import type { WorkspaceForViewer, WorkspaceListItem } from "../types/workspaces.types.ts";
+import { toUserSummaryResponseDto } from "../../users/mappers/users.mapper.ts";
 import { buildPublicUrl } from "../../../shared/storage/storage.service.ts";
 
-export function toWorkspaceResponseDto(workspace: Workspace & { isFavorite: boolean }): WorkspaceResponseDto {
+export function toWorkspaceResponseDto(workspace: WorkspaceForViewer): WorkspaceResponseDto {
   return {
     id: workspace.id,
 
@@ -18,13 +19,18 @@ export function toWorkspaceResponseDto(workspace: Workspace & { isFavorite: bool
     isActive: workspace.isActive,
     isFavorite: workspace.isFavorite,
 
+    myRole: workspace.myRole,
+
     createdAt: workspace.createdAt,
     updatedAt: workspace.updatedAt,
   };
 }
 
-export function toWorkspaceResponseDtoList(workspaces: (Workspace & { isFavorite: boolean })[]) {
-  return workspaces.map(toWorkspaceResponseDto);
+export function toWorkspaceListItemResponseDto(workspace: WorkspaceListItem): WorkspaceListItemResponseDto {
+  return {
+    ...toWorkspaceResponseDto(workspace),
+    owners: workspace.owners.map(toUserSummaryResponseDto),
+  };
 }
 
 export function toPaginatedWorkspaceResponseDto({
@@ -32,12 +38,12 @@ export function toPaginatedWorkspaceResponseDto({
   page,
   limit,
 }: {
-  workspaces: PaginatedResult<Workspace & { isFavorite: boolean }>;
+  workspaces: PaginatedResult<WorkspaceListItem>;
   page: number;
   limit: number;
-}): PaginatedResponseDto<WorkspaceResponseDto> {
+}): PaginatedResponseDto<WorkspaceListItemResponseDto> {
   return {
-    data: toWorkspaceResponseDtoList(workspaces.items),
+    data: workspaces.items.map(toWorkspaceListItemResponseDto),
 
     pagination: {
       page,

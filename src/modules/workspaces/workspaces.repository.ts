@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma.ts";
 import * as activityRepository from "../activity/activity.repository.ts";
+import { userSummarySelect, type UserSummaryRow } from "../users/users.repository.ts";
 import type { ActivityEventInput } from "../activity/types/activity.types.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
@@ -273,6 +274,60 @@ export async function findFavoritedIds({
   });
 
   return new Set(favorites.map((favorite) => favorite.workspaceId));
+}
+
+// Los responsables de cada espacio, para toda la pagina de una vez. Van en el propio listado porque
+// es lo que la tabla de gestion pinta, y preguntarlos por fila no funcionaria: de un espacio
+// desactivado el listado de miembros ya responde 404.
+export async function findOwners({
+  workspaceIds,
+}: {
+  workspaceIds: string[];
+}): Promise<Map<string, UserSummaryRow[]>> {
+  const owners = await prisma.workspaceMember.findMany({
+    where: {
+      workspaceId: { in: workspaceIds },
+      role: WorkspaceRole.OWNER,
+      status: WorkspaceMemberStatus.ACTIVE,
+    },
+    select: {
+      workspaceId: true,
+      user: { select: userSummarySelect },
+    },
+    orderBy: { joinedAt: "asc" },
+  });
+
+  const byWorkspaceId = new Map<string, UserSummaryRow[]>();
+
+  for (const owner of owners) {
+    const current = byWorkspaceId.get(owner.workspaceId) ?? [];
+    current.push(owner.user);
+    byWorkspaceId.set(owner.workspaceId, current);
+  }
+
+  return byWorkspaceId;
+}
+
+export async function findMyRoles({
+  userId,
+  workspaceIds,
+}: {
+  userId: string;
+  workspaceIds: string[];
+}): Promise<Map<string, WorkspaceRole>> {
+  const memberships = await prisma.workspaceMember.findMany({
+    where: {
+      userId,
+      workspaceId: { in: workspaceIds },
+      status: WorkspaceMemberStatus.ACTIVE,
+    },
+    select: {
+      workspaceId: true,
+      role: true,
+    },
+  });
+
+  return new Map(memberships.map((membership) => [membership.workspaceId, membership.role]));
 }
 
 export async function createFavorite({ userId, workspaceId }: { userId: string; workspaceId: string }): Promise<void> {

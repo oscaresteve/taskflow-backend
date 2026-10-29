@@ -7,7 +7,7 @@ import type { UsersQueryDto } from "./schemas/users.schema.ts";
 // Lo que el selector de miembros necesita para pintar un candidato: nombre, avatar y el email, que
 // es lo que distingue a dos homonimos antes de invitar a uno. Nada mas sale de aqui: el directorio
 // lo ve gente que todavia no comparte espacio con estas personas.
-const userSummarySelect = {
+export const userSummarySelect = {
   id: true,
   firstName: true,
   lastName: true,

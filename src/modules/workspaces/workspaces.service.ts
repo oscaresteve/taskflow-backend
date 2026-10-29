@@ -8,6 +8,7 @@ import {
   type ConfirmAvatarDto,
 } from "../../shared/schemas/common.schema.ts";
 import { type Workspace } from "../../shared/types/prisma.types.ts";
+import type { WorkspaceForViewer, WorkspaceListItem } from "./types/workspaces.types.ts";
 import generateUniqueSlug from "../../shared/utils/generate-unique-slug.ts";
 import retryOnUniqueViolation from "../../shared/utils/retry-on-unique-violation.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
@@ -50,7 +51,7 @@ export async function create({
 }: {
   data: CreateWorkspaceDto;
   userId: string;
-}): Promise<Workspace & { isFavorite: boolean }> {
+}): Promise<WorkspaceForViewer> {
   const text = data.name;
   const exists = workspacesRepository.existsBySlug;
 
@@ -64,8 +65,9 @@ export async function create({
     });
   });
 
-  // Un workspace recien creado no puede estar marcado como favorito todavia
-  return { ...workspace, isFavorite: false };
+  // Un workspace recien creado no puede estar marcado como favorito todavia, y quien lo crea es su
+  // OWNER (lo deja asi workspacesRepository.create, en la misma transaccion).
+  return { ...workspace, isFavorite: false, myRole: "OWNER" };
 }
 
 export async function findAll({
@@ -74,16 +76,27 @@ export async function findAll({
 }: {
   userId: string;
   query: WorkspaceQueryDto;
-}): Promise<PaginatedResult<Workspace & { isFavorite: boolean }>> {
+}): Promise<PaginatedResult<WorkspaceListItem>> {
   const workspaces = await workspacesRepository.findAllByUserId({ query, userId });
 
-  const favoritedIds = await workspacesRepository.findFavoritedIds({
-    userId,
-    workspaceIds: workspaces.items.map((workspace) => workspace.id),
-  });
+  // Todo lo que la fila necesita y no esta en la tabla se resuelve en lote: una query para toda la
+  // pagina cada cosa, no una por espacio.
+  const workspaceIds = workspaces.items.map((workspace) => workspace.id);
+
+  const [favoritedIds, rolesByWorkspaceId, ownersByWorkspaceId] = await Promise.all([
+    workspacesRepository.findFavoritedIds({ userId, workspaceIds }),
+    workspacesRepository.findMyRoles({ userId, workspaceIds }),
+    workspacesRepository.findOwners({ workspaceIds }),
+  ]);
 
   return {
-    items: workspaces.items.map((workspace) => ({ ...workspace, isFavorite: favoritedIds.has(workspace.id) })),
+    items: workspaces.items.map((workspace) => ({
+      ...workspace,
+      isFavorite: favoritedIds.has(workspace.id),
+      // findAllByUserId ya filtra por pertenencia ACTIVE, asi que aqui siempre hay rol.
+      myRole: rolesByWorkspaceId.get(workspace.id) ?? "MEMBER",
+      owners: ownersByWorkspaceId.get(workspace.id) ?? [],
+    })),
     total: workspaces.total,
   };
 }
@@ -94,13 +107,13 @@ export async function findBySlug({
 }: {
   userId: string;
   workspaceSlug: string;
-}): Promise<Workspace & { isFavorite: boolean }> {
+}): Promise<WorkspaceForViewer> {
   // Obterner contexto
-  const { workspace } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+  const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
 
   const isFavorite = await workspacesRepository.isFavorited({ userId, workspaceId: workspace.id });
 
-  return { ...workspace, isFavorite };
+  return { ...workspace, isFavorite, myRole: workspaceMember.role };
 }
 
 export async function favorite({ userId, workspaceSlug }: { userId: string; workspaceSlug: string }): Promise<void> {
@@ -135,7 +148,7 @@ export async function update({
   userId: string;
   workspaceSlug: string;
   data: UpdateWorkspaceDto;
-}): Promise<Workspace & { isFavorite: boolean }> {
+}): Promise<WorkspaceForViewer> {
   // Obterner contexto
   const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({
     userId,
@@ -182,7 +195,7 @@ export async function update({
     workspacesRepository.isFavorited({ userId, workspaceId: workspace.id }),
   ]);
 
-  return { ...updatedWorkspace, isFavorite };
+  return { ...updatedWorkspace, isFavorite, myRole: workspaceMember.role };
 }
 
 export async function deactivate({ userId, workspaceSlug }: { userId: string; workspaceSlug: string }): Promise<void> {
@@ -276,7 +289,7 @@ export async function confirmAvatar({
   userId: string;
   workspaceSlug: string;
   data: ConfirmAvatarDto;
-}): Promise<Workspace & { isFavorite: boolean }> {
+}): Promise<WorkspaceForViewer> {
   // Obterner contexto
   const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({
     userId,
@@ -319,7 +332,7 @@ export async function confirmAvatar({
     workspacesRepository.isFavorited({ userId, workspaceId: workspace.id }),
   ]);
 
-  return { ...updatedWorkspace, isFavorite };
+  return { ...updatedWorkspace, isFavorite, myRole: workspaceMember.role };
 }
 
 export async function deleteAvatar({

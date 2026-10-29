@@ -125,6 +125,51 @@ describe("GET /workspaces", () => {
     expect(names).toContain(active.name);
     expect(names).toContain(inactive.name);
   });
+
+  // La tabla de gestion pinta los responsables, y sobre un espacio desactivado el listado de
+  // miembros ya responde 404: tienen que venir en el propio listado.
+  it("carries the owners, also for an inactive workspace", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const member = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get("/api/workspaces")
+      .query({ isActive: "false" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const row = res.body.data.find((w: { slug: string }) => w.slug === workspace.slug);
+
+    expect(row.owners).toEqual([expect.objectContaining({ id: owner.user.id })]);
+  });
+
+  // La pantalla de gestion necesita el rol para saber si puede ofrecer "reactivar", y sobre un
+  // espacio inactivo /members/me ya responde 404: tiene que venir en el propio listado.
+  it("carries myRole, also for an inactive workspace", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get("/api/workspaces")
+      .query({ isActive: "false" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.data).toContainEqual(
+      expect.objectContaining({ slug: workspace.slug, isActive: false, myRole: "OWNER" }),
+    );
+  });
 });
 
 describe("GET /workspaces/:slug", () => {
