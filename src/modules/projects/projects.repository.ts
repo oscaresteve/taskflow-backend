@@ -1,8 +1,9 @@
 import { prisma } from "../../config/prisma.ts";
 import * as activityRepository from "../activity/activity.repository.ts";
+import { userSummarySelect, type UserSummaryRow } from "../users/users.repository.ts";
 import type { ActivityEventInput } from "../activity/types/activity.types.ts";
 import type { CreateProjectDto, ProjectQueryDto, UpdateProjectDto } from "./schemas/projects.schema.ts";
-import type { Project, ProjectRole } from "../../shared/types/prisma.types.ts";
+import { ProjectRole, type Project } from "../../shared/types/prisma.types.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 
@@ -279,6 +280,37 @@ export async function findFavoritedIds({
   });
 
   return new Set(favorites.map((favorite) => favorite.projectId));
+}
+
+// Los responsables de cada proyecto, para toda la pagina de una vez, por el mismo motivo que en
+// espacios: de un proyecto archivado el listado de miembros ya responde 404.
+export async function findOwners({
+  projectIds,
+}: {
+  projectIds: string[];
+}): Promise<Map<string, UserSummaryRow[]>> {
+  const owners = await prisma.projectMember.findMany({
+    where: {
+      projectId: { in: projectIds },
+      role: ProjectRole.OWNER,
+      isActive: true,
+    },
+    select: {
+      projectId: true,
+      user: { select: userSummarySelect },
+    },
+    orderBy: { joinedAt: "asc" },
+  });
+
+  const byProjectId = new Map<string, UserSummaryRow[]>();
+
+  for (const owner of owners) {
+    const current = byProjectId.get(owner.projectId) ?? [];
+    current.push(owner.user);
+    byProjectId.set(owner.projectId, current);
+  }
+
+  return byProjectId;
 }
 
 export async function findMyRoles({

@@ -489,6 +489,27 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug", () => {
   });
 });
 
+describe("GET /workspaces/:workspaceSlug/projects, owners", () => {
+  // Igual que en espacios: la tabla de gestion los pinta y de un proyecto archivado el listado de
+  // miembros responde 404.
+  it("carries the owners, also for an archived project", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects`)
+      .query({ isArchived: "true" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const row = res.body.data.find((p: { slug: string }) => p.slug === project.slug);
+
+    expect(row.owners).toEqual([expect.objectContaining({ id: owner.user.id })]);
+  });
+});
+
 describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/archive", () => {
   it("lets a workspace manager archive the project", async () => {
     const { owner, workspace } = await setupOwnerWorkspace();

@@ -8,7 +8,7 @@ import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import { requireWorkspaceManager, requireWorkspaceOrProjectManager } from "../../shared/auth/permissions.ts";
 import type { ActivityEventInput, ProjectEditedField } from "../activity/types/activity.types.ts";
-import type { ProjectForViewer } from "./types/projects.types.ts";
+import type { ProjectForViewer, ProjectListItem } from "./types/projects.types.ts";
 
 // LLamar al repository y realizar toda la lógica necesaria
 
@@ -56,19 +56,20 @@ export async function findAll({
   workspaceSlug: string;
   userId: string;
   query: ProjectQueryDto;
-}): Promise<PaginatedResult<ProjectForViewer>> {
+}): Promise<PaginatedResult<ProjectListItem>> {
   // Obtener contexto
   const { workspace } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
 
   const projects = await projectsRepository.findAll({ query, userId, workspaceId: workspace.id });
 
-  // Los dos campos que dependen de quien mira se resuelven en lote: una query para toda la pagina
-  // cada uno, no una por proyecto.
+  // Todo lo que la fila necesita y no esta en la tabla se resuelve en lote: una query para toda la
+  // pagina cada cosa, no una por proyecto.
   const projectIds = projects.items.map((project) => project.id);
 
-  const [favoritedIds, rolesByProjectId] = await Promise.all([
+  const [favoritedIds, rolesByProjectId, ownersByProjectId] = await Promise.all([
     projectsRepository.findFavoritedIds({ userId, projectIds }),
     projectsRepository.findMyRoles({ userId, projectIds }),
+    projectsRepository.findOwners({ projectIds }),
   ]);
 
   return {
@@ -77,6 +78,7 @@ export async function findAll({
       isFavorite: favoritedIds.has(project.id),
       // findAll ya filtra por pertenencia activa, asi que aqui siempre hay rol.
       myRole: rolesByProjectId.get(project.id) ?? null,
+      owners: ownersByProjectId.get(project.id) ?? [],
     })),
     total: projects.total,
   };

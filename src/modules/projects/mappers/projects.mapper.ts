@@ -1,7 +1,8 @@
 import type { PaginatedResponseDto } from "../../../shared/dtos/pagination.dto.ts";
 import type { PaginatedResult } from "../../../shared/types/pagination.types.ts";
-import type { ProjectResponseDto } from "../dtos/projects.dto.ts";
-import type { ProjectForViewer } from "../types/projects.types.ts";
+import type { ProjectListItemResponseDto, ProjectResponseDto } from "../dtos/projects.dto.ts";
+import type { ProjectForViewer, ProjectListItem } from "../types/projects.types.ts";
+import { toUserSummaryResponseDto } from "../../users/mappers/users.mapper.ts";
 
 export function toProjectResponseDto(project: ProjectForViewer): ProjectResponseDto {
   return {
@@ -24,8 +25,11 @@ export function toProjectResponseDto(project: ProjectForViewer): ProjectResponse
   };
 }
 
-export function toProjectResponseDtoList(projects: ProjectForViewer[]) {
-  return projects.map(toProjectResponseDto);
+export function toProjectListItemResponseDto(project: ProjectListItem): ProjectListItemResponseDto {
+  return {
+    ...toProjectResponseDto(project),
+    owners: project.owners.map(toUserSummaryResponseDto),
+  };
 }
 
 export function toPaginatedProjectResponseDto({
@@ -33,12 +37,12 @@ export function toPaginatedProjectResponseDto({
   page,
   limit,
 }: {
-  projects: PaginatedResult<ProjectForViewer>;
+  projects: PaginatedResult<ProjectListItem>;
   page: number;
   limit: number;
-}): PaginatedResponseDto<ProjectResponseDto> {
+}): PaginatedResponseDto<ProjectListItemResponseDto> {
   return {
-    data: toProjectResponseDtoList(projects.items),
+    data: projects.items.map(toProjectListItemResponseDto),
 
     pagination: {
       page,
