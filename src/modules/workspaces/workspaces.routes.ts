@@ -63,6 +63,17 @@ workspacesRouter.patch(
   workspacesController.deactivate,
 );
 
+// 5b. Reactivar
+// La vuelta de la desactivacion. Es la unica ruta que resuelve un espacio inactivo: el resto
+// seguira dando 404 mientras lo este.
+// PATCH /workspaces/:workspaceSlug/reactivate
+workspacesRouter.patch(
+  "/workspaces/:workspaceSlug/reactivate",
+  auth,
+  validate({ params: workspaceParamsSchema }),
+  workspacesController.reactivate,
+);
+
 // 6. Avatar del workspace (subida vía URL prefirmada a S3/MinIO/R2)
 // POST   /workspaces/:workspaceSlug/avatar/upload-url  -> pide la URL prefirmada de subida
 // PUT    /workspaces/:workspaceSlug/avatar             -> confirma que el archivo ya se subió

@@ -10,6 +10,17 @@ export async function findWorkspaceBySlug(slug: string): Promise<Workspace | nul
   });
 }
 
+// Hermana de findWorkspaceBySlug que no mira isActive. Solo la usa el cargador de la reactivacion:
+// el borrado logico de un espacio lo hace inalcanzable por slug, asi que sin esto no habria por
+// donde devolverlo a la vida.
+export async function findWorkspaceBySlugIncludingInactive(slug: string): Promise<Workspace | null> {
+  return prisma.workspace.findUnique({
+    where: {
+      slug,
+    },
+  });
+}
+
 export async function findWorkspaceMember({
   userId,
   workspaceId,
@@ -41,6 +52,24 @@ export async function findProjectBySlug({
         slug,
       },
       isArchived: false,
+    },
+  });
+}
+
+// Hermana de findProjectBySlug que no mira isArchived, por el mismo motivo que la de workspace.
+export async function findProjectBySlugIncludingArchived({
+  workspaceId,
+  slug,
+}: {
+  workspaceId: string;
+  slug: string;
+}): Promise<Project | null> {
+  return prisma.project.findUnique({
+    where: {
+      workspaceId_slug: {
+        workspaceId,
+        slug,
+      },
     },
   });
 }

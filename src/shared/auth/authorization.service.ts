@@ -4,6 +4,28 @@ import * as authorizationRepository from "../../shared/auth/authorization.reposi
 import { ForbiddenError } from "../errors/forbidden-error.ts";
 import { NotFoundError } from "../errors/not-found-error.ts";
 
+// La pertenencia al espacio la resuelven los dos cargadores (el estricto y el que admite espacios
+// desactivados), y la regla tiene que ser la misma en ambos: vive aqui una sola vez para que no
+// pueda divergir.
+async function requireActiveWorkspaceMember({
+  userId,
+  workspaceId,
+}: {
+  userId: string;
+  workspaceId: string;
+}): Promise<WorkspaceMember> {
+  // El usuario es miembro
+  const workspaceMember = await authorizationRepository.findWorkspaceMember({ userId, workspaceId });
+  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
+
+  // Los miembros pendientes o eliminados no tienen acceso al workspace
+  if (workspaceMember.status !== WorkspaceMemberStatus.ACTIVE) {
+    throw new ForbiddenError("You are not an active member of this workspace");
+  }
+
+  return workspaceMember;
+}
+
 export async function getWorkspaceContext({
   userId,
   workspaceSlug,
@@ -18,14 +40,31 @@ export async function getWorkspaceContext({
   const workspace = await authorizationRepository.findWorkspaceBySlug(workspaceSlug);
   if (!workspace) throw new NotFoundError("Workspace not found");
 
-  // El usuario es miembro
-  const workspaceMember = await authorizationRepository.findWorkspaceMember({ userId, workspaceId: workspace.id });
-  if (!workspaceMember) throw new ForbiddenError("You are not a member of this workspace");
+  const workspaceMember = await requireActiveWorkspaceMember({ userId, workspaceId: workspace.id });
 
-  // Los miembros pendientes o eliminados no tienen acceso al workspace
-  if (workspaceMember.status !== WorkspaceMemberStatus.ACTIVE) {
-    throw new ForbiddenError("You are not an active member of this workspace");
-  }
+  return {
+    workspace,
+    workspaceMember,
+  };
+}
+
+// Hermana de getWorkspaceContext para la unica accion que tiene sentido sobre un espacio muerto:
+// reactivarlo. Sigue exigiendo pertenencia ACTIVE, que la desactivacion no toca a los miembros.
+// Ningun otro cargador la usa: todo lo que cuelga de un espacio inactivo debe seguir dando 404.
+export async function getWorkspaceContextIncludingInactive({
+  userId,
+  workspaceSlug,
+}: {
+  userId: string;
+  workspaceSlug: string;
+}): Promise<{
+  workspace: Workspace;
+  workspaceMember: WorkspaceMember;
+}> {
+  const workspace = await authorizationRepository.findWorkspaceBySlugIncludingInactive(workspaceSlug);
+  if (!workspace) throw new NotFoundError("Workspace not found");
+
+  const workspaceMember = await requireActiveWorkspaceMember({ userId, workspaceId: workspace.id });
 
   return {
     workspace,
@@ -77,6 +116,41 @@ export async function getProjectContextAllowingWorkspaceManager({
 
   // Proyecto existe
   const project = await authorizationRepository.findProjectBySlug({ workspaceId: workspace.id, slug: projectSlug });
+  if (!project) throw new NotFoundError("Project not found");
+
+  const projectMember = await authorizationRepository.findProjectMember({ userId, projectId: project.id });
+
+  return {
+    workspace,
+    workspaceMember,
+    project,
+    projectMember,
+  };
+}
+
+// Hermana de getProjectContextAllowingWorkspaceManager para desarchivar. Resuelve el espacio con el
+// cargador estricto a proposito: un proyecto de un espacio inactivo sigue dando 404, asi que el
+// orden es siempre reactivar el espacio y luego desarchivar el proyecto.
+export async function getProjectContextIncludingArchivedAllowingWorkspaceManager({
+  userId,
+  workspaceSlug,
+  projectSlug,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+}): Promise<{
+  workspace: Workspace;
+  workspaceMember: WorkspaceMember;
+  project: Project;
+  projectMember: ProjectMember | null;
+}> {
+  const { workspace, workspaceMember } = await getWorkspaceContext({ userId, workspaceSlug });
+
+  const project = await authorizationRepository.findProjectBySlugIncludingArchived({
+    workspaceId: workspace.id,
+    slug: projectSlug,
+  });
   if (!project) throw new NotFoundError("Project not found");
 
   const projectMember = await authorizationRepository.findProjectMember({ userId, projectId: project.id });

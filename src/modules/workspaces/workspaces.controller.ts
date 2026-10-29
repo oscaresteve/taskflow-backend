@@ -90,6 +90,20 @@ export async function deactivate(req: Request, res: Response, next: NextFunction
   }
 }
 
+export async function reactivate(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = req.validated.params as WorkspaceParamsDto;
+    const userId = req.user.id;
+    const workspaceSlug = params.workspaceSlug;
+
+    await workspacesService.reactivate({ userId, workspaceSlug });
+
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function getAvatarUploadUrl(req: Request, res: Response, next: NextFunction) {
   try {
     const params = req.validated.params as WorkspaceParamsDto;
