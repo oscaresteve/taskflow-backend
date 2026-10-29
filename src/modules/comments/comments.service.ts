@@ -1,5 +1,5 @@
 import type { CommentQueryDto, CreateCommentDto, UpdateCommentDto } from "./schemas/comments.schema.ts";
-import type { Comment } from "../../shared/types/prisma.types.ts";
+import type { Comment, Task } from "../../shared/types/prisma.types.ts";
 import type { ActivityEventInput } from "../activity/types/activity.types.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import * as authorizationRepository from "../../shared/auth/authorization.repository.ts";
@@ -9,6 +9,13 @@ import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import { requireCanManageComment } from "../../shared/auth/permissions.ts";
 import { ConflictError } from "../../shared/errors/conflict-error.ts";
 import { ForbiddenError } from "../../shared/errors/forbidden-error.ts";
+
+// Una tarea archivada es de solo lectura: se puede leer y desarchivar, y nada mas. Su contexto si la
+// resuelve (a diferencia del espacio inactivo o el proyecto archivado, que dan 404), asi que el
+// corte hay que ponerlo a mano, igual que ya lo hacen update y move de la propia tarea.
+function requireUnarchivedTask(task: Task): void {
+  if (task.isArchived) throw new ConflictError("Task is archived");
+}
 
 export async function create({
   userId,
@@ -29,6 +36,8 @@ export async function create({
     projectSlug,
     taskNumber,
   });
+
+  requireUnarchivedTask(task);
 
   // No nos fiamos de los ids que vengan en el texto: se reresuelven contra los miembros activos
   // del proyecto y se descarta a quien no lo sea. No es una regla nueva, es la misma pertenencia
@@ -100,6 +109,8 @@ export async function update({
     commentId,
   });
 
+  requireUnarchivedTask(task);
+
   if (comment.authorId !== userId) throw new ForbiddenError("You cannot manage others comments");
 
   if (comment.deletedAt) throw new ConflictError("Comment is already deleted");
@@ -170,6 +181,8 @@ export async function remove({
     taskNumber,
     commentId,
   });
+
+  requireUnarchivedTask(task);
 
   requireCanManageComment({ actor: projectMember, comment, userId });
 

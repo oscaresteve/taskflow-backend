@@ -281,3 +281,68 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
     expect(res.status).toBe(409);
   });
 });
+
+// Una tarea archivada es de solo lectura: su contexto si la resuelve (al contrario que un proyecto
+// archivado), asi que el corte lo pone el service a mano.
+describe("comments on an archived task", () => {
+  async function archivedTaskWithComment() {
+    const { owner, workspace, project, task } = await setupOwnerProjectTask();
+    const comment = await createComment(owner.accessToken, workspace.slug, project.slug, task.taskNumber);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    return { owner, workspace, project, task, comment };
+  }
+
+  const base = ({
+    workspace,
+    project,
+    task,
+  }: {
+    workspace: { slug: string };
+    project: { slug: string };
+    task: { taskNumber: number };
+  }) => `/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/comments`;
+
+  it("409s when creating a comment", async () => {
+    const ctx = await archivedTaskWithComment();
+
+    const res = await request(app)
+      .post(base(ctx))
+      .set("Cookie", `accessToken=${ctx.owner.accessToken}`)
+      .send({ content: "nope" });
+
+    expect(res.status).toBe(409);
+  });
+
+  it("409s when editing a comment", async () => {
+    const ctx = await archivedTaskWithComment();
+
+    const res = await request(app)
+      .patch(`${base(ctx)}/${ctx.comment.id}`)
+      .set("Cookie", `accessToken=${ctx.owner.accessToken}`)
+      .send({ content: "edited" });
+
+    expect(res.status).toBe(409);
+  });
+
+  it("409s when deleting a comment", async () => {
+    const ctx = await archivedTaskWithComment();
+
+    const res = await request(app)
+      .patch(`${base(ctx)}/${ctx.comment.id}/delete`)
+      .set("Cookie", `accessToken=${ctx.owner.accessToken}`);
+
+    expect(res.status).toBe(409);
+  });
+
+  it("still lists the comments, because reading never stopped working", async () => {
+    const ctx = await archivedTaskWithComment();
+
+    const res = await request(app).get(base(ctx)).set("Cookie", `accessToken=${ctx.owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toContainEqual(expect.objectContaining({ id: ctx.comment.id }));
+  });
+});
