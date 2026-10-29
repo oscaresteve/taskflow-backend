@@ -4,6 +4,7 @@ import { validate } from "../../shared/middlewares/validate.ts";
 import * as workspaceMembersController from "./workspace-members.controller.ts";
 import {
   createWorkspaceMemberSchema,
+  restoreWorkspaceMemberSchema,
   updateWorkspaceMemberSchema,
   workspaceMembersAllQuerySchema,
   workspaceMembersQuerySchema,
@@ -79,6 +80,17 @@ workspaceMembersRouter.patch(
   auth,
   validate({ params: workspaceMemberParamsSchema }),
   workspaceMembersController.remove,
+);
+
+// 4b. Restaurar a un miembro eliminado
+// Es la vuelta de /remove, no de /activate: ese sigue siendo solo para aceptar una invitacion
+// pendiente. Lleva cuerpo porque la baja machaco el rol y hay que volver a elegirlo.
+// PATCH /workspaces/:workspaceSlug/members/:userId/restore
+workspaceMembersRouter.patch(
+  "/workspaces/:workspaceSlug/members/:userId/restore",
+  auth,
+  validate({ params: workspaceMemberParamsSchema, body: restoreWorkspaceMemberSchema }),
+  workspaceMembersController.restore,
 );
 
 // No se puede eliminar OWNER

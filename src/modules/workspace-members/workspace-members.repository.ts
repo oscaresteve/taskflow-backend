@@ -204,6 +204,38 @@ export async function activate({
   });
 }
 
+// La vuelta de remove/leave: devuelve el rol que elija quien readmite, no el que tenia antes (la
+// baja lo machaco a MEMBER a proposito).
+export async function restore({
+  workspaceId,
+  userId,
+  role,
+  events,
+}: {
+  workspaceId: string;
+  userId: string;
+  role: WorkspaceRole;
+  events: ActivityEventInput[];
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.workspaceMember.update({
+      where: {
+        userId_workspaceId: {
+          userId,
+          workspaceId,
+        },
+      },
+      data: {
+        status: WorkspaceMemberStatus.ACTIVE,
+        role,
+        joinedAt: new Date(),
+      },
+    });
+
+    await activityRepository.record(tx, events);
+  });
+}
+
 export async function update({
   workspaceId,
   userId,

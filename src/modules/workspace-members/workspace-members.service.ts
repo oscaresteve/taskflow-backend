@@ -2,6 +2,7 @@ import { NotFoundError } from "../../shared/errors/not-found-error.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type {
   CreateWorkspaceMemberDto,
+  RestoreWorkspaceMemberDto,
   UpdateWorkspaceMemberDto,
   WorkspaceMembersAllQueryDto,
   WorkspaceMembersQueryDto,
@@ -101,6 +102,12 @@ export async function create({
   });
 
   if (existingMember) {
+    // La fila de membresia nunca se borra, asi que a quien dieron de baja no se le puede volver a
+    // crear: hay que restaurar la que ya existe.
+    if (existingMember.status === WorkspaceMemberStatus.REMOVED) {
+      throw new BadRequestError("User was removed from this workspace; restore the existing membership instead");
+    }
+
     throw new BadRequestError("User is already a member of this workspace");
   }
 
@@ -150,7 +157,7 @@ export async function activate({
   });
 
   if (workspaceMemberTarget.status === WorkspaceMemberStatus.REMOVED) {
-    throw new BadRequestError("Removed members cannot be activated");
+    throw new BadRequestError("Removed members must be restored instead");
   }
 
   if (workspaceMemberTarget.status === WorkspaceMemberStatus.ACTIVE) {
@@ -168,6 +175,64 @@ export async function activate({
         actorId: userId,
         action: "WORKSPACE_MEMBER_ACTIVATED",
         payload: { targetUserId: workspaceMemberUserId },
+      },
+    ],
+  });
+}
+
+export async function restore({
+  data,
+  userId,
+  workspaceSlug,
+  workspaceMemberUserId,
+}: {
+  data: RestoreWorkspaceMemberDto;
+  userId: string;
+  workspaceSlug: string;
+  workspaceMemberUserId: string;
+}): Promise<void> {
+  // Obtener contexto
+  const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  // Comprobar permisos
+  requireWorkspaceManager(workspaceMember);
+
+  requireCanAssignWorkspaceRole({
+    actor: workspaceMember,
+    role: data.role,
+  });
+
+  // Obtener miembro objetivo (lo resuelve en cualquier estado, tambien REMOVED)
+  const { workspaceMemberTarget } = await authorizationService.getWorkspaceMemberTarget({
+    workspaceId: workspace.id,
+    workspaceMemberUserId,
+  });
+
+  // ADMIN no puede administrar un OWNER
+  requireCanManageWorkspaceMember({
+    actor: workspaceMember,
+    target: workspaceMemberTarget,
+  });
+
+  if (workspaceMemberTarget.status !== WorkspaceMemberStatus.REMOVED) {
+    throw new BadRequestError("Only removed members can be restored");
+  }
+
+  // No se comprueba User.isActive a proposito: la fila ya existe y esa persona sigue figurando en el
+  // historial del espacio, asi que bloquear la vuelta la dejaria encerrada. Lo que le impide operar
+  // es su propio acceso.
+  await workspaceMembersRepository.restore({
+    workspaceId: workspace.id,
+    userId: workspaceMemberUserId,
+    role: data.role,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_MEMBER_RESTORED",
+        payload: { targetUserId: workspaceMemberUserId, role: data.role },
       },
     ],
   });

@@ -45,7 +45,13 @@ export const updateWorkspaceMemberSchema = z.object({
   role: z.enum(WorkspaceRole),
 });
 
+// La baja machaca el rol a MEMBER, asi que quien readmite vuelve a elegirlo en el mismo gesto.
+export const restoreWorkspaceMemberSchema = z.object({
+  role: z.enum(WorkspaceRole).default("MEMBER"),
+});
+
 export type WorkspaceMembersQueryDto = z.infer<typeof workspaceMembersQuerySchema>;
 export type WorkspaceMembersAllQueryDto = z.infer<typeof workspaceMembersAllQuerySchema>;
 export type CreateWorkspaceMemberDto = z.infer<typeof createWorkspaceMemberSchema>;
 export type UpdateWorkspaceMemberDto = z.infer<typeof updateWorkspaceMemberSchema>;
+export type RestoreWorkspaceMemberDto = z.infer<typeof restoreWorkspaceMemberSchema>;

@@ -148,6 +148,29 @@ describe("POST /workspaces/:workspaceSlug/members", () => {
   });
 });
 
+describe("POST /workspaces/:workspaceSlug/members, on a dead membership row", () => {
+  it("400s and points at the restore route when the user was removed", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const target = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: target.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: target.user.id });
+
+    expect(res.status).toBe(400);
+  });
+});
+
 describe("GET /workspaces/:workspaceSlug/members", () => {
   it("only lists ACTIVE members by default", async () => {
     const { owner, workspace } = await setupOwnerWorkspace();
@@ -616,6 +639,171 @@ describe("PATCH /workspaces/:workspaceSlug/members/:userId/remove", () => {
       .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe("PATCH /workspaces/:workspaceSlug/members/:userId/restore", () => {
+  async function removedMember(role: "OWNER" | "ADMIN" | "MEMBER" = "ADMIN") {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const target = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: target.user.id,
+      role,
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    return { owner, workspace, target };
+  }
+
+  it("brings a removed member back as ACTIVE, with a fresh joinedAt", async () => {
+    const { owner, workspace, target } = await removedMember();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/restore`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(204);
+
+    const members = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members?status=ACTIVE`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const restored = members.body.data.find(
+      (member: { userId: string }) => member.userId === target.user.id,
+    );
+
+    expect(restored).toEqual(expect.objectContaining({ status: "ACTIVE", role: "MEMBER" }));
+    expect(restored.joinedAt).not.toBeNull();
+  });
+
+  it("honours the role the manager picks", async () => {
+    const { owner, workspace, target } = await removedMember();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/restore`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ role: "ADMIN" });
+
+    expect(res.status).toBe(204);
+
+    const members = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members?status=ACTIVE`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(members.body.data).toContainEqual(
+      expect.objectContaining({ userId: target.user.id, role: "ADMIN", status: "ACTIVE" }),
+    );
+  });
+
+  it("forbids an ADMIN from restoring someone straight into OWNER", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const admin = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: admin.user.id,
+      role: "ADMIN",
+    });
+    const target = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: target.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/restore`)
+      .set("Cookie", `accessToken=${admin.accessToken}`)
+      .send({ role: "OWNER" });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("400s when the member is still ACTIVE", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const target = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: target.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/restore`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(400);
+  });
+
+  it("400s when the invitation is only PENDING (that one is activated, not restored)", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const invitee = await signUp();
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${invitee.user.id}/restore`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(400);
+  });
+
+  it("forbids a plain MEMBER from restoring anyone", async () => {
+    const { owner, workspace, target } = await removedMember();
+    const plain = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: plain.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/restore`)
+      .set("Cookie", `accessToken=${plain.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(403);
+  });
+
+  it("404s when the user never had a membership", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const outsider = await signUp();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${outsider.user.id}/restore`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(404);
+  });
+
+  // La cuenta desactivada no bloquea la vuelta: la fila ya existe y esa persona sigue en el
+  // historial del espacio. Lo que le impide operar es su propio acceso.
+  it("restores someone whose account is deactivated", async () => {
+    const { owner, workspace, target } = await removedMember();
+    await deactivateUser(target.user.id);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/restore`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(204);
   });
 });
 
