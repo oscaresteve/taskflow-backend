@@ -3,6 +3,7 @@ import { auth } from "../../shared/middlewares/auth.ts";
 import { validate } from "../../shared/middlewares/validate.ts";
 import * as projectMembersController from "./project-members.controller.ts";
 import {
+  activateProjectMemberSchema,
   createProjectMemberSchema,
   projectMembersAllQuerySchema,
   projectMembersQuerySchema,
@@ -79,6 +80,16 @@ projectMembersRouter.patch(
   auth,
   validate({ params: projectMemberParamsSchema }),
   projectMembersController.deactivate,
+);
+
+// 4b. Reactivar a un miembro desactivado
+// La vuelta de /deactivate. Lleva cuerpo porque la baja machaco el rol y hay que volver a elegirlo.
+// PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId/activate
+projectMembersRouter.patch(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/members/:userId/activate",
+  auth,
+  validate({ params: projectMemberParamsSchema, body: activateProjectMemberSchema }),
+  projectMembersController.activate,
 );
 
 // No se puede eliminar OWNER

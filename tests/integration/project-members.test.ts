@@ -403,6 +403,176 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId
   });
 });
 
+describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId/activate", () => {
+  async function deactivatedProjectMember() {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const target = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: target.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: target.user.id,
+      role: "ADMIN",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${target.user.id}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    return { owner, workspace, project, target };
+  }
+
+  it("brings the member back as active, with a fresh joinedAt", async () => {
+    const { owner, workspace, project, target } = await deactivatedProjectMember();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${target.user.id}/activate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(204);
+
+    const list = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members`)
+      .query({ isActive: "true" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    const activated = list.body.data.find((m: { userId: string }) => m.userId === target.user.id);
+
+    expect(activated).toMatchObject({ role: "MEMBER", isActive: true });
+    expect(activated.joinedAt).not.toBeNull();
+  });
+
+  it("honours the role the manager picks", async () => {
+    const { owner, workspace, project, target } = await deactivatedProjectMember();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${target.user.id}/activate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ role: "ADMIN" });
+
+    expect(res.status).toBe(204);
+
+    const list = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members`)
+      .query({ isActive: "true" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(list.body.data).toContainEqual(
+      expect.objectContaining({ userId: target.user.id, role: "ADMIN", isActive: true }),
+    );
+  });
+
+  it("400s when the member is already active", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const target = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: target.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: target.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${target.user.id}/activate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(400);
+  });
+
+  // Es el estado que deja salir del espacio: la cascada desactiva las membresias de proyecto, y
+  // primero hay que restaurar la del espacio.
+  it("400s when the target is no longer an active workspace member", async () => {
+    const { owner, workspace, project, target } = await deactivatedProjectMember();
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${target.user.id}/activate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(400);
+  });
+
+  it("lets a workspace OWNER who is not a project member activate someone", async () => {
+    const { owner, workspace, builder, project } = await setupProjectOwnerIsOutside();
+    const target = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: target.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: builder.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: target.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${target.user.id}/deactivate`)
+      .set("Cookie", `accessToken=${builder.accessToken}`);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${target.user.id}/activate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(204);
+  });
+
+  it("forbids a plain project MEMBER from activating anyone", async () => {
+    const { owner, workspace, project, target } = await deactivatedProjectMember();
+    const plain = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: plain.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: plain.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${target.user.id}/activate`)
+      .set("Cookie", `accessToken=${plain.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(403);
+  });
+
+  it("400s on POST /members when the row is only inactive, pointing at activate", async () => {
+    const { owner, workspace, project, target } = await deactivatedProjectMember();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: target.user.id, role: "MEMBER" });
+
+    expect(res.status).toBe(400);
+  });
+});
+
 describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/members/:userId/deactivate", () => {
   it("lets the project OWNER deactivate a member", async () => {
     const { owner, workspace, project } = await setupOwnerProject();

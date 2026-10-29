@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import type {
+  ActivateProjectMemberDto,
   CreateProjectMemberDto,
   ProjectMembersAllQueryDto,
   ProjectMembersQueryDto,
@@ -131,6 +132,29 @@ export async function update(req: Request, res: Response, next: NextFunction) {
     const projectMemberResponse = toProjectMemberResponseDto(projectMember);
 
     res.json(projectMemberResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function activate(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const params = req.validated.params as ProjectMemberParamsDto;
+    const data = req.validated.body as ActivateProjectMemberDto;
+    const workspaceSlug = params.workspaceSlug;
+    const projectSlug = params.projectSlug;
+    const projectMemberUserId = params.userId;
+
+    await projectMembersService.activate({
+      data,
+      userId,
+      workspaceSlug,
+      projectSlug,
+      projectMemberUserId,
+    });
+
+    res.sendStatus(204);
   } catch (error) {
     next(error);
   }

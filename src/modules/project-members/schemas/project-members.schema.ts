@@ -38,7 +38,13 @@ export const updateProjectMemberSchema = z.object({
   role: z.enum(ProjectRole),
 });
 
+// La baja machaca el rol a MEMBER, asi que quien reactiva vuelve a elegirlo en el mismo gesto.
+export const activateProjectMemberSchema = z.object({
+  role: z.enum(ProjectRole).default("MEMBER"),
+});
+
 export type ProjectMembersQueryDto = z.infer<typeof projectMembersQuerySchema>;
 export type ProjectMembersAllQueryDto = z.infer<typeof projectMembersAllQuerySchema>;
 export type CreateProjectMemberDto = z.infer<typeof createProjectMemberSchema>;
 export type UpdateProjectMemberDto = z.infer<typeof updateProjectMemberSchema>;
+export type ActivateProjectMemberDto = z.infer<typeof activateProjectMemberSchema>;

@@ -1,5 +1,6 @@
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import type {
+  ActivateProjectMemberDto,
   CreateProjectMemberDto,
   ProjectMembersAllQueryDto,
   ProjectMembersQueryDto,
@@ -143,6 +144,14 @@ export async function create({
   });
 
   if (existingProjectMember) {
+    // La fila de membresia nunca se borra, asi que a quien dieron de baja no se le puede volver a
+    // crear: hay que activar la que ya existe.
+    if (!existingProjectMember.isActive) {
+      throw new BadRequestError(
+        "User is an inactive member of this project; activate the existing membership instead",
+      );
+    }
+
     throw new BadRequestError("User is already a member of this project");
   }
 
@@ -241,6 +250,83 @@ export async function update({
   });
 
   return newProjectMember;
+}
+
+export async function activate({
+  data,
+  userId,
+  workspaceSlug,
+  projectSlug,
+  projectMemberUserId,
+}: {
+  data: ActivateProjectMemberDto;
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  projectMemberUserId: string;
+}): Promise<void> {
+  // Obtener contexto
+  const { project, workspaceMember, projectMember } =
+    await authorizationService.getProjectContextAllowingWorkspaceManager({
+      userId,
+      workspaceSlug,
+      projectSlug,
+    });
+
+  // Comprobar permisos
+  requireWorkspaceOrProjectManager({ workspaceMember, projectMember });
+
+  // Obtener el miembro objetivo
+  const { projectMemberTarget } = await authorizationService.getProjectMemberTarget({
+    projectId: project.id,
+    projectMemberUserId,
+  });
+
+  // Si el mando viene del espacio, quien actua esta por encima de cualquier rol del proyecto, asi
+  // que la jerarquia interna no le aplica.
+  if (!isWorkspaceManager(workspaceMember) && projectMember) {
+    // ADMIN no puede administrar un OWNER
+    requireCanManageProjectMember({
+      actor: projectMember,
+      target: projectMemberTarget,
+    });
+
+    requireCanAssignProjectRole({
+      actor: projectMember,
+      role: data.role,
+    });
+  }
+
+  // Nadie vuelve a un proyecto si no esta en el espacio: la cascada de "salir del espacio" deja
+  // justo ese estado, y primero hay que restaurar la membresia del espacio.
+  const { workspaceMemberTarget } = await authorizationService.getWorkspaceMemberTarget({
+    workspaceId: project.workspaceId,
+    workspaceMemberUserId: projectMemberUserId,
+  });
+
+  if (workspaceMemberTarget.status !== WorkspaceMemberStatus.ACTIVE) {
+    throw new BadRequestError("User must be an active workspace member");
+  }
+
+  if (projectMemberTarget.isActive) {
+    throw new BadRequestError("Project member is already active");
+  }
+
+  await projectMembersRepository.activate({
+    userId: projectMemberUserId,
+    projectId: project.id,
+    role: data.role,
+    events: [
+      {
+        workspaceId: project.workspaceId,
+        projectId: project.id,
+        taskId: null,
+        actorId: userId,
+        action: "PROJECT_MEMBER_ACTIVATED",
+        payload: { targetUserId: projectMemberUserId, role: data.role },
+      },
+    ],
+  });
 }
 
 export async function deactivate({

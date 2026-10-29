@@ -7,7 +7,7 @@ import type {
   ProjectMembersQueryDto,
   UpdateProjectMemberDto,
 } from "./schemas/project-members.schema.ts";
-import type { ProjectMember, User } from "../../shared/types/prisma.types.ts";
+import type { ProjectMember, ProjectRole, User } from "../../shared/types/prisma.types.ts";
 import * as activityRepository from "../activity/activity.repository.ts";
 import type { ActivityEventInput } from "../activity/types/activity.types.ts";
 
@@ -198,6 +198,38 @@ export async function update({
     await activityRepository.record(tx, events);
 
     return projectMember;
+  });
+}
+
+// La vuelta de deactivate: devuelve el rol que elija quien reactiva, no el que tenia antes (la baja
+// lo machaco a MEMBER a proposito).
+export async function activate({
+  projectId,
+  userId,
+  role,
+  events,
+}: {
+  projectId: string;
+  userId: string;
+  role: ProjectRole;
+  events: ActivityEventInput[];
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.projectMember.update({
+      where: {
+        projectId_userId: {
+          projectId,
+          userId,
+        },
+      },
+      data: {
+        role,
+        isActive: true,
+        joinedAt: new Date(),
+      },
+    });
+
+    await activityRepository.record(tx, events);
   });
 }
 
