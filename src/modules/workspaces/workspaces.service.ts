@@ -213,6 +213,34 @@ export async function deactivate({ userId, workspaceSlug }: { userId: string; wo
   });
 }
 
+export async function reactivate({ userId, workspaceSlug }: { userId: string; workspaceSlug: string }): Promise<void> {
+  // Obtener contexto: el unico que resuelve un espacio desactivado
+  const { workspace, workspaceMember } = await authorizationService.getWorkspaceContextIncludingInactive({
+    userId,
+    workspaceSlug,
+  });
+
+  // Comprobar permisos
+  requireWorkspaceManager(workspaceMember);
+
+  // Comprobar que no este ya activo
+  if (workspace.isActive === true) throw new ConflictError("Workspace is already active");
+
+  await workspacesRepository.reactivate({
+    workspaceId: workspace.id,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_REACTIVATED",
+        payload: { workspaceName: workspace.name },
+      },
+    ],
+  });
+}
+
 export async function getAvatarUploadUrl({
   userId,
   workspaceSlug,

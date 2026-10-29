@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { addActiveMember, app, createWorkspace, signUp, TEST_PNG_BASE64, uploadTestAvatarFile } from "../helpers/api.ts";
 import { MAX_AVATAR_SIZE_BYTES } from "../../src/shared/schemas/common.schema.ts";
+import { prisma } from "../../src/config/prisma.ts";
 
 describe("POST /workspaces", () => {
   it("creates the workspace and makes the creator an active OWNER", async () => {
@@ -314,6 +315,83 @@ describe("PATCH /workspaces/:slug/deactivate", () => {
       .set("Cookie", `accessToken=${owner.accessToken}`);
 
     expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /workspaces/:slug/reactivate", () => {
+  async function deactivatedWorkspace() {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    return { owner, workspace };
+  }
+
+  it("brings the workspace back and makes it reachable by slug again", async () => {
+    const { owner, workspace } = await deactivatedWorkspace();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/reactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+
+    const detail = await request(app)
+      .get(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(detail.status).toBe(200);
+    expect(detail.body).toEqual(expect.objectContaining({ slug: workspace.slug, isActive: true }));
+  });
+
+  it("409s when the workspace is already active", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/reactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(409);
+  });
+
+  it("forbids a plain MEMBER from reactivating", async () => {
+    const { owner, workspace } = await deactivatedWorkspace();
+    const member = await signUp();
+    // El espacio ya esta inactivo, asi que la membresia se crea antes de desactivarlo no: aqui se
+    // escribe directa, porque /members tambien da 404 sobre un espacio muerto.
+    await prisma.workspaceMember.create({
+      data: { userId: member.user.id, workspaceId: workspace.id, role: "MEMBER", status: "ACTIVE" },
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/reactivate`)
+      .set("Cookie", `accessToken=${member.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("404s for a slug that does not exist", async () => {
+    const owner = await signUp();
+
+    const res = await request(app)
+      .patch("/api/workspaces/nope/reactivate")
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("forbids someone who is not a member of the inactive workspace", async () => {
+    const { workspace } = await deactivatedWorkspace();
+    const outsider = await signUp();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/reactivate`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
+
+    expect(res.status).toBe(403);
   });
 });
 

@@ -149,14 +149,6 @@ export async function findAllByUserId({
   };
 }
 
-export async function findBySlugIncludingInactive(slug: string): Promise<Workspace | null> {
-  return prisma.workspace.findUnique({
-    where: {
-      slug,
-    },
-  });
-}
-
 export async function update({
   workspaceId,
   data,
@@ -219,6 +211,27 @@ export async function deactivate({
       },
       data: {
         isActive: false,
+      },
+    });
+
+    await activityRepository.record(tx, events);
+  });
+}
+
+export async function reactivate({
+  workspaceId,
+  events,
+}: {
+  workspaceId: string;
+  events: ActivityEventInput[];
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.workspace.update({
+      where: {
+        id: workspaceId,
+      },
+      data: {
+        isActive: true,
       },
     });
 
