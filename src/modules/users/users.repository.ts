@@ -128,11 +128,13 @@ export async function findProfileById({
         { id: viewerId },
         {
           // Al objetivo le vale cualquier status, porque a quien fue eliminado del espacio los
-          // demas lo siguen viendo como asignado de tareas y autor de comentarios.
+          // demas lo siguen viendo como asignado de tareas y autor de comentarios. Y al espacio le
+          // vale estar desactivado por el mismo motivo: la tabla de gestion sigue pintando a sus
+          // responsables, y desactivarlo no convierte a esa gente en desconocidos. Lo que sigue
+          // acotando quien puede mirar es la pertenencia ACTIVE de quien pregunta.
           workspaceMembers: {
             some: {
               workspace: {
-                isActive: true,
                 members: { some: { userId: viewerId, status: WorkspaceMemberStatus.ACTIVE } },
               },
             },

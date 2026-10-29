@@ -345,6 +345,31 @@ describe("GET /users/:userId", () => {
     expect(res.body.id).toBe(owner.user.id);
   });
 
+  // La tabla de gestion sigue pintando a los responsables de un espacio desactivado, asi que su
+  // ficha tiene que seguir resolviendo: desactivar un espacio no convierte a su gente en
+  // desconocidos.
+  it("returns a user you only share a deactivated workspace with", async () => {
+    const owner = await signUp();
+    const member = await signUp({ name: "Grace Hopper" });
+    const workspace = await createWorkspace(owner.accessToken);
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/users/${owner.user.id}`)
+      .set("Cookie", `accessToken=${member.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(owner.user.id);
+  });
+
   // 404 y no 403, para no confirmar que la cuenta existe a quien no comparte nada con ella.
   it("404s for a user you share no workspace with", async () => {
     const self = await signUp();
