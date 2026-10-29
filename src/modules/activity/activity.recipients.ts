@@ -62,8 +62,11 @@ function recipientsFor(event: ActivityEventInput, taskParties: Map<string, TaskP
     case "TASK_DUE_DATE_CHANGED":
       return [parties?.assigneeId ?? null];
 
+    // Que te devuelvan a un sitio del que te habian dado de baja se avisa igual que la alta.
     case "PROJECT_MEMBER_ADDED":
+    case "PROJECT_MEMBER_ACTIVATED":
     case "WORKSPACE_MEMBER_INVITED":
+    case "WORKSPACE_MEMBER_RESTORED":
       return [event.payload.targetUserId];
 
     // El resto va al historial, no a la campanita: un cambio de prioridad o un renombrado no

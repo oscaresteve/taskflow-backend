@@ -48,10 +48,12 @@ export const activityPayloadSchemas = {
     to: z.iso.datetime().nullable(),
   }),
   TASK_ARCHIVED: taskRefSchema,
+  TASK_UNARCHIVED: taskRefSchema,
 
   COMMENT_CREATED: commentRefSchema.extend({ mentions: z.array(z.cuid()) }),
   COMMENT_EDITED: commentRefSchema,
   COMMENT_DELETED: commentRefSchema,
+  COMMENT_RESTORED: commentRefSchema,
   // Solo los mencionados nuevos de esa edicion, no todos los que el comentario nombre: por eso la
   // lista no puede venir vacia, un evento sin nadie a quien avisar no tendria razon de existir.
   COMMENT_MENTIONED: commentRefSchema.extend({ mentions: z.array(z.cuid()).min(1) }),
@@ -59,17 +61,23 @@ export const activityPayloadSchemas = {
   PROJECT_CREATED: projectRefSchema,
   PROJECT_UPDATED: projectRefSchema.extend({ fields: z.array(z.enum(projectEditedFields)).min(1) }),
   PROJECT_ARCHIVED: projectRefSchema,
+  PROJECT_UNARCHIVED: projectRefSchema,
 
   PROJECT_MEMBER_ADDED: memberRefSchema.extend({ role: z.enum(ProjectRole) }),
   PROJECT_MEMBER_ROLE_CHANGED: memberRefSchema.extend({ from: z.enum(ProjectRole), to: z.enum(ProjectRole) }),
   PROJECT_MEMBER_DEACTIVATED: memberRefSchema,
+  // El rol viaja en el payload porque quien reactiva lo elige, igual que al anadir.
+  PROJECT_MEMBER_ACTIVATED: memberRefSchema.extend({ role: z.enum(ProjectRole) }),
 
   WORKSPACE_CREATED: workspaceRefSchema,
   WORKSPACE_UPDATED: workspaceRefSchema.extend({ fields: z.array(z.enum(workspaceEditedFields)).min(1) }),
   WORKSPACE_DEACTIVATED: workspaceRefSchema,
+  WORKSPACE_REACTIVATED: workspaceRefSchema,
 
   WORKSPACE_MEMBER_INVITED: memberRefSchema.extend({ role: z.enum(WorkspaceRole) }),
   WORKSPACE_MEMBER_ACTIVATED: memberRefSchema,
   WORKSPACE_MEMBER_ROLE_CHANGED: memberRefSchema.extend({ from: z.enum(WorkspaceRole), to: z.enum(WorkspaceRole) }),
   WORKSPACE_MEMBER_REMOVED: memberRefSchema,
+  // La baja machaca el rol, asi que quien readmite vuelve a elegirlo y el feed lo cuenta.
+  WORKSPACE_MEMBER_RESTORED: memberRefSchema.extend({ role: z.enum(WorkspaceRole) }),
 } as const;
