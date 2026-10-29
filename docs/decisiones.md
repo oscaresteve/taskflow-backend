@@ -50,6 +50,50 @@ Para el transporte en vivo, socket.io en vez de `ws` a pelo: hacen falta salas p
 
 El diseño completo (esquema, catálogo de acciones, reglas de destinatarios, menciones, aristas conocidas y fases) está en `eventos-de-dominio.md`.
 
+### Soft delete reversible: cada baja tiene su verbo inverso
+
+Todas las bajas son lógicas (`isActive`, `isArchived`, `deletedAt`, `WorkspaceMemberStatus`), pero durante un tiempo fueron de ida: no existía ninguna ruta para reactivar un espacio, desarchivar un proyecto o una tarea, restaurar un comentario ni devolver a un miembro. Ahora cada una tiene su inversa, y estas son las reglas que las gobiernan.
+
+**El verbo inverso es el de la baja que lo mató, no un `activate` genérico.** `remove` → `restore`, `deactivate` → `activate`, `archive` → `unarchive`, `delete` → `restore`. Eso deja a `PATCH /members/:userId/activate` del espacio queriendo decir una sola cosa — "la invitación PENDING se acepta" — y la readmisión de un eliminado como ruta aparte, con su propio evento (`WORKSPACE_MEMBER_RESTORED`) y su propio cuerpo. Fusionarlas habría obligado a ramificar acción y validación por el estado previo dentro de un mismo service.
+
+**Lo muerto se direcciona con cargadores hermanos, no con un flag.** `findWorkspaceBySlug` filtra `isActive: true` y `findProjectBySlug` filtra `isArchived: false`, que es justo lo que hace que un espacio desactivado responda 404 en todas partes. Para la reversión hay dos funciones nuevas con el estado en el nombre (`findWorkspaceBySlugIncludingInactive`, `findProjectBySlugIncludingArchived`) y sus dos cargadores de contexto (`getWorkspaceContextIncludingInactive`, `getProjectContextIncludingArchivedAllowingWorkspaceManager`).
+
+**Por qué no un `includeInactive` booleano:** tendría que atravesar `getWorkspaceContext` → `getProjectContextAllowingWorkspaceManager` → `getProjectContext`, tres funciones de las que la última no debe admitirlo nunca, y ensancharía el radio de todos los llamantes actuales para servir a dos rutas. El nombre hermano declara la excepción en el punto de llamada y deja el camino caliente intacto.
+
+**El espacio manda sobre el proyecto.** El cargador de desarchivado resuelve el espacio con el cargador estricto, así que desarchivar un proyecto de un espacio inactivo da 404: primero se reactiva el espacio. La precedencia la impone el cargador, no una comprobación suelta en el service.
+
+**Tarea archivada y comentario borrado no necesitaron cargador.** `getTaskContext` y `getCommentContext` nunca filtraron el estado (son `update` y `move` los que rechazan a mano una tarea archivada), así que siguen siendo direccionables y su vuelta es solo ruta + service.
+
+**La baja machaca el rol, y la vuelta lo vuelve a elegir.** `remove`, `leave` y `deactivate` ponen `role: MEMBER` a propósito: una fila muerta no debe conservar permisos. Por eso `restore` y `activate` aceptan un `role` opcional (por defecto `MEMBER`), validado con las mismas reglas de asignación que el alta. Las alternativas eran volver siempre como MEMBER y cambiar el rol después —dos pasos, y un cambio de rol en el historial que nadie pidió— o una columna `previousRole`, que añade esquema para guardar una verdad que caduca: a quien se readmite tres meses después no se le devuelve OWNER por inercia.
+
+**Sin cascada inversa.** `leave` desactiva las pertenencias a proyectos del espacio, pero `restore` no las reactiva. Una cascada inversa resucitaría también filas que `remove` nunca mató, y la de `leave` ya había machacado los roles, así que solo podría devolver una verdad a medias. Quién vuelve a un proyecto lo decide quien manda en ese proyecto.
+
+**El `create` de miembros distingue la fila viva de la muerta.** Una fila de membresía nunca se borra (`@@unique([userId, workspaceId])`), así que `POST /members` siempre choca. Si la fila está viva sigue devolviendo "already a member"; si está muerta, un mensaje que apunta al restore. Lo que distingue las dos ramas es el mensaje y no el status: los dos módulos de miembros resuelven *todas* sus guardas de estado con 400, mientras que espacio, proyecto y comentario usan 409, y lo nuevo sigue al módulo en el que vive en lugar de abrir una tercera convención. Es además una rama defensiva para consumidores directos de la API: los dos selectores de personas excluyen a quien ya tiene fila en cualquier estado, así que desde la UI no se puede llegar a ese choque.
+
+**Restaurar no comprueba `User.isActive`.** El alta rechaza a un usuario desactivado, pero la vuelta no: su fila ya existe y esa persona sigue figurando como autora y asignada en el espacio, así que bloquearla la dejaría encerrada para siempre si su cuenta no se reactiva. Lo que le impide operar es su propio acceso.
+
+**El ciclo de vida, módulo a módulo.** La regla es una: *un recurso dado de baja es de solo lectura, y lo único que admite es su propia reversión*. Cómo se enforce cambia según si el recurso sigue siendo direccionable:
+
+| Recurso | De baja | Se lee | Se escribe | Cómo se corta |
+|---|---|---|---|---|
+| Workspace | `isActive: false` | solo la fila del listado (`?isActive=false`) | nada salvo `/reactivate` | el loader filtra → 404 en todo lo demás |
+| Project | `isArchived: true` | solo la fila del listado (`?isArchived=true`) | nada salvo `/unarchive` | el loader filtra → 404 |
+| Task | `isArchived: true` | todo (detalle, comentarios) | nada salvo `/unarchive` | el loader **no** filtra, así que el corte lo ponen los services a mano |
+| Comment | `deletedAt` | no sale del listado | nada salvo `/restore` | el listado filtra; el id sigue resolviendo |
+| Membresías | `REMOVED` / `isActive: false` | la fila del listado por estado | nada salvo `/restore` o `/activate` | el service rechaza `update` |
+
+Dos consecuencias de esa regla que hubo que arreglar al añadir las reversiones:
+
+- **Los responsables viajan en el listado, no se preguntan por fila.** La tabla de gestión pintaba las caras de los owners con una petición de miembros *por fila*, que en un espacio desactivado o un proyecto archivado responde 404 — justo en la pestaña donde hay que decidir si recuperarlo. Ahora `findAll` los resuelve en lote y la fila los trae (`WorkspaceListItemResponseDto` / `ProjectListItemResponseDto`). De paso desaparece un N+1 que también pagaba la pestaña de activos.
+- **Una tarea archivada era de solo lectura a medias:** no se podía editar su título, pero sí comentarla, editar y borrar comentarios. Como su contexto sí la resuelve, el corte está ahora explícito en `comments.service` (`requireUnarchivedTask`), igual que ya lo hacían `update` y `move` de la propia tarea. Los favoritos quedan fuera a propósito: son una marca personal sin huella de dominio (no emiten eventos).
+- **La ficha de una persona ya no exige compartir un espacio *activo*.** `findProfileById` filtraba `workspace.isActive: true`, así que el popup de un responsable de un espacio desactivado daba 404 mientras su avatar seguía pintándose. Desactivar un espacio no convierte a su gente en desconocidos; lo que sigue acotando quién puede mirar es la pertenencia ACTIVE de quien pregunta.
+
+**El ciclo de vida nunca cambia quién ve qué.** Es el patrón que siguen los cinco listados: el ámbito padre decide quién entra y la pertenencia decide qué fila es tuya, y la baja no mueve ninguna de las dos cosas. Quien podía ver algo vivo lo sigue viendo muerto (las membresías sobreviven a la desactivación y al archivado), y quien no podía verlo sigue sin verlo. Ningún listado da visibilidad extra por ser manager.
+
+**Lo que ese patrón deja sin cerrar:** un proyecto archivado del que no eres miembro activo no aparece en `GET .../projects` ni con `?isArchived=true` — y tampoco aparecía cuando estaba activo, así que el archivado no quita nada. Lo que chirría es que `requireWorkspaceOrProjectManager` sí deja a un manager del espacio archivarlo y desarchivarlo desde fuera: el mando alcanza más que el listado. Pasa con quien archiva un proyecto al que nunca se añadió, y ya pasaba antes de que existiera la vuelta.
+
+Cerrarlo obliga a mover una de dos puertas, y ninguna es barata: **ensanchar el listado** (que un manager vea proyectos que nunca tocó, sin precedente en ningún otro listado y en contra de la regla de producto de que un contador solo cuenta lo alcanzable) o **estrechar el permiso** (exigir pertenencia al proyecto para archivar y desarchivar, en contra del `requireWorkspaceOrProjectManager` que está documentado y cubierto por tests). Se queda como limitación conocida: por API hay salida, por la UI no.
+
 ### Hosting: Vercel (frontend) + subdominios del mismo dominio
 
 Frontend en Vercel bajo `taskflow.oscaresteve.dev`, y backend en un servicio de contenedores con un subdominio propio, `taskflow-api.oscaresteve.dev`.
@@ -97,6 +141,8 @@ Se integra bien tanto con Next.js como con shadcn/ui.
 ### Estado en la URL: nuqs
 
 Primera vez que lo uso, en vez de manejarlo a mano con los hooks de navegación de Next. Necesitaba que ciertos estados (filtros, paginación...) vivieran en la URL para que las páginas se puedan compartir con ese estado incluido, y nuqs ahorra bastante trabajo respecto a hacerlo manualmente.
+
+Eso incluye **la pestaña activa** de cualquier vista que segmente por estado (miembros por estado, espacios/proyectos/tareas por ciclo de vida): un enlace a "los miembros eliminados" tiene que abrir ahí, así que la pestaña es un parámetro más (`?tab=`) y no `useState`.
 
 ### Gráficos: recharts
 
