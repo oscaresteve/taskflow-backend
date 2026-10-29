@@ -84,6 +84,15 @@ tasksRouter.patch(
   tasksController.archive,
 );
 
+// 6b. Desarchivar tarea
+// PATCH  /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/unarchive
+tasksRouter.patch(
+  "/workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/unarchive",
+  auth,
+  validate({ params: taskParamsSchema }),
+  tasksController.unarchive,
+);
+
 // 7. Marcar/desmarcar como favorita (por usuario)
 // POST   /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/favorite
 // DELETE /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/favorite

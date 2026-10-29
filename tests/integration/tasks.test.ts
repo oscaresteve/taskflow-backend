@@ -782,6 +782,71 @@ describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumb
   });
 });
 
+describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/unarchive", () => {
+  async function archivedTask() {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    return { owner, workspace, project, task };
+  }
+
+  it("brings the task back into the default listing", async () => {
+    const { owner, workspace, project, task } = await archivedTask();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/unarchive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+
+    const list = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(list.body.data).toContainEqual(
+      expect.objectContaining({ taskNumber: task.taskNumber, isArchived: false }),
+    );
+  });
+
+  it("400s when the task is not archived", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/unarchive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(400);
+  });
+
+  it("forbids a plain project MEMBER from unarchiving a task", async () => {
+    const { owner, workspace, project, task } = await archivedTask();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/unarchive`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+});
+
 describe("POST/DELETE /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/favorite", () => {
   it("lets a project member favorite and unfavorite a task", async () => {
     const { owner, workspace, project } = await setupOwnerProject();

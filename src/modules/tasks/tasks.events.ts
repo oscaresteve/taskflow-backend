@@ -121,3 +121,21 @@ export function buildTaskArchivedEvents({
     },
   ];
 }
+
+export function buildTaskUnarchivedEvents({
+  workspaceId,
+  projectId,
+  actorId,
+  task,
+}: TaskEventScope): ActivityEventInput[] {
+  return [
+    {
+      workspaceId,
+      projectId,
+      taskId: task.id,
+      actorId,
+      action: "TASK_UNARCHIVED",
+      payload: { taskNumber: task.taskNumber, taskTitle: task.title },
+    },
+  ];
+}

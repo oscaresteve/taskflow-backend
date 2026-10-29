@@ -400,6 +400,32 @@ export async function archive({
   });
 }
 
+export async function unarchive({
+  projectId,
+  taskNumber,
+  events,
+}: {
+  projectId: string;
+  taskNumber: number;
+  events: ActivityEventInput[];
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.task.update({
+      where: {
+        projectId_taskNumber: {
+          projectId,
+          taskNumber,
+        },
+      },
+      data: {
+        isArchived: false,
+      },
+    });
+
+    await activityRepository.record(tx, events);
+  });
+}
+
 export async function isFavorited({ userId, taskId }: { userId: string; taskId: string }): Promise<boolean> {
   const favorite = await prisma.taskFavorite.findUnique({
     where: {

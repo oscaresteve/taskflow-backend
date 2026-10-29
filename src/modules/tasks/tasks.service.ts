@@ -7,7 +7,12 @@ import { NotFoundError } from "../../shared/errors/not-found-error.ts";
 import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
 import * as authorizationService from "../../shared/auth/authorization.service.ts";
 import { requireProjectManager } from "../../shared/auth/permissions.ts";
-import { buildTaskArchivedEvents, buildTaskMoveEvents, buildTaskUpdateEvents } from "./tasks.events.ts";
+import {
+  buildTaskArchivedEvents,
+  buildTaskMoveEvents,
+  buildTaskUnarchivedEvents,
+  buildTaskUpdateEvents,
+} from "./tasks.events.ts";
 import { emitTaskReordered } from "../../socket/realtime.ts";
 
 // LLamar al repository y realizar toda la lógica necesaria
@@ -337,6 +342,44 @@ export async function archive({
   });
 
   await tasksRepository.archive({ projectId: project.id, taskNumber, events });
+}
+
+export async function unarchive({
+  userId,
+  workspaceSlug,
+  projectSlug,
+  taskNumber,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  taskNumber: number;
+}): Promise<void> {
+  // Obtener contexto. Una tarea archivada sigue siendo direccionable, asi que no hace falta un
+  // cargador aparte como en espacio y proyecto.
+  const { project, projectMember, task } = await authorizationService.getTaskContext({
+    userId,
+    workspaceSlug,
+    projectSlug,
+    taskNumber,
+  });
+
+  // Comprobar permisos
+  requireProjectManager(projectMember);
+
+  // Comprobar que este archivada
+  if (!task.isArchived) {
+    throw new BadRequestError("Task is not archived");
+  }
+
+  const events = buildTaskUnarchivedEvents({
+    workspaceId: project.workspaceId,
+    projectId: project.id,
+    actorId: userId,
+    task,
+  });
+
+  await tasksRepository.unarchive({ projectId: project.id, taskNumber, events });
 }
 
 export async function favorite({
