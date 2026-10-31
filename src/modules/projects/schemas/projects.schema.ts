@@ -1,4 +1,5 @@
 import z from "zod";
+import { ProjectRole } from "../../../shared/types/prisma.types.ts";
 import {
   booleanQueryParamSchema,
   descriptionSchema,
@@ -32,6 +33,11 @@ export const projectQuerySchema = z.object({
   isArchived: booleanQueryParamSchema,
   isFavorite: booleanQueryParamSchema,
   search: searchSchema,
+
+  // Filtra por el rol del propio solicitante en el proyecto, uno ("?myRole=OWNER") o varios
+  // ("?myRole=OWNER&myRole=ADMIN"). Lo pide el listado de archivados, que solo ensena los proyectos
+  // que quien mira puede desarchivar.
+  myRole: z.union([z.enum(ProjectRole), z.array(z.enum(ProjectRole))]).optional(),
 
   // Ordenacion
   sort: z.enum(sortableFields).default("createdAt"),

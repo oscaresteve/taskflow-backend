@@ -231,6 +231,45 @@ describe("GET /workspaces/:workspaceSlug/projects", () => {
     expect(rolesBySlug).toEqual({ [asOwner.slug]: "OWNER", [asMember.slug]: "MEMBER" });
   });
 
+  // El listado de archivados del frontend solo ensena lo que quien mira puede desarchivar, y lo pide
+  // con este filtro.
+  it("filters by the caller's own project role", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const asOwner = await createProject(owner.accessToken, workspace.slug, { key: "MINE" });
+    const asMember = await createProject(owner.accessToken, workspace.slug, { key: "THEIRS" });
+
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: asOwner.slug,
+      targetUserId: memberUser.user.id,
+      role: "OWNER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: asMember.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects`)
+      .query({ myRole: ["OWNER", "ADMIN"] })
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((project: { slug: string }) => project.slug)).toEqual([asOwner.slug]);
+    expect(res.body.pagination.total).toBe(1);
+  });
+
   it("excludes projects where the user's membership was deactivated", async () => {
     const { owner, workspace } = await setupOwnerWorkspace();
     const project = await createProject(owner.accessToken, workspace.slug, { key: "GONE" });

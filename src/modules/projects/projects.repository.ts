@@ -119,6 +119,8 @@ export async function findAll({
     some: {
       userId: userId,
       isActive: true,
+      // Con myRole la pertenencia ademas tiene que traer uno de esos roles.
+      ...(query.myRole && { role: { in: Array.isArray(query.myRole) ? query.myRole : [query.myRole] } }),
     },
   };
 
