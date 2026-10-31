@@ -75,6 +75,8 @@ export const activityPayloadSchemas = {
   WORKSPACE_REACTIVATED: workspaceRefSchema,
 
   WORKSPACE_MEMBER_INVITED: memberRefSchema.extend({ role: z.enum(WorkspaceRole) }),
+  // Cancelar borra la fila, asi que este evento es lo unico que queda de la invitacion.
+  WORKSPACE_MEMBER_INVITE_CANCELED: memberRefSchema,
   WORKSPACE_MEMBER_ACTIVATED: memberRefSchema,
   WORKSPACE_MEMBER_ROLE_CHANGED: memberRefSchema.extend({ from: z.enum(WorkspaceRole), to: z.enum(WorkspaceRole) }),
   WORKSPACE_MEMBER_REMOVED: memberRefSchema,

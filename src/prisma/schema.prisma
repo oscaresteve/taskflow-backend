@@ -322,6 +322,9 @@ enum ActivityAction {
   WORKSPACE_REACTIVATED
 
   WORKSPACE_MEMBER_INVITED
+  // Cancelar una invitacion borra la fila de membresia, que nunca llego a serlo; el historial es lo
+  // unico que queda de ella.
+  WORKSPACE_MEMBER_INVITE_CANCELED
   WORKSPACE_MEMBER_ACTIVATED
   WORKSPACE_MEMBER_ROLE_CHANGED
   WORKSPACE_MEMBER_REMOVED
