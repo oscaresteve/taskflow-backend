@@ -126,6 +126,37 @@ describe("GET /workspaces", () => {
     expect(names).toContain(inactive.name);
   });
 
+  // El listado de inactivos del frontend solo ensena lo que quien mira puede reactivar, y lo pide
+  // con este filtro.
+  it("filters by the caller's own workspace role", async () => {
+    const owner = await signUp();
+    const mine = await createWorkspace(owner.accessToken, "Mine To Manage");
+    const theirs = await createWorkspace(owner.accessToken, "Theirs To Manage");
+
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: mine.slug,
+      targetUserId: memberUser.user.id,
+      role: "ADMIN",
+    });
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: theirs.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get("/api/workspaces")
+      .query({ myRole: ["OWNER", "ADMIN"] })
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((w: { slug: string }) => w.slug)).toEqual([mine.slug]);
+    expect(res.body.pagination.total).toBe(1);
+  });
+
   // La tabla de gestion pinta los responsables, y sobre un espacio desactivado el listado de
   // miembros ya responde 404: tienen que venir en el propio listado.
   it("carries the owners, also for an inactive workspace", async () => {

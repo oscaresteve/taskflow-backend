@@ -1,4 +1,5 @@
 import z from "zod";
+import { WorkspaceRole } from "../../../shared/types/prisma.types.ts";
 import {
   booleanQueryParamSchema,
   descriptionSchema,
@@ -36,6 +37,11 @@ export const workspaceQuerySchema = z.object({
   isActive: z.union([isActiveQueryParamSchema, z.array(isActiveQueryParamSchema)]).optional(),
   isFavorite: booleanQueryParamSchema,
   search: searchSchema,
+
+  // Filtra por el rol del propio solicitante en el espacio, uno ("?myRole=OWNER") o varios
+  // ("?myRole=OWNER&myRole=ADMIN"). Lo pide el listado de inactivos, que solo ensena los espacios
+  // que quien mira puede reactivar.
+  myRole: z.union([z.enum(WorkspaceRole), z.array(z.enum(WorkspaceRole))]).optional(),
 
   // Ordenacion
   sort: z.enum(sortableFields).default("createdAt"),
