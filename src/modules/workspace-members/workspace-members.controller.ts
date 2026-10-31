@@ -156,6 +156,25 @@ export async function leave(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+export async function cancelInvitation(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const params = req.validated.params as WorkspaceMemberParamsDto;
+    const workspaceSlug = params.workspaceSlug;
+    const workspaceMemberUserId = params.userId;
+
+    await workspaceMembersService.cancelInvitation({
+      userId,
+      workspaceSlug,
+      workspaceMemberUserId,
+    });
+
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function remove(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user.id;

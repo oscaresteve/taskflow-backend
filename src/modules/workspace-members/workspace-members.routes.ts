@@ -61,6 +61,19 @@ workspaceMembersRouter.patch(
   workspaceMembersController.activate,
 );
 
+// 2b. Cancelar una invitacion pendiente
+// Es la vuelta de POST /members, no una baja: la fila se borra. Por eso es un DELETE sobre el propio
+// miembro y no otro PATCH con sufijo como /remove o /restore: en este modulo el PATCH nombra un
+// cambio de estado, y aqui no hay estado nuevo que nombrar porque la fila desaparece. La unica fila
+// que admite DELETE es la que nunca llego a ser membresia; sobre una viva o muerta responde 400.
+// DELETE /workspaces/:workspaceSlug/members/:userId
+workspaceMembersRouter.delete(
+  "/workspaces/:workspaceSlug/members/:userId",
+  auth,
+  validate({ params: workspaceMemberParamsSchema }),
+  workspaceMembersController.cancelInvitation,
+);
+
 // 3. Cambiar rol
 // PATCH  /workspaces/:workspaceSlug/members/:userId
 workspaceMembersRouter.patch(

@@ -324,6 +324,32 @@ export async function leave({
   });
 }
 
+// La unica fila de membresia que se borra de verdad: una invitacion cancelada nunca llego a ser
+// membresia, asi que no deja lapida (y al invitado se le puede volver a invitar). El evento se
+// escribe en la misma transaccion, que es lo unico que queda de ella.
+export async function deleteInvitation({
+  workspaceId,
+  userId,
+  events,
+}: {
+  workspaceId: string;
+  userId: string;
+  events: ActivityEventInput[];
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.workspaceMember.delete({
+      where: {
+        userId_workspaceId: {
+          userId,
+          workspaceId,
+        },
+      },
+    });
+
+    await activityRepository.record(tx, events);
+  });
+}
+
 export async function remove({
   workspaceId,
   userId,

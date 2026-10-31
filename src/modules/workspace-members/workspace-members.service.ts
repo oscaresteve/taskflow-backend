@@ -102,8 +102,9 @@ export async function create({
   });
 
   if (existingMember) {
-    // La fila de membresia nunca se borra, asi que a quien dieron de baja no se le puede volver a
-    // crear: hay que restaurar la que ya existe.
+    // La fila de una baja no se borra, asi que a quien dieron de baja no se le puede volver a crear:
+    // hay que restaurar la que ya existe. (La de una invitacion si se borra, al cancelarla, y
+    // entonces este camino vuelve a estar libre.)
     if (existingMember.status === WorkspaceMemberStatus.REMOVED) {
       throw new BadRequestError("User was removed from this workspace; restore the existing membership instead");
     }
@@ -127,6 +128,57 @@ export async function create({
   });
 
   return newWorkspaceMember;
+}
+
+// La vuelta de una invitacion es cancelarla, no darla de baja: la fila se borra en vez de quedarse
+// en REMOVED, porque nunca llego a ser una membresia. Asi al invitado se le puede volver a invitar y
+// la pestana de eliminados solo guarda a quien de verdad estuvo dentro.
+export async function cancelInvitation({
+  userId,
+  workspaceSlug,
+  workspaceMemberUserId,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  workspaceMemberUserId: string;
+}): Promise<void> {
+  // Obtener contexto
+  const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  // Comprobar permisos
+  requireWorkspaceManager(workspaceMember);
+
+  // Obtener miembro objetivo
+  const { workspaceMemberTarget } = await authorizationService.getWorkspaceMemberTarget({
+    workspaceId: workspace.id,
+    workspaceMemberUserId,
+  });
+
+  // ADMIN no puede administrar un OWNER
+  requireCanManageWorkspaceMember({
+    actor: workspaceMember,
+    target: workspaceMemberTarget,
+  });
+
+  // Solo hay invitacion que cancelar mientras siga pendiente
+  if (workspaceMemberTarget.status !== WorkspaceMemberStatus.PENDING) {
+    throw new BadRequestError("Workspace member is not a pending invitation");
+  }
+
+  await workspaceMembersRepository.deleteInvitation({
+    workspaceId: workspace.id,
+    userId: workspaceMemberUserId,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_MEMBER_INVITE_CANCELED",
+        payload: { targetUserId: workspaceMemberUserId },
+      },
+    ],
+  });
 }
 
 export async function activate({
