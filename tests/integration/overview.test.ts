@@ -278,6 +278,41 @@ describe("GET /me/overview/workspaces", () => {
 
     expect(asOutsider.body.data).toEqual([]);
   });
+
+  it("narrows the grid to the caller's favorites", async () => {
+    const owner = await signUp();
+    const favorite = await createWorkspace(owner.accessToken, "Product design");
+    await createWorkspace(owner.accessToken, "Backoffice");
+
+    await request(app)
+      .post(`/api/workspaces/${favorite.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const onlyFavorites = await request(app)
+      .get("/api/me/overview/workspaces")
+      .query({ isFavorite: "true" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(onlyFavorites.status).toBe(200);
+    expect(onlyFavorites.body.data.map((item: { name: string }) => item.name)).toEqual(["Product design"]);
+    expect(onlyFavorites.body.pagination.total).toBe(1);
+
+    // El favorito es de cada uno, asi que el de otro no acota la rejilla propia.
+    const other = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: favorite.slug,
+      targetUserId: other.user.id,
+      role: "MEMBER",
+    });
+
+    const asOther = await request(app)
+      .get("/api/me/overview/workspaces")
+      .query({ isFavorite: "true" })
+      .set("Cookie", `accessToken=${other.accessToken}`);
+
+    expect(asOther.body.data).toEqual([]);
+  });
 });
 
 describe("GET /workspaces/:workspaceSlug/overview", () => {
@@ -461,6 +496,24 @@ describe("GET /workspaces/:workspaceSlug/overview/projects", () => {
       .set("Cookie", `accessToken=${member.accessToken}`);
 
     expect(asMember.body.data).toEqual([]);
+  });
+
+  it("narrows the grid to the caller's favorites", async () => {
+    const { owner, workspace, project } = await setupOwnerProject({ name: "Alpha" });
+    await createProject(owner.accessToken, workspace.slug, { name: "Beta", key: "BETA" });
+
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/overview/projects`)
+      .query({ isFavorite: "true" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((item: { name: string }) => item.name)).toEqual(["Alpha"]);
+    expect(res.body.pagination.total).toBe(1);
   });
 });
 

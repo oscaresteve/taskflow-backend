@@ -23,6 +23,7 @@ export async function getMyWorkspaces({
     page: query.page,
     limit: query.limit,
     search: query.search,
+    isFavorite: query.isFavorite,
   });
 }
 
@@ -62,6 +63,7 @@ export async function getWorkspaceProjects({
     page: query.page,
     limit: query.limit,
     search: query.search,
+    isFavorite: query.isFavorite,
   });
 }
 

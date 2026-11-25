@@ -143,6 +143,7 @@ export async function findWorkspaceProjects({
   page,
   limit,
   search,
+  isFavorite,
 }: {
   userId: string;
   workspaceId: string;
@@ -150,11 +151,18 @@ export async function findWorkspaceProjects({
   page: number;
   limit: number;
   search?: string;
+  isFavorite?: boolean;
 }): Promise<{ items: OverviewProjectRow[]; total: number }> {
   const where: Prisma.ProjectWhereInput = { ...myProjects(userId), workspaceId };
 
   if (search) {
     where.OR = nameOrDescriptionContains(search);
+  }
+
+  if (isFavorite === true) {
+    where.favorites = { some: { userId } };
+  } else if (isFavorite === false) {
+    where.favorites = { none: { userId } };
   }
 
   const [projects, total] = await Promise.all([
@@ -255,12 +263,14 @@ export async function findMyWorkspaces({
   page,
   limit,
   search,
+  isFavorite,
 }: {
   userId: string;
   timeZone: string | null;
   page: number;
   limit: number;
   search?: string;
+  isFavorite?: boolean;
 }): Promise<{ items: OverviewWorkspaceRow[]; total: number }> {
   const where: Prisma.WorkspaceWhereInput = {
     isActive: true,
@@ -269,6 +279,12 @@ export async function findMyWorkspaces({
 
   if (search) {
     where.OR = nameOrDescriptionContains(search);
+  }
+
+  if (isFavorite === true) {
+    where.favorites = { some: { userId } };
+  } else if (isFavorite === false) {
+    where.favorites = { none: { userId } };
   }
 
   const [workspaces, total] = await Promise.all([
