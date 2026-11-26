@@ -1,0 +1,1151 @@
+import { describe, expect, it } from "vitest";
+import request from "supertest";
+import {
+  app,
+  addActiveMember,
+  addActiveProjectMember,
+  createProject,
+  createTask,
+  createWorkspace,
+  deactivateUser,
+  leaveWorkspace,
+  signUp,
+} from "../helpers/api.ts";
+
+async function setupOwnerWorkspace() {
+  const owner = await signUp();
+  const workspace = await createWorkspace(owner.accessToken);
+  return { owner, workspace };
+}
+
+describe("POST /workspaces/:workspaceSlug/members", () => {
+  it("lets the OWNER add a member, starting as PENDING", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const invitee = await signUp();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      userId: invitee.user.id,
+      role: "MEMBER",
+      status: "PENDING",
+    });
+  });
+
+  it("lets the OWNER assign the OWNER role", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const invitee = await signUp();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "OWNER" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.role).toBe("OWNER");
+  });
+
+  it("lets an ADMIN add a member", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const adminUser = await signUp();
+    const admin = await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: adminUser.user.id,
+      role: "ADMIN",
+    });
+    const invitee = await signUp();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${adminUser.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" });
+
+    expect(res.status).toBe(201);
+    expect(admin.role).toBe("ADMIN");
+  });
+
+  it("forbids an ADMIN from assigning the OWNER role", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const adminUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: adminUser.user.id,
+      role: "ADMIN",
+    });
+    const invitee = await signUp();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${adminUser.accessToken}`)
+      .send({ userId: invitee.user.id, role: "OWNER" });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("forbids a plain MEMBER from adding members", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    const invitee = await signUp();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("404s when the target user does not exist", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: "cmimr0j5x0000ttbjqf03ymab", role: "MEMBER" });
+
+    expect(res.status).toBe(404);
+  });
+
+  it("400s when the target user is inactive", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const invitee = await signUp();
+    await deactivateUser(invitee.user.id);
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("400s when the target user is already a member", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const invitee = await signUp();
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" });
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" });
+
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /workspaces/:workspaceSlug/members, on a dead membership row", () => {
+  it("400s and points at the restore route when the user was removed", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const target = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: target.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: target.user.id });
+
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("GET /workspaces/:workspaceSlug/members", () => {
+  it("only lists ACTIVE members by default", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const invitee = await signUp();
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" }); // stays PENDING
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    const userIds = res.body.data.map((m: { userId: string }) => m.userId);
+    expect(userIds).toContain(owner.user.id);
+    expect(userIds).not.toContain(invitee.user.id);
+  });
+
+  it("returns PENDING members when explicitly filtered", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const invitee = await signUp();
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .query({ status: "PENDING" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    const userIds = res.body.data.map((m: { userId: string }) => m.userId);
+    expect(userIds).toEqual([invitee.user.id]);
+  });
+
+  it("includes the user data for each member", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    const ownerEntry = res.body.data.find((m: { userId: string }) => m.userId === owner.user.id);
+    expect(ownerEntry.user).toMatchObject({
+      id: owner.user.id,
+      email: owner.user.email,
+    });
+  });
+
+  it("filters members by the user's name via search", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const member = await signUp({ name: "Zendaya Ocampo" });
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .query({ search: "zendaya" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    const userIds = res.body.data.map((m: { userId: string }) => m.userId);
+    expect(userIds).toEqual([member.user.id]);
+  });
+
+  it("filters members by the user's username via search", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const member = await signUp({ name: "Zendaya Ocampo", username: "zenith" });
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .query({ search: "ZENITH" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    const userIds = res.body.data.map((m: { userId: string }) => m.userId);
+    expect(userIds).toEqual([member.user.id]);
+  });
+
+  it("excludes the members of the project named by excludeProjectSlug", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug, { name: "Web" });
+    const inProject = await signUp();
+    const outOfProject = await signUp();
+    for (const member of [inProject, outOfProject]) {
+      await addActiveMember({
+        managerAccessToken: owner.accessToken,
+        workspaceSlug: workspace.slug,
+        targetUserId: member.user.id,
+        role: "MEMBER",
+      });
+    }
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: inProject.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .query({ excludeProjectSlug: project.slug })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    const userIds = res.body.data.map((m: { userId: string }) => m.userId);
+    expect(userIds).toContain(outOfProject.user.id);
+    expect(userIds).not.toContain(inProject.user.id);
+  });
+
+  // El slug de proyecto solo es unico por workspace, asi que dos espacios pueden tener su propio
+  // «web»: estar en el de uno no puede sacarte del selector de «añadir miembro» del otro.
+  it("does not exclude the members of a project with the same slug in another workspace", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const otherWorkspace = await createWorkspace(owner.accessToken, "Other Workspace");
+    const project = await createProject(owner.accessToken, workspace.slug, { name: "Web" });
+    const otherProject = await createProject(owner.accessToken, otherWorkspace.slug, { name: "Web" });
+    expect(otherProject.slug).toBe(project.slug);
+
+    const member = await signUp();
+    for (const slug of [workspace.slug, otherWorkspace.slug]) {
+      await addActiveMember({
+        managerAccessToken: owner.accessToken,
+        workspaceSlug: slug,
+        targetUserId: member.user.id,
+        role: "MEMBER",
+      });
+    }
+    // Solo entra en el «web» del otro espacio, no en el de este.
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: otherWorkspace.slug,
+      projectSlug: otherProject.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .query({ excludeProjectSlug: project.slug })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    const userIds = res.body.data.map((m: { userId: string }) => m.userId);
+    expect(userIds).toContain(member.user.id);
+  });
+});
+
+describe("PATCH /workspaces/:workspaceSlug/members/:userId/activate", () => {
+  it("activates a PENDING member", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const invitee = await signUp();
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${invitee.user.id}/activate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+
+    const list = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    const activated = list.body.data.find((m: { userId: string }) => m.userId === invitee.user.id);
+    expect(activated).toMatchObject({ status: "ACTIVE" });
+    expect(activated.joinedAt).not.toBeNull();
+  });
+
+  it("400s when the member is already ACTIVE", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const invitee = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: invitee.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${invitee.user.id}/activate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(400);
+  });
+
+  it("400s when the member was REMOVED", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const invitee = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: invitee.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${invitee.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${invitee.user.id}/activate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(400);
+  });
+
+  it("forbids a non-manager from activating members", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    const invitee = await signUp();
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${invitee.user.id}/activate`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("forbids an ADMIN from activating an OWNER", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const adminUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: adminUser.user.id,
+      role: "ADMIN",
+    });
+    const coOwner = await signUp();
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: coOwner.user.id, role: "OWNER" });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${coOwner.user.id}/activate`)
+      .set("Cookie", `accessToken=${adminUser.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("404s when the target is not a member of the workspace", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const outsider = await signUp();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${outsider.user.id}/activate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("DELETE /workspaces/:workspaceSlug/members/:userId", () => {
+  // La invitacion se borra, no se marca: por eso no cae en la pestana de eliminados y por eso se
+  // puede volver a invitar al mismo usuario.
+  it("cancels a pending invitation and leaves the user invitable again", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const invitee = await signUp();
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" });
+
+    const res = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/members/${invitee.user.id}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+
+    const list = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .query({ status: ["PENDING", "REMOVED"] })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(list.body.data).toEqual([]);
+
+    const reinvite = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" });
+
+    expect(reinvite.status).toBe(201);
+  });
+
+  it("records it in the workspace activity feed", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const invitee = await signUp();
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" });
+    await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/members/${invitee.user.id}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const feed = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/activity`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(feed.body.data).toContainEqual(
+      expect.objectContaining({
+        action: "WORKSPACE_MEMBER_INVITE_CANCELED",
+        target: expect.objectContaining({ id: invitee.user.id }),
+      }),
+    );
+  });
+
+  it("400s when the member is already ACTIVE", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const member = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/members/${member.user.id}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(400);
+  });
+
+  it("forbids a plain MEMBER from canceling an invitation", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const member = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+    const invitee = await signUp();
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" });
+
+    const res = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/members/${invitee.user.id}`)
+      .set("Cookie", `accessToken=${member.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  // Un ADMIN no administra a un OWNER, y eso incluye su invitacion.
+  it("forbids an ADMIN from canceling an OWNER invitation", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const admin = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: admin.user.id,
+      role: "ADMIN",
+    });
+    const invitee = await signUp();
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "OWNER" });
+
+    const res = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/members/${invitee.user.id}`)
+      .set("Cookie", `accessToken=${admin.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("PATCH /workspaces/:workspaceSlug/members/:userId", () => {
+  it("lets the OWNER change a member's role", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${memberUser.user.id}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ role: "ADMIN" });
+
+    expect(res.status).toBe(204);
+
+    const list = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    const updated = list.body.data.find((m: { userId: string }) => m.userId === memberUser.user.id);
+    expect(updated.role).toBe("ADMIN");
+  });
+
+  it("400s when the actor tries to change their own role", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${owner.user.id}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ role: "ADMIN" });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("400s when the target member was REMOVED", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${memberUser.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${memberUser.user.id}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ role: "ADMIN" });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("forbids an ADMIN from changing an OWNER's role", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const adminUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: adminUser.user.id,
+      role: "ADMIN",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${owner.user.id}`)
+      .set("Cookie", `accessToken=${adminUser.accessToken}`)
+      .send({ role: "MEMBER" });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("forbids an ADMIN from assigning the OWNER role", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const adminUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: adminUser.user.id,
+      role: "ADMIN",
+    });
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${memberUser.user.id}`)
+      .set("Cookie", `accessToken=${adminUser.accessToken}`)
+      .send({ role: "OWNER" });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("400s when the new role matches the current role", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${memberUser.user.id}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ role: "MEMBER" });
+
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("PATCH /workspaces/:workspaceSlug/members/:userId/remove", () => {
+  it("lets the OWNER remove a member", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "ADMIN",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${memberUser.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+
+    const list = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .query({ status: "REMOVED" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    const removed = list.body.data.find((m: { userId: string }) => m.userId === memberUser.user.id);
+    expect(removed).toMatchObject({ status: "REMOVED", role: "MEMBER" });
+    expect(removed.joinedAt).toBeNull();
+  });
+
+  it("400s when the member is already REMOVED", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${memberUser.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${memberUser.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(400);
+  });
+
+  it("forbids an ADMIN from removing an OWNER", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const adminUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: adminUser.user.id,
+      role: "ADMIN",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${owner.user.id}/remove`)
+      .set("Cookie", `accessToken=${adminUser.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("400s when the actor tries to remove themselves", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${owner.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("PATCH /workspaces/:workspaceSlug/members/:userId/restore", () => {
+  async function removedMember(role: "OWNER" | "ADMIN" | "MEMBER" = "ADMIN") {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const target = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: target.user.id,
+      role,
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    return { owner, workspace, target };
+  }
+
+  it("brings a removed member back as ACTIVE, with a fresh joinedAt", async () => {
+    const { owner, workspace, target } = await removedMember();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/restore`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(204);
+
+    const members = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members?status=ACTIVE`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const restored = members.body.data.find(
+      (member: { userId: string }) => member.userId === target.user.id,
+    );
+
+    expect(restored).toEqual(expect.objectContaining({ status: "ACTIVE", role: "MEMBER" }));
+    expect(restored.joinedAt).not.toBeNull();
+  });
+
+  it("honours the role the manager picks", async () => {
+    const { owner, workspace, target } = await removedMember();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/restore`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ role: "ADMIN" });
+
+    expect(res.status).toBe(204);
+
+    const members = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members?status=ACTIVE`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(members.body.data).toContainEqual(
+      expect.objectContaining({ userId: target.user.id, role: "ADMIN", status: "ACTIVE" }),
+    );
+  });
+
+  it("forbids an ADMIN from restoring someone straight into OWNER", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const admin = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: admin.user.id,
+      role: "ADMIN",
+    });
+    const target = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: target.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/restore`)
+      .set("Cookie", `accessToken=${admin.accessToken}`)
+      .send({ role: "OWNER" });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("400s when the member is still ACTIVE", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const target = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: target.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/restore`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(400);
+  });
+
+  it("400s when the invitation is only PENDING (that one is activated, not restored)", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const invitee = await signUp();
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${invitee.user.id}/restore`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(400);
+  });
+
+  it("forbids a plain MEMBER from restoring anyone", async () => {
+    const { owner, workspace, target } = await removedMember();
+    const plain = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: plain.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/restore`)
+      .set("Cookie", `accessToken=${plain.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(403);
+  });
+
+  it("404s when the user never had a membership", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const outsider = await signUp();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${outsider.user.id}/restore`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(404);
+  });
+
+  // La cuenta desactivada no bloquea la vuelta: la fila ya existe y esa persona sigue en el
+  // historial del espacio. Lo que le impide operar es su propio acceso.
+  it("restores someone whose account is deactivated", async () => {
+    const { owner, workspace, target } = await removedMember();
+    await deactivateUser(target.user.id);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${target.user.id}/restore`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(204);
+  });
+});
+
+describe("PATCH /workspaces/:workspaceSlug/members/me/leave", () => {
+  it("lets a MEMBER leave the workspace", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/me/leave`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(204);
+
+    const list = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .query({ status: "REMOVED" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    const left = list.body.data.find((m: { userId: string }) => m.userId === memberUser.user.id);
+    expect(left).toMatchObject({ status: "REMOVED", role: "MEMBER" });
+    expect(left.joinedAt).toBeNull();
+  });
+
+  it("lets an OWNER leave when another OWNER stays behind", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const coOwner = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: coOwner.user.id,
+      role: "OWNER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/me/leave`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+
+    const list = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${coOwner.accessToken}`);
+    expect(list.body.data).toHaveLength(1);
+    expect(list.body.data[0]).toMatchObject({ userId: coOwner.user.id, role: "OWNER" });
+  });
+
+  it("409s when the last OWNER tries to leave, even with other members around", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const adminUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: adminUser.user.id,
+      role: "ADMIN",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/me/leave`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(409);
+
+    const list = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    const byUserId = (userId: string) => list.body.data.find((m: { userId: string }) => m.userId === userId);
+    expect(byUserId(owner.user.id)).toMatchObject({ role: "OWNER", status: "ACTIVE" });
+    expect(byUserId(adminUser.user.id)).toMatchObject({ role: "ADMIN" });
+  });
+
+  it("records the exit as an event whose actor is the person it talks about", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    await leaveWorkspace({ accessToken: memberUser.accessToken, workspaceSlug: workspace.slug });
+
+    const activity = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/activity`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(activity.status).toBe(200);
+    const exit = activity.body.data.find(
+      (event: { action: string; actor: { id: string }; target: { id: string } | null }) =>
+        event.action === "WORKSPACE_MEMBER_REMOVED" && event.target?.id === memberUser.user.id,
+    );
+    // Lo que distingue irse de que te echen: en una salida las dos personas son la misma.
+    expect(exit.actor.id).toBe(memberUser.user.id);
+  });
+
+  it("409s when the OWNER is the only member left", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/me/leave`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(409);
+
+    const list = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(list.body.data).toHaveLength(1);
+    expect(list.body.data[0]).toMatchObject({ userId: owner.user.id, role: "OWNER", status: "ACTIVE" });
+  });
+
+  it("403s when a PENDING invitee tries to leave", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const invitee = await signUp();
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/me/leave`)
+      .set("Cookie", `accessToken=${invitee.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("403s when an already REMOVED member tries to leave again", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await leaveWorkspace({ accessToken: memberUser.accessToken, workspaceSlug: workspace.slug });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/me/leave`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("deactivates the project memberships of that workspace only", async () => {
+    const owner = await signUp();
+    const leaving = await signUp();
+    const left = await createWorkspace(owner.accessToken, "Leaving Workspace");
+    const kept = await createWorkspace(owner.accessToken, "Kept Workspace");
+
+    for (const workspace of [left, kept]) {
+      await addActiveMember({
+        managerAccessToken: owner.accessToken,
+        workspaceSlug: workspace.slug,
+        targetUserId: leaving.user.id,
+        role: "MEMBER",
+      });
+    }
+
+    const leftProject = await createProject(owner.accessToken, left.slug);
+    const keptProject = await createProject(owner.accessToken, kept.slug);
+
+    for (const [workspace, project] of [
+      [left, leftProject],
+      [kept, keptProject],
+    ] as const) {
+      await addActiveProjectMember({
+        managerAccessToken: owner.accessToken,
+        workspaceSlug: workspace.slug,
+        projectSlug: project.slug,
+        targetUserId: leaving.user.id,
+        role: "MEMBER",
+      });
+    }
+
+    await leaveWorkspace({ accessToken: leaving.accessToken, workspaceSlug: left.slug });
+
+    const leftMembers = await request(app)
+      .get(`/api/workspaces/${left.slug}/projects/${leftProject.slug}/members`)
+      .query({ isActive: "false" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(leftMembers.body.data.map((m: { userId: string }) => m.userId)).toContain(leaving.user.id);
+
+    const keptMembers = await request(app)
+      .get(`/api/workspaces/${kept.slug}/projects/${keptProject.slug}/members`)
+      .query({ isActive: "true" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(keptMembers.body.data.map((m: { userId: string }) => m.userId)).toContain(leaving.user.id);
+  });
+
+  it("keeps the tasks already assigned to whoever leaves", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const leaving = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: leaving.user.id,
+      role: "MEMBER",
+    });
+    const project = await createProject(owner.accessToken, workspace.slug);
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: leaving.user.id,
+      role: "MEMBER",
+    });
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      assigneeId: leaving.user.id,
+    });
+
+    await leaveWorkspace({ accessToken: leaving.accessToken, workspaceSlug: workspace.slug });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.assigneeId).toBe(leaving.user.id);
+  });
+});

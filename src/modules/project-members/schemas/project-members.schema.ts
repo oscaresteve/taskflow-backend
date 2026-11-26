@@ -1,0 +1,50 @@
+import z from "zod";
+import { ProjectRole } from "../../../shared/types/prisma.types.ts";
+import { limitSchema, pageSchema, searchSchema, sortOrderSchema } from "../../../shared/schemas/common.schema.ts";
+
+const sortableFields = ["joinedAt", "createdAt", "updatedAt"] as const;
+
+const isActiveQueryParamSchema = z.enum(["true", "false"]).transform((value) => value === "true");
+
+export const projectMembersQuerySchema = z.object({
+  // Pagination
+  page: pageSchema,
+  limit: limitSchema,
+
+  // Filters
+  // Acepta un isActive ("?isActive=true") o varios ("?isActive=true&isActive=false").
+  isActive: z.union([isActiveQueryParamSchema, z.array(isActiveQueryParamSchema)]).optional(),
+
+  role: z.enum(ProjectRole).optional(),
+
+  // Busca por nombre o email del usuario miembro.
+  search: searchSchema,
+
+  // Sorting
+  sort: z.enum(sortableFields).default("createdAt"),
+  order: sortOrderSchema,
+});
+
+// Mismos filtros que projectMembersQuerySchema pero sin paginacion, para el endpoint /members/all.
+export const projectMembersAllQuerySchema = projectMembersQuerySchema.omit({ page: true, limit: true });
+
+export const createProjectMemberSchema = z.object({
+  userId: z.cuid(),
+
+  role: z.enum(ProjectRole).default("MEMBER"),
+});
+
+export const updateProjectMemberSchema = z.object({
+  role: z.enum(ProjectRole),
+});
+
+// La baja machaca el rol a MEMBER, asi que quien reactiva vuelve a elegirlo en el mismo gesto.
+export const activateProjectMemberSchema = z.object({
+  role: z.enum(ProjectRole).default("MEMBER"),
+});
+
+export type ProjectMembersQueryDto = z.infer<typeof projectMembersQuerySchema>;
+export type ProjectMembersAllQueryDto = z.infer<typeof projectMembersAllQuerySchema>;
+export type CreateProjectMemberDto = z.infer<typeof createProjectMemberSchema>;
+export type UpdateProjectMemberDto = z.infer<typeof updateProjectMemberSchema>;
+export type ActivateProjectMemberDto = z.infer<typeof activateProjectMemberSchema>;

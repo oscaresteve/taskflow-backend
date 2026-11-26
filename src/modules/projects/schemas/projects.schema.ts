@@ -1,0 +1,58 @@
+import z from "zod";
+import { ProjectRole } from "../../../shared/types/prisma.types.ts";
+import {
+  booleanQueryParamSchema,
+  descriptionSchema,
+  limitSchema,
+  nameSchema,
+  pageSchema,
+  searchSchema,
+  sortOrderSchema,
+} from "../../../shared/schemas/common.schema.ts";
+
+export const createProjectSchema = z.object({
+  name: nameSchema,
+  key: z
+    .string()
+    .trim()
+    .min(2)
+    .max(10)
+    .regex(/^[A-Z0-9]+$/, "Key must contain only uppercase letters and numbers"),
+  description: descriptionSchema,
+  color: z.string("Color must be a string").optional(),
+});
+
+const sortableFields = ["name", "createdAt", "updatedAt"] as const;
+
+export const projectQuerySchema = z.object({
+  // Paginacion
+  page: pageSchema,
+  limit: limitSchema,
+
+  // Filtros
+  isArchived: booleanQueryParamSchema,
+  isFavorite: booleanQueryParamSchema,
+  search: searchSchema,
+
+  // Filtra por el rol del propio solicitante en el proyecto, uno ("?myRole=OWNER") o varios
+  // ("?myRole=OWNER&myRole=ADMIN"). Lo pide el listado de archivados, que solo ensena los proyectos
+  // que quien mira puede desarchivar.
+  myRole: z.union([z.enum(ProjectRole), z.array(z.enum(ProjectRole))]).optional(),
+
+  // Ordenacion
+  sort: z.enum(sortableFields).default("createdAt"),
+  order: sortOrderSchema,
+});
+
+export const updateProjectSchema = z
+  .object({
+    name: nameSchema.optional(),
+    description: descriptionSchema.nullable(),
+    color: z.string("Color must be a string").optional().nullable(),
+  })
+  .refine((data) => Object.keys(data).length > 0, "At least one field must be provided");
+// Como todos los campos son opcionales se valida que al menos se envie un campo
+
+export type CreateProjectDto = z.infer<typeof createProjectSchema>;
+export type ProjectQueryDto = z.infer<typeof projectQuerySchema>;
+export type UpdateProjectDto = z.infer<typeof updateProjectSchema>;

@@ -1,0 +1,443 @@
+import { NotFoundError } from "../../shared/errors/not-found-error.ts";
+import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
+import type {
+  CreateWorkspaceMemberDto,
+  RestoreWorkspaceMemberDto,
+  UpdateWorkspaceMemberDto,
+  WorkspaceMembersAllQueryDto,
+  WorkspaceMembersQueryDto,
+} from "./schemas/workspace-members.schema.ts";
+import * as workspaceMembersRepository from "./workspace-members.repository.ts";
+import {
+  WorkspaceMemberStatus,
+  WorkspaceRole,
+  type User,
+  type WorkspaceMember,
+} from "../../shared/types/prisma.types.ts";
+import { BadRequestError } from "../../shared/errors/bad-request-error.ts";
+import { ConflictError } from "../../shared/errors/conflict-error.ts";
+import * as authorizationService from "../../shared/auth/authorization.service.ts";
+import {
+  requireCanAssignWorkspaceRole,
+  requireCanManageWorkspaceMember,
+  requireWorkspaceManager,
+} from "../../shared/auth/permissions.ts";
+
+export async function findAll({
+  query,
+  userId,
+  workspaceSlug,
+}: {
+  query: WorkspaceMembersQueryDto;
+  userId: string;
+  workspaceSlug: string;
+}): Promise<PaginatedResult<WorkspaceMember & { user: User }>> {
+  // Obtener contexto
+  const { workspace } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  const workspaceMembers = await workspaceMembersRepository.findAll({ workspaceId: workspace.id, query });
+
+  return workspaceMembers;
+}
+
+export async function findAllUnpaginated({
+  query,
+  userId,
+  workspaceSlug,
+}: {
+  query: WorkspaceMembersAllQueryDto;
+  userId: string;
+  workspaceSlug: string;
+}): Promise<(WorkspaceMember & { user: User })[]> {
+  // Obtener contexto
+  const { workspace } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  return workspaceMembersRepository.findAllUnpaginated({ workspaceId: workspace.id, query });
+}
+
+export async function findMe({
+  userId,
+  workspaceSlug,
+}: {
+  userId: string;
+  workspaceSlug: string;
+}): Promise<WorkspaceMember> {
+  // Obtener contexto (ya resuelve mi membership y valida que este activo)
+  const { workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  return workspaceMember;
+}
+
+export async function create({
+  data,
+  userId,
+  workspaceSlug,
+}: {
+  data: CreateWorkspaceMemberDto;
+  userId: string;
+  workspaceSlug: string;
+}): Promise<WorkspaceMember> {
+  // Obtener contexto
+  const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  // Comprobar permisos
+  requireWorkspaceManager(workspaceMember);
+
+  requireCanAssignWorkspaceRole({
+    actor: workspaceMember,
+    role: data.role,
+  });
+
+  // Comprobar si existe el usuario a añadir existe o esta activo
+  const userActive = await workspaceMembersRepository.findUserActive(data.userId);
+
+  if (!userActive) throw new NotFoundError("User not found");
+
+  if (!userActive.isActive) throw new BadRequestError("Cannot add an inactive user");
+
+  // Comprobar que no sea ya miembro
+  const existingMember = await workspaceMembersRepository.findWorkspaceMember({
+    userId: data.userId,
+    workspaceId: workspace.id,
+  });
+
+  if (existingMember) {
+    // La fila de una baja no se borra, asi que a quien dieron de baja no se le puede volver a crear:
+    // hay que restaurar la que ya existe. (La de una invitacion si se borra, al cancelarla, y
+    // entonces este camino vuelve a estar libre.)
+    if (existingMember.status === WorkspaceMemberStatus.REMOVED) {
+      throw new BadRequestError("User was removed from this workspace; restore the existing membership instead");
+    }
+
+    throw new BadRequestError("User is already a member of this workspace");
+  }
+
+  const newWorkspaceMember = await workspaceMembersRepository.create({
+    data,
+    workspaceId: workspace.id,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_MEMBER_INVITED",
+        payload: { targetUserId: data.userId, role: data.role },
+      },
+    ],
+  });
+
+  return newWorkspaceMember;
+}
+
+// La vuelta de una invitacion es cancelarla, no darla de baja: la fila se borra en vez de quedarse
+// en REMOVED, porque nunca llego a ser una membresia. Asi al invitado se le puede volver a invitar y
+// la pestana de eliminados solo guarda a quien de verdad estuvo dentro.
+export async function cancelInvitation({
+  userId,
+  workspaceSlug,
+  workspaceMemberUserId,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  workspaceMemberUserId: string;
+}): Promise<void> {
+  // Obtener contexto
+  const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  // Comprobar permisos
+  requireWorkspaceManager(workspaceMember);
+
+  // Obtener miembro objetivo
+  const { workspaceMemberTarget } = await authorizationService.getWorkspaceMemberTarget({
+    workspaceId: workspace.id,
+    workspaceMemberUserId,
+  });
+
+  // ADMIN no puede administrar un OWNER
+  requireCanManageWorkspaceMember({
+    actor: workspaceMember,
+    target: workspaceMemberTarget,
+  });
+
+  // Solo hay invitacion que cancelar mientras siga pendiente
+  if (workspaceMemberTarget.status !== WorkspaceMemberStatus.PENDING) {
+    throw new BadRequestError("Workspace member is not a pending invitation");
+  }
+
+  await workspaceMembersRepository.deleteInvitation({
+    workspaceId: workspace.id,
+    userId: workspaceMemberUserId,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_MEMBER_INVITE_CANCELED",
+        payload: { targetUserId: workspaceMemberUserId },
+      },
+    ],
+  });
+}
+
+export async function activate({
+  userId,
+  workspaceSlug,
+  workspaceMemberUserId,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  workspaceMemberUserId: string;
+}): Promise<void> {
+  // Obtener contexto
+  const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  // Comprobar permisos
+  requireWorkspaceManager(workspaceMember);
+
+  // Obtener miembro objetivo
+  const { workspaceMemberTarget } = await authorizationService.getWorkspaceMemberTarget({
+    workspaceId: workspace.id,
+    workspaceMemberUserId,
+  });
+
+  // ADMIN no puede administrar un OWNER
+  requireCanManageWorkspaceMember({
+    actor: workspaceMember,
+    target: workspaceMemberTarget,
+  });
+
+  if (workspaceMemberTarget.status === WorkspaceMemberStatus.REMOVED) {
+    throw new BadRequestError("Removed members must be restored instead");
+  }
+
+  if (workspaceMemberTarget.status === WorkspaceMemberStatus.ACTIVE) {
+    throw new BadRequestError("Workspace member is already active");
+  }
+
+  await workspaceMembersRepository.activate({
+    workspaceId: workspace.id,
+    userId: workspaceMemberUserId,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_MEMBER_ACTIVATED",
+        payload: { targetUserId: workspaceMemberUserId },
+      },
+    ],
+  });
+}
+
+export async function restore({
+  data,
+  userId,
+  workspaceSlug,
+  workspaceMemberUserId,
+}: {
+  data: RestoreWorkspaceMemberDto;
+  userId: string;
+  workspaceSlug: string;
+  workspaceMemberUserId: string;
+}): Promise<void> {
+  // Obtener contexto
+  const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  // Comprobar permisos
+  requireWorkspaceManager(workspaceMember);
+
+  requireCanAssignWorkspaceRole({
+    actor: workspaceMember,
+    role: data.role,
+  });
+
+  // Obtener miembro objetivo (lo resuelve en cualquier estado, tambien REMOVED)
+  const { workspaceMemberTarget } = await authorizationService.getWorkspaceMemberTarget({
+    workspaceId: workspace.id,
+    workspaceMemberUserId,
+  });
+
+  // ADMIN no puede administrar un OWNER
+  requireCanManageWorkspaceMember({
+    actor: workspaceMember,
+    target: workspaceMemberTarget,
+  });
+
+  if (workspaceMemberTarget.status !== WorkspaceMemberStatus.REMOVED) {
+    throw new BadRequestError("Only removed members can be restored");
+  }
+
+  // No se comprueba User.isActive a proposito: la fila ya existe y esa persona sigue figurando en el
+  // historial del espacio, asi que bloquear la vuelta la dejaria encerrada. Lo que le impide operar
+  // es su propio acceso.
+  await workspaceMembersRepository.restore({
+    workspaceId: workspace.id,
+    userId: workspaceMemberUserId,
+    role: data.role,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_MEMBER_RESTORED",
+        payload: { targetUserId: workspaceMemberUserId, role: data.role },
+      },
+    ],
+  });
+}
+
+export async function update({
+  data,
+  userId,
+  workspaceSlug,
+  workspaceMemberUserId,
+}: {
+  data: UpdateWorkspaceMemberDto;
+  userId: string;
+  workspaceSlug: string;
+  workspaceMemberUserId: string;
+}): Promise<void> {
+  // Obtener contexto
+  const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  // Comprobar permisos
+  requireWorkspaceManager(workspaceMember);
+
+  // Obtener miembro objetivo
+  const { workspaceMemberTarget } = await authorizationService.getWorkspaceMemberTarget({
+    workspaceId: workspace.id,
+    workspaceMemberUserId,
+  });
+
+  if (workspaceMemberUserId === userId) {
+    throw new BadRequestError("You cannot change your own role");
+  }
+
+  // No modificar eliminados
+  if (workspaceMemberTarget.status === WorkspaceMemberStatus.REMOVED) {
+    throw new BadRequestError("Removed members cannot be updated");
+  }
+
+  // ADMIN no puede administrar un OWNER
+  requireCanManageWorkspaceMember({
+    actor: workspaceMember,
+    target: workspaceMemberTarget,
+  });
+
+  // ADMIN no puede asignar el rol OWNER
+  requireCanAssignWorkspaceRole({
+    actor: workspaceMember,
+    role: data.role,
+  });
+
+  // Evitar actualización innecesari
+  if (workspaceMemberTarget.role === data.role) {
+    throw new BadRequestError("Workspace member already has this role");
+  }
+
+  await workspaceMembersRepository.update({
+    workspaceId: workspace.id,
+    userId: workspaceMemberUserId,
+    role: data.role,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_MEMBER_ROLE_CHANGED",
+        payload: { targetUserId: workspaceMemberUserId, from: workspaceMemberTarget.role, to: data.role },
+      },
+    ],
+  });
+}
+
+export async function leave({ userId, workspaceSlug }: { userId: string; workspaceSlug: string }): Promise<void> {
+  const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  // El ultimo OWNER no puede irse y dejar un espacio que nadie pueda volver a administrar.
+  if (workspaceMember.role === WorkspaceRole.OWNER) {
+    const hasAnotherOwner = await workspaceMembersRepository.hasAnotherActiveOwner({
+      workspaceId: workspace.id,
+      userId,
+    });
+
+    if (!hasAnotherOwner) {
+      throw new ConflictError("You are the last owner of this workspace. Hand the ownership over before leaving.");
+    }
+  }
+
+  // Misma accion que cuando te eliminan: la fila acaba igual y el feed distingue los dos casos
+  // porque al irte por tu cuenta el actor y la persona del evento son la misma.
+  await workspaceMembersRepository.leave({
+    workspaceId: workspace.id,
+    userId,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_MEMBER_REMOVED",
+        payload: { targetUserId: userId },
+      },
+    ],
+  });
+}
+
+export async function remove({
+  userId,
+  workspaceSlug,
+  workspaceMemberUserId,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  workspaceMemberUserId: string;
+}): Promise<void> {
+  // Obtener contexto
+  const { workspace, workspaceMember } = await authorizationService.getWorkspaceContext({ userId, workspaceSlug });
+
+  // Comprobar permisos
+  requireWorkspaceManager(workspaceMember);
+
+  // Obtener miembro objetivo
+  const { workspaceMemberTarget } = await authorizationService.getWorkspaceMemberTarget({
+    workspaceId: workspace.id,
+    workspaceMemberUserId,
+  });
+
+  // No permitir eliminar un miembro ya eliminado
+  if (workspaceMemberTarget.status === WorkspaceMemberStatus.REMOVED) {
+    throw new BadRequestError("Workspace member is already removed");
+  }
+
+  // ADMIN no puede administrar un OWNER
+  requireCanManageWorkspaceMember({
+    actor: workspaceMember,
+    target: workspaceMemberTarget,
+  });
+
+  // No permitir eliminarse a sí mismo
+  if (workspaceMemberUserId === userId) {
+    throw new BadRequestError("You cannot remove yourself from the workspace");
+  }
+
+  await workspaceMembersRepository.remove({
+    workspaceId: workspace.id,
+    userId: workspaceMemberUserId,
+    events: [
+      {
+        workspaceId: workspace.id,
+        projectId: null,
+        taskId: null,
+        actorId: userId,
+        action: "WORKSPACE_MEMBER_REMOVED",
+        payload: { targetUserId: workspaceMemberUserId },
+      },
+    ],
+  });
+}

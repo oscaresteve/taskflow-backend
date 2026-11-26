@@ -1,0 +1,251 @@
+# TaskFlow — Eventos de dominio
+
+Diseño de la pieza de la que salen tres features: el historial de actividad, las notificaciones con
+menciones y el tiempo real por WebSocket. Las tres se apoyan en una sola tabla de eventos inmutables
+con actor, acción, entidad, payload y fecha.
+
+Las decisiones de stack que salen de aquí (tabla de eventos, socket.io) están resumidas en
+`decisiones.md`; este documento es el diseño completo.
+
+## La tesis y sus dos grietas
+
+Si modelas cada cambio como un evento inmutable, el historial es leerlos, las notificaciones son
+quedarte con los que te tocan y el tiempo real es empujarlos por un socket. El modelo de datos se
+comparte de verdad, y esa es la razón de construir esto como una pieza y no como tres.
+
+Pero hay dos cosas que no se derivan tan directamente, y que cambian el diseño:
+
+- **Las notificaciones no se resuelven en lectura.** El contador de no leídas se consulta en cada
+  carga de página; calcularlo recorriendo eventos es un escaneo. Se materializan al escribir, en su
+  propia tabla.
+- **El canal en vivo y el registro no son el mismo conjunto.** Reordenar una tarjeta dentro de su
+  columna tiene que viajar por el socket y no debe entrar en el historial — nadie quiere leer "Ana
+  movió TF-14 dos posiciones". Son dos canales con el mismo origen, no uno.
+
+## El modelo
+
+`ActivityEvent` guarda `workspaceId`, `projectId?`, `taskId?`, `actorId`, `action`, `payload` y
+`createdAt`.
+
+Todo evento pertenece a un espacio, y por eso `workspaceId` es el único obligatorio. Los de proyecto
+además cuelgan de uno, y los de tarea también de ella; los del propio espacio (miembros, ajustes) no
+tienen ninguno de los dos. `workspaceId` es una desnormalización deliberada respecto al proyecto:
+evita el join en el feed de espacio y sirve de clave de sala.
+
+Hay tres feeds, cada uno con su índice por fecha descendente: espacio, proyecto y tarea.
+
+El actor va con `onDelete: Restrict`, igual que el creador de una tarea: un evento sin autor no es
+un evento. Los usuarios se desactivan, no se borran.
+
+### Granularidad: un evento por cambio, no por petición
+
+`PATCH /tasks/:taskNumber` acepta título, descripción, estado, prioridad, fecha y asignado a la vez.
+Un único `TASK_UPDATED` con un diff dentro obligaría a que tanto la frase del historial como la
+regla de notificación hicieran *branching* sobre el payload. Partirlo por campo hace que cada acción
+tenga una frase y un destinatario propios, que es lo que pide la convención de preferir código
+explícito para conjuntos pequeños y fijos de variantes.
+
+Consecuencias prácticas:
+
+- Un `update` puede emitir varios eventos en la misma transacción.
+- `move` emite `TASK_STATUS_CHANGED` solo si la columna cambió de verdad. Una reordenación pura no
+  emite ningún evento — viaja por el socket y ya está.
+
+### El payload
+
+Columna `Json`, pero tipada en los bordes: un mapa de acción a forma y un esquema zod por acción que
+valida al escribir y parsea al leer.
+
+Guarda lo que la frase necesita y no es resoluble por id: `from` y `to`, el número y el título de la
+tarea en ese momento, y los ids mencionados. **No** guarda el nombre del actor: ese se resuelve con
+un join a `User` para que el feed muestre siempre el nombre actual.
+
+Tampoco guarda el nombre de la persona de la que habla ("asignó la tarea a X"): el id vive en el
+payload y la persona se resuelve al leer, igual que el actor. Va resuelta en el DTO y no la pide el
+cliente porque la campanita cruza espacios y no tiene uno con el que preguntar por sus miembros.
+
+Tampoco guarda texto ya compuesto. El evento guarda `from: "TODO"` y `to: "IN_PROGRESS"`; la frase
+la compone el catálogo de mensajes del frontend. Por eso el historial sale traducido en los dos
+idiomas sin tocar datos.
+
+## Dónde se emite
+
+En el **service**, que es la única capa que conoce la narrativa: sabe el actor, el estado anterior y
+el nuevo. Ni un middleware de Prisma ni un `$extends` pueden construir eso, por mucho que automaticen
+la escritura.
+
+La pieza delicada es la atomicidad. Un evento que afirma algo que luego hizo rollback es peor que no
+tener evento. Los repositorios ya abren su propia transacción por dentro, así que el service
+construye los eventos y se los pasa al repositorio, que escribe mutación y eventos juntos. Cuesta un
+parámetro más por función mutadora; a cambio el log no puede mentir.
+
+El fan-out de notificaciones va **dentro** de la misma transacción, por lo mismo: son filas, y tienen
+que aparecer y desaparecer con su evento.
+
+La emisión por socket sale **del mismo sitio**, también dentro de la transacción. Se eligió por
+simple: las alternativas eran propagar los eventos hacia arriba por las 21 firmas que ya los reciben,
+o montar un búfer por petición que se vacíe al terminar la respuesta. Lo que se difunde de más se
+autocorrige, porque el cliente invalida en vez de aplicar el payload — con el límite que queda
+apuntado en las aristas conocidas.
+
+## Qué enseña cada feed
+
+**Cada feed enseña su nivel y el de abajo, pero no dos niveles abajo.**
+
+| Feed | Enseña | No enseña |
+| --- | --- | --- |
+| Espacio | El espacio (ajustes, miembros) y sus proyectos (creados, renombrados, archivados, altas y bajas) | El detalle de cada tarea |
+| Proyecto | El proyecto, sus miembros, sus tareas y sus comentarios | — |
+| Tarea | Solo esa tarea | — |
+
+El corte del feed de espacio es un único predicado, `taskId: null`, no una lista de acciones que
+mantener a mano: una acción nueva cae del lado correcto sola. Sin ese corte un solo proyecto movido
+ahoga a todos los demás, y el overview de espacio está para aterrizar, no para leer el detalle.
+
+### Alcance
+
+Además del nivel, el feed de espacio solo enseña los proyectos de los que el usuario es miembro. Es
+la misma regla que ya aplican los contadores del overview: solo lo alcanzable, y nunca más estricta
+que el endpoint que ya expone esos mismos datos.
+
+No excluye los proyectos archivados. Los contadores sí lo hacen porque cuentan trabajo pendiente,
+pero "archivó el proyecto X" es justo una de las entradas que un historial tiene que contar.
+
+## Notificaciones
+
+Una fila de `Notification(userId, eventId, readAt)` por destinatario, creada en el mismo `publish`.
+No duplica contenido: apunta al evento, y la frase la renderiza el mismo componente que el historial.
+Por eso la campanita sale casi gratis una vez existe el feed.
+
+| Acción | Quién recibe notificación |
+| --- | --- |
+| `COMMENT_CREATED` | Mencionados, asignado de la tarea y creador de la tarea |
+| `COMMENT_MENTIONED` | Los mencionados que añade esa edición |
+| `TASK_ASSIGNEE_CHANGED` | El nuevo asignado |
+| `TASK_STATUS_CHANGED` | Asignado y creador |
+| `TASK_DUE_DATE_CHANGED` | El asignado |
+| `PROJECT_MEMBER_ADDED` | El miembro añadido |
+| `WORKSPACE_MEMBER_INVITED` | El invitado |
+| El resto | Nadie — van al historial y al socket, no a la campanita |
+
+El actor se descuenta siempre: nadie se notifica a sí mismo. El `@@unique([userId, eventId])`
+resuelve el caso de que un comentario te mencione *y* además seas el asignado.
+
+### Menciones: `@username`
+
+Se menciona a alguien por su **username**, no por su nombre y apellidos: es corto, único y se puede
+escribir de seguido sin espacios, que es lo que un `@` necesita. El modelo de usuario no lo tenía, así
+que se añadió con el resto: único, en minúsculas (para que la unicidad no dependa de cómo se escriba),
+de 3 a 30 caracteres de `[a-z0-9_]`, pedido en el alta y editable en preferencias. Los usuarios que ya
+existían se rellenaron desde la parte local de su email en la propia migración.
+
+El comentario se guarda con un token estable en el texto: `@[username](userId)`. Lleva el id porque es
+lo único inmutable — cambiar de username no puede romper las menciones ya escritas — y lleva el
+username para que degrade de forma legible si el usuario ya no pertenece al proyecto; el renderizador
+pinta el actual resolviendo el id contra los miembros y solo cae al texto guardado cuando no lo
+encuentra.
+
+El backend no se fía de lo que llegue: al crear el comentario reresuelve los ids mencionados contra
+los miembros activos del proyecto y descarta los que no lo sean. No es una regla nueva ni más
+estricta — es la misma pertenencia que ya exige `getTaskContext` para poder comentar.
+
+No hace falta una tabla `CommentMention`: la única consulta que la justificaría, "comentarios que me
+mencionan", ya la cubre `Notification`.
+
+**Editar también notifica, pero solo a quien la edición menciona de nuevo.** Que te mencionen
+editando te señala igual que mencionarte en un comentario nuevo, así que la campanita suena;
+corregir una falta no señala a nadie, así que no. Se compara el texto anterior con el nuevo y solo
+los ids que aparecen por primera vez pasan por la pertenencia al proyecto: a quien ya estaba
+nombrado no se le vuelve a avisar.
+
+Esa edición deja **dos** eventos en la misma transacción, que es la regla de granularidad de
+siempre: `COMMENT_EDITED` para el historial, sin destinatarios, y `COMMENT_MENTIONED` para la
+campanita de los nuevos. Son dos frases porque son dos públicos — «editó un comentario» no le dice
+al mencionado por qué le suena. El payload de `COMMENT_MENTIONED` lleva la lista, no un
+`targetUserId`, así que no resuelve a nadie y su frase no nombra a la persona.
+
+Y una edición que no cambia el texto no deja ni evento ni `editedAt`, igual que un `PATCH` de tarea
+que reenvía los valores que ya tenía.
+
+## Tiempo real
+
+**socket.io y no `ws` a pelo.** Hacen falta salas por proyecto y reconexión con backoff, y con `ws`
+las dos cosas hay que escribirlas a mano junto con los heartbeats. El interés de esta feature está en
+el modelado de eventos, no en reimplementar un multiplexor.
+
+**Autenticación:** las cookies son `httpOnly`, así que el handshake las lleva solo con
+`withCredentials: true` y el `CORS_ORIGIN` que ya está configurado. Un middleware de handshake lee
+`accessToken` y reusa `verifyAccessToken`. Para entrar en la sala de un proyecto se llama a
+`authorizationService.getProjectContext`: mismas reglas que el HTTP, cero autorización nueva.
+
+| Sala | Mensaje | Qué lleva |
+| --- | --- | --- |
+| `project:<id>` | `activity:new` | `actorId` y el evento ya mapeado a DTO |
+| `project:<id>` | `task:reordered` | `actorId`, id, columna y rank — no es evento de dominio |
+| `user:<id>` | `notification:new` | Solo `actorId` |
+
+`notification:new` va vacío a propósito. El cliente invalida `notificationKeys.all`, que ya refresca
+la lista y el contador, así que mandar la notificación y el número obligaría a `createManyAndReturn`
+y a un `count` por destinatario **dentro** de la transacción — justo donde `move` mantiene su
+advisory lock — para un payload que nadie lee. Si algún día hay un aviso emergente con el contenido,
+se añade entonces.
+
+Un socket está en **una sola sala de proyecto**, la del que se está viendo: entra al suscribirse y
+sale de la anterior. Así el cliente nunca necesita aprender el `projectId`.
+
+### Aristas conocidas
+
+- **Se emite dentro de la transacción.** Un rollback difunde algo que no pasó, y en teoría el mensaje
+  puede salir antes de que el commit sea visible: un refetch disparado por él podría leer el estado
+  viejo. En la práctica `record()` es lo último de cada transacción, así que solo queda el COMMIT
+  frente a un ida y vuelta de red. A cambio, un fallo al publicar **no puede tumbar la escritura**:
+  todo el bloque va envuelto en `try/catch`.
+- **El feed de espacio no se actualiza en vivo.** Los eventos del propio espacio no cuelgan de un
+  proyecto, así que no tienen sala. La campanita sí se entera, porque va por la sala del usuario.
+  Una sala `workspace:<id>` es la ampliación evidente, pero duplica la lógica de entrada para el feed
+  menos mirado.
+- **El arrastre no está blindado.** Durante un arrastre la caché del tablero *es* el estado del
+  arrastre, así que una invalidación que llegue por socket puede pisar la previsualización. Solo
+  choca si dos personas arrastran a la vez en el mismo tablero y se corrige al soltar.
+- **El access token caduca y el socket vive más.** El handshake solo autentica al conectar, así que
+  al caducar el servidor cierra la conexión y el cliente reconecta; si la reconexión falla con 401,
+  pide un refresh y reintenta una vez — el mismo patrón que ya hace `lib/http/client.ts`.
+- **El emisor es en proceso.** Con más de una instancia de Node haría falta el adaptador de Redis.
+  No se construye ahora, pero queda escrito como límite conocido.
+- **Los cambios propios vuelven por el socket** y pisan la actualización optimista de
+  `use-move-task` y `use-update-task`. Todo mensaje lleva `actorId` y el cliente ignora los suyos.
+  Es lo primero que se rompe al probar con dos pestañas.
+
+## Qué hace el socket con la caché del frontend
+
+Invalidar, no escribir. Las *key factories* ya están hechas para coincidencia parcial, así que un
+`invalidateQueries` sobre `taskKeys.all` es correcto por construcción; meter el payload en la caché
+con `setQueryData` obligaría a que el mensaje del socket fuera idéntico al DTO del endpoint. El coste
+es un fetch de más, y a esta escala no se nota.
+
+## Orden de construcción
+
+Cada fase es entregable por sí sola.
+
+1. **La espina y el historial.** Migración de `ActivityEvent`, catálogo de acciones, emisión desde
+   los services, endpoints de lectura por proyecto y por tarea, y el feed en la UI.
+2. **Notificaciones y menciones.** Tabla `Notification`, fan-out, campanita con contador y el editor
+   de menciones en el cuadro de comentarios.
+3. **Tiempo real.** socket.io, salas, publicación e invalidaciones.
+
+El tiempo real fue el último a propósito, y **no hizo falta tocar el esquema**: la espina estaba bien
+puesta.
+
+**Lo que la espina no abarata:** el autocompletado de menciones en el editor y el transporte de
+sockets con su autenticación y reconexión. Ninguno de los dos se abarata por tener una tabla de
+eventos, y conviene presupuestarlos aparte.
+
+## Decisiones abiertas
+
+- **Retención del log.** Los eventos crecen sin techo. Decidir si se purgan a los N meses evita
+  rediseñar el índice después.
+- **Suscriptores explícitos.** Las reglas de destinatarios son un sustituto de un modelo de
+  *watchers* ("seguir esta tarea"). Es la evolución natural cuando el ruido moleste, y no rompe nada
+  de lo diseñado.
+- **Espacios inactivos y proyectos archivados.** El backend ya devuelve 404 para todo lo que cuelga
+  de un espacio inactivo; el feed y la campanita siguen esa misma regla en vez de inventarse una.

@@ -3,12 +3,26 @@ import "dotenv/config";
 import { z } from "zod";
 
 const envSchema = z.object({
-  // DATABASE_URL: z.string().min(1),
+  DATABASE_URL: z.string().min(1),
   PORT: z.coerce.number().int().positive().default(3000),
-  // NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  // BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(10).max(15),
-  // JWT_SECRET: z.string().min(32),
-  // JWT_EXPIRES_IN: z.string(),
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(10).max(15),
+  JWT_ACCESS_SECRET: z.string().min(32),
+  JWT_ACCESS_EXPIRES_IN: z.string(),
+  JWT_REFRESH_SECRET: z.string().min(32),
+  JWT_REFRESH_EXPIRES_IN: z.string(),
+  CORS_ORIGIN: z.string().min(1),
+  S3_ENDPOINT: z.string().min(1),
+  S3_REGION: z.string().min(1),
+  S3_ACCESS_KEY_ID: z.string().min(1),
+  S3_SECRET_ACCESS_KEY: z.string().min(1),
+  S3_BUCKET_NAME: z.string().min(1),
+  S3_FORCE_PATH_STYLE: z.stringbool().default(false),
+  S3_PUBLIC_URL_BASE: z.string().min(1),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+  AUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

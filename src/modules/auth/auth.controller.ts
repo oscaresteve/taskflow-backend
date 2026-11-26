@@ -1,0 +1,133 @@
+import { type NextFunction, type Request, type Response } from "express";
+import * as authService from "./auth.service.ts";
+import { toAuthResponseDto, toUserResponseDto } from "./mappers/auth.mapper.ts";
+import { setAccessTokenCookie, setRefreshTokenCookie, clearAuthCookies } from "../../shared/security/cookies.ts";
+import { UnauthorizedError } from "../../shared/errors/unauthorized-error.ts";
+import type { SignInDto, SignUpDto, UpdateMeDto } from "./schemas/auth.schema.ts";
+import type { AvatarUploadUrlDto, ConfirmAvatarDto } from "../../shared/schemas/common.schema.ts";
+
+export async function signUp(req: Request, res: Response, next: NextFunction) {
+  try {
+    const result = await authService.signUp(req.validated.body as SignUpDto);
+
+    setAccessTokenCookie(res, { token: result.accessToken, expiresAt: result.accessTokenExpiresAt });
+    setRefreshTokenCookie(res, { token: result.refreshToken, expiresAt: result.refreshTokenExpiresAt });
+
+    const authResponse = toAuthResponseDto(result);
+    res.status(201).json(authResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function signIn(req: Request, res: Response, next: NextFunction) {
+  try {
+    const result = await authService.signIn(req.validated.body as SignInDto);
+
+    setAccessTokenCookie(res, { token: result.accessToken, expiresAt: result.accessTokenExpiresAt });
+    setRefreshTokenCookie(res, { token: result.refreshToken, expiresAt: result.refreshTokenExpiresAt });
+
+    const authResponse = toAuthResponseDto(result);
+    res.status(200).json(authResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function me(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userResponse = toUserResponseDto(req.user);
+    res.json(userResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateMe(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const data = req.validated.body as UpdateMeDto; // TODO: Tipar req.validated mediante genéricos para evitar los casts en los controllers.
+
+    const user = await authService.updateMe({ userId, data });
+
+    const userResponse = toUserResponseDto(user);
+    res.json(userResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getAvatarUploadUrl(req: Request, res: Response, next: NextFunction) {
+  try {
+    const data = req.validated.body as AvatarUploadUrlDto;
+    const userId = req.user.id;
+
+    const result = await authService.getAvatarUploadUrl({ userId, data });
+
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function confirmAvatar(req: Request, res: Response, next: NextFunction) {
+  try {
+    const data = req.validated.body as ConfirmAvatarDto;
+    const userId = req.user.id;
+    const currentAvatarKey = req.user.avatarKey;
+
+    const user = await authService.confirmAvatar({ userId, currentAvatarKey, data });
+
+    const userResponse = toUserResponseDto(user);
+    res.json(userResponse);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteAvatar(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user.id;
+    const currentAvatarKey = req.user.avatarKey;
+
+    await authService.deleteAvatar({ userId, currentAvatarKey });
+
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function refresh(req: Request, res: Response, next: NextFunction) {
+  try {
+    const refreshToken = req.cookies.refreshToken as string | undefined;
+
+    if (!refreshToken) {
+      throw new UnauthorizedError("Refresh token required");
+    }
+
+    const result = await authService.refresh(refreshToken);
+
+    setAccessTokenCookie(res, { token: result.accessToken, expiresAt: result.accessTokenExpiresAt });
+
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function signOut(req: Request, res: Response, next: NextFunction) {
+  try {
+    const refreshToken = req.cookies.refreshToken as string | undefined;
+
+    if (refreshToken) {
+      await authService.signOut(refreshToken);
+    }
+
+    clearAuthCookies(res);
+
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+}

@@ -1,0 +1,926 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import request from "supertest";
+import { prisma } from "../../src/config/prisma.ts";
+import { DAY_MS, getThisWeekRange } from "../../src/shared/utils/date-range.ts";
+import {
+  addActiveMember,
+  addActiveProjectMember,
+  app,
+  createProject,
+  createTask,
+  createWorkspace,
+  signUp,
+} from "../helpers/api.ts";
+
+async function setupOwnerProject(overrides: Partial<{ timezone: string }> = {}) {
+  const owner = await signUp({ timezone: overrides.timezone });
+  const workspace = await createWorkspace(owner.accessToken);
+  const project = await createProject(owner.accessToken, workspace.slug);
+  return { owner, workspace, project };
+}
+
+async function columnOrder({
+  accessToken,
+  workspaceSlug,
+  projectSlug,
+  status,
+}: {
+  accessToken: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  status: string;
+}) {
+  // Se lee del tablero y no del listado paginado: aquel devuelve la columna entera, sin tope de
+  // pagina, que es justo como la consume el kanban.
+  const res = await request(app)
+    .get(`/api/workspaces/${workspaceSlug}/projects/${projectSlug}/tasks/board`)
+    .set("Cookie", `accessToken=${accessToken}`);
+
+  return (res.body as { id: string; status: string }[])
+    .filter((task) => task.status === status)
+    .map((task) => task.id);
+}
+
+// Los dos filtros de fecha fijan el reloj, asi que hay que devolverlo aunque el test falle.
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("POST /workspaces/:workspaceSlug/projects/:projectSlug/tasks", () => {
+  it("lets any project member (not just a manager) create tasks, numbered sequentially", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const first = await createTask(memberUser.accessToken, workspace.slug, project.slug, { title: "First task" });
+    const second = await createTask(memberUser.accessToken, workspace.slug, project.slug, { title: "Second task" });
+
+    expect(first.taskNumber).toBe(1);
+    expect(second.taskNumber).toBe(2);
+  });
+
+  // El taskNumber se reserva incrementando la fila del proyecto, no leyendola y escribiendola luego:
+  // de la otra forma varias creaciones a la vez leen el mismo numero y todas menos una mueren con un
+  // 409 contra el unico [projectId, taskNumber]. Se repite porque la carrera depende del solape real
+  // de las transacciones.
+  it("numbers concurrent creations in the same project without collisions", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const project = await createProject(owner.accessToken, workspace.slug);
+
+      const responses = await Promise.all(
+        [1, 2, 3, 4].map((index) =>
+          request(app)
+            .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+            .set("Cookie", `accessToken=${owner.accessToken}`)
+            .send({ title: `Task ${index}`, priority: "MEDIUM" }),
+        ),
+      );
+
+      expect(responses.map((res) => res.status)).toEqual([201, 201, 201, 201]);
+
+      const taskNumbers = (responses as { body: { taskNumber: number } }[])
+        .map((res) => res.body.taskNumber)
+        .sort((a, b) => a - b);
+
+      expect(taskNumbers).toEqual([1, 2, 3, 4]);
+
+      // El contador queda listo para la siguiente, sin huecos por los numeros ya repartidos.
+      await expect(
+        prisma.project.findUniqueOrThrow({ where: { id: project.id }, select: { nextTaskNumber: true } }),
+      ).resolves.toEqual({ nextTaskNumber: 5 });
+    }
+  });
+
+  it("places the task at the end of the column it is created in, not of TODO", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+
+    // La tarea en TODO es la que delata el fallo: con el rank calculado siempre sobre TODO, las dos
+    // de IN_PROGRESS salen de la cola de esta y acaban con el mismo rank.
+    await createTask(owner.accessToken, workspace.slug, project.slug, { title: "En TODO" });
+
+    const first = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Primera en curso",
+      status: "IN_PROGRESS",
+    });
+    const second = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Segunda en curso",
+      status: "IN_PROGRESS",
+    });
+
+    expect(first.rank).not.toBe(second.rank);
+    await expect(
+      columnOrder({
+        accessToken: owner.accessToken,
+        workspaceSlug: workspace.slug,
+        projectSlug: project.slug,
+        status: "IN_PROGRESS",
+      }),
+    ).resolves.toEqual([first.id, second.id]);
+  });
+
+  it("sets completedAt when the task is created straight into DONE", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+
+    const done = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Ya hecha",
+      status: "DONE",
+    });
+    const pending = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Por hacer",
+      status: "TODO",
+    });
+
+    expect(done.completedAt).not.toBeNull();
+    expect(pending.completedAt).toBeNull();
+  });
+
+  it("404s when assigning the task to someone who is not a project member", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const outsider = await signUp();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ title: "Task", priority: "MEDIUM", assigneeId: outsider.user.id });
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/tasks", () => {
+  it("excludes archived tasks by default", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.data).toHaveLength(0);
+  });
+
+  it("filters by status, priority and assigneeId", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Low", priority: "LOW" });
+    const urgent = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Urgent",
+      priority: "URGENT",
+      assigneeId: owner.user.id,
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .query({ priority: "URGENT", assigneeId: owner.user.id })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].id).toBe(urgent.id);
+  });
+
+  it("filters by status=OPEN, leaving out everything already DONE", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const open = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Open" });
+    const done = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Done" });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${done.taskNumber}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ status: "DONE" });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .query({ status: "OPEN" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].id).toBe(open.id);
+  });
+
+  it("filters by assigneeId=UNASSIGNED", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const unassigned = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Unassigned" });
+    await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Assigned",
+      assigneeId: owner.user.id,
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .query({ assigneeId: "UNASSIGNED" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].id).toBe(unassigned.id);
+  });
+
+  it("filters by isFavorite", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const favorited = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Favorited" });
+    await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Not favorited" });
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${favorited.taskNumber}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .query({ isFavorite: "true" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].id).toBe(favorited.id);
+    expect(res.body.data[0].isFavorite).toBe(true);
+  });
+
+  // Reloj fijado al miercoles 2026-01-07 a mediodia, con el owner en UTC: asi la clave de dia de hoy
+  // es 2026-01-07T00:00:00Z, ya pasada como instante. Lo que vence hoy no puede salir en OVERDUE
+  // aunque su medianoche sea anterior a `now`, que es justo lo que fallaba.
+  it("filters by dueDate=OVERDUE, THIS_WEEK and NONE", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-01-07T12:00:00.000Z"));
+
+    const { owner, workspace, project } = await setupOwnerProject();
+    const overdue = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Overdue",
+      dueDate: "2026-01-06T00:00:00.000Z",
+    });
+    const dueToday = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Due today",
+      dueDate: "2026-01-07T00:00:00.000Z",
+    });
+    const noDueDate = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "No due date" });
+
+    const overdueRes = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .query({ dueDate: "OVERDUE" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(overdueRes.body.data.map((task: { id: string }) => task.id)).toEqual([overdue.id]);
+
+    const thisWeekRes = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .query({ dueDate: "THIS_WEEK" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(thisWeekRes.body.data.map((task: { id: string }) => task.id)).toContain(dueToday.id);
+
+    const noneRes = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .query({ dueDate: "NONE" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(noneRes.body.data.map((task: { id: string }) => task.id)).toEqual([noDueDate.id]);
+  });
+
+  // Reloj fijado al lunes 2026-01-05 a las 02:00 UTC, el mismo instante que documenta
+  // tests/unit/date-range.test.ts: en Etc/GMT+12 (12h detras) todavia es domingo, asi que las dos
+  // zonas estan en semanas ISO distintas. Es la unica situacion en la que este test tiene material.
+  it("resolves dueDate=THIS_WEEK against the requesting user's own timezone, not the server's", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-01-05T02:00:00.000Z"));
+
+    // El domingo anterior: ya es semana pasada para quien esta en UTC, pero sigue siendo "esta
+    // semana" para GMT+12, que todavia no ha llegado al lunes.
+    const utcWeek = getThisWeekRange(new Date(), "UTC");
+    const dueDate = new Date(utcWeek.start.getTime() - DAY_MS).toISOString();
+
+    const utcOwner = await setupOwnerProject({ timezone: "UTC" });
+    const utcTask = await createTask(utcOwner.owner.accessToken, utcOwner.workspace.slug, utcOwner.project.slug, {
+      dueDate,
+    });
+
+    const behindOwner = await setupOwnerProject({ timezone: "Etc/GMT+12" });
+    const behindTask = await createTask(
+      behindOwner.owner.accessToken,
+      behindOwner.workspace.slug,
+      behindOwner.project.slug,
+      { dueDate },
+    );
+
+    const utcRes = await request(app)
+      .get(`/api/workspaces/${utcOwner.workspace.slug}/projects/${utcOwner.project.slug}/tasks`)
+      .query({ dueDate: "THIS_WEEK" })
+      .set("Cookie", `accessToken=${utcOwner.owner.accessToken}`);
+    expect(utcRes.body.data.map((task: { id: string }) => task.id)).not.toContain(utcTask.id);
+
+    const behindRes = await request(app)
+      .get(`/api/workspaces/${behindOwner.workspace.slug}/projects/${behindOwner.project.slug}/tasks`)
+      .query({ dueDate: "THIS_WEEK" })
+      .set("Cookie", `accessToken=${behindOwner.owner.accessToken}`);
+    expect(behindRes.body.data.map((task: { id: string }) => task.id)).toContain(behindTask.id);
+  });
+});
+
+describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/tasks/board", () => {
+  it("returns every live task at once, without pagination", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    for (let index = 0; index < 12; index += 1) {
+      await createTask(owner.accessToken, workspace.slug, project.slug, { title: `Task ${index + 1}` });
+    }
+    const archived = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Archived" });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${archived.taskNumber}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/board`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    // Array plano, no PaginatedResponseDto: el limite por pagina del listado es 10 por defecto.
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(12);
+    expect(res.body.every((task: { rank: string }) => typeof task.rank === "string")).toBe(true);
+  });
+
+  it("403s when the user is not a project member", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const outsider = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: outsider.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/board`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("GET /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber", () => {
+  it("403s when the user is a workspace member but not a project member", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    const outsider = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: outsider.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("404s when the task number does not exist", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/999`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("403s when the user's project membership was deactivated", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${memberUser.user.id}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber", () => {
+  it("lets any project member (not just a manager) update a task", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`)
+      .send({ title: "Updated title" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.title).toBe("Updated title");
+  });
+
+  it("sets completedAt when moved to DONE and clears it when moved away from DONE", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+
+    const done = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ status: "DONE" });
+    expect(done.body.completedAt).not.toBeNull();
+
+    const reopened = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ status: "IN_PROGRESS" });
+    expect(reopened.body.completedAt).toBeNull();
+  });
+
+  it("recomputes the rank when the status moves the task to another column", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+
+    // Las dos primeras de cada columna reciben el mismo rank (LexoRank.middle), una en cada columna.
+    // Si el PATCH no recalcula, la movida se queda con el de TODO y empata con la que ya estaba.
+    const inProgress = await createTask(owner.accessToken, workspace.slug, project.slug, {
+      title: "Ya en curso",
+      status: "IN_PROGRESS",
+    });
+    const todo = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "En TODO" });
+
+    expect(todo.rank).toBe(inProgress.rank);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${todo.taskNumber}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ status: "IN_PROGRESS" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.rank).not.toBe(inProgress.rank);
+    await expect(
+      columnOrder({
+        accessToken: owner.accessToken,
+        workspaceSlug: workspace.slug,
+        projectSlug: project.slug,
+        status: "IN_PROGRESS",
+      }),
+    ).resolves.toEqual([inProgress.id, res.body.id]);
+  });
+
+  it("leaves the rank alone when the patch resends the status the task already has", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const first = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Primera" });
+    const second = await createTask(owner.accessToken, workspace.slug, project.slug, { title: "Segunda" });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${first.taskNumber}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ status: "TODO" });
+
+    // Sin el guardia por status distinto, reenviar el mismo status la mandaria al fondo de su columna.
+    expect(res.body.rank).toBe(first.rank);
+    await expect(
+      columnOrder({
+        accessToken: owner.accessToken,
+        workspaceSlug: workspace.slug,
+        projectSlug: project.slug,
+        status: "TODO",
+      }),
+    ).resolves.toEqual([first.id, second.id]);
+  });
+
+  it("400s when the task is archived", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ title: "Should not work" });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("404s when reassigning to someone who is not a project member", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    const outsider = await signUp();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ assigneeId: outsider.user.id });
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/move", () => {
+  async function setupColumn(count: number) {
+    const { owner, workspace, project } = await setupOwnerProject();
+
+    const tasks = [];
+    for (let index = 0; index < count; index += 1) {
+      tasks.push(await createTask(owner.accessToken, workspace.slug, project.slug, { title: `Task ${index + 1}` }));
+    }
+
+    return { owner, workspace, project, tasks };
+  }
+
+  function move({
+    accessToken,
+    workspaceSlug,
+    projectSlug,
+    taskNumber,
+    status,
+    afterTaskId,
+  }: {
+    accessToken: string;
+    workspaceSlug: string;
+    projectSlug: string;
+    taskNumber: number;
+    status: string;
+    afterTaskId: string | null;
+  }) {
+    return request(app)
+      .patch(`/api/workspaces/${workspaceSlug}/projects/${projectSlug}/tasks/${taskNumber}/move`)
+      .set("Cookie", `accessToken=${accessToken}`)
+      .send({ status, afterTaskId });
+  }
+
+  it("reorders within a column, placing the task at the top when there is no anchor", async () => {
+    const { owner, workspace, project, tasks } = await setupColumn(3);
+    const [first, second, third] = tasks;
+
+    const res = await move({
+      accessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      taskNumber: third.taskNumber,
+      status: "TODO",
+      afterTaskId: null,
+    });
+
+    expect(res.status).toBe(200);
+    await expect(
+      columnOrder({
+        accessToken: owner.accessToken,
+        workspaceSlug: workspace.slug,
+        projectSlug: project.slug,
+        status: "TODO",
+      }),
+    ).resolves.toEqual([third.id, first.id, second.id]);
+  });
+
+  it("moves a task into another column right after the anchor", async () => {
+    const { owner, workspace, project, tasks } = await setupColumn(3);
+    const [first, second, third] = tasks;
+    const context = { accessToken: owner.accessToken, workspaceSlug: workspace.slug, projectSlug: project.slug };
+
+    await move({ ...context, taskNumber: first.taskNumber, status: "IN_PROGRESS", afterTaskId: null });
+    await move({ ...context, taskNumber: second.taskNumber, status: "IN_PROGRESS", afterTaskId: first.id });
+    // Se cuela entre las dos que ya estaban en la columna destino.
+    await move({ ...context, taskNumber: third.taskNumber, status: "IN_PROGRESS", afterTaskId: first.id });
+
+    await expect(columnOrder({ ...context, status: "IN_PROGRESS" })).resolves.toEqual([
+      first.id,
+      third.id,
+      second.id,
+    ]);
+    await expect(columnOrder({ ...context, status: "TODO" })).resolves.toEqual([]);
+  });
+
+  it("400s when the anchor belongs to a different column than the destination", async () => {
+    const { owner, workspace, project, tasks } = await setupColumn(2);
+    const [first, second] = tasks;
+    const context = { accessToken: owner.accessToken, workspaceSlug: workspace.slug, projectSlug: project.slug };
+
+    const res = await move({ ...context, taskNumber: second.taskNumber, status: "DONE", afterTaskId: first.id });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("400s when a task is anchored to itself", async () => {
+    const { owner, workspace, project, tasks } = await setupColumn(1);
+    const [only] = tasks;
+    const context = { accessToken: owner.accessToken, workspaceSlug: workspace.slug, projectSlug: project.slug };
+
+    const res = await move({ ...context, taskNumber: only.taskNumber, status: "TODO", afterTaskId: only.id });
+
+    expect(res.status).toBe(400);
+  });
+
+  // Lo que compra el LexoRank: colocar una tarea entre otras dos escribe UNA sola fila. Sin esto
+  // (posiciones consecutivas) habria que desplazar todas las de debajo en cada movimiento.
+  it("inserts between two tasks writing only the moved row", async () => {
+    const { owner, workspace, project, tasks } = await setupColumn(3);
+    const [first, second, third] = tasks;
+    const context = { accessToken: owner.accessToken, workspaceSlug: workspace.slug, projectSlug: project.slug };
+
+    const before = await prisma.task.findMany({
+      where: { projectId: project.id },
+      select: { id: true, rank: true },
+    });
+
+    // La ultima se cuela entre la primera y la segunda.
+    const res = await move({ ...context, taskNumber: third.taskNumber, status: "TODO", afterTaskId: first.id });
+    expect(res.status).toBe(200);
+
+    const after = await prisma.task.findMany({
+      where: { projectId: project.id },
+      select: { id: true, rank: true },
+    });
+
+    const changed = after.filter((task) => before.find((old) => old.id === task.id)!.rank !== task.rank);
+    expect(changed.map((task) => task.id)).toEqual([third.id]);
+
+    // Y el rank nuevo cae estrictamente entre el de sus dos vecinas.
+    const rankOf = (id: string) => after.find((task) => task.id === id)!.rank;
+    expect(rankOf(first.id) < rankOf(third.id)).toBe(true);
+    expect(rankOf(third.id) < rankOf(second.id)).toBe(true);
+
+    await expect(columnOrder({ ...context, status: "TODO" })).resolves.toEqual([first.id, third.id, second.id]);
+  });
+
+  // Soltar siempre en el mismo punto acorta el hueco disponible. Con enteros esto acaba agotandose y
+  // obliga a renumerar la columna; con LexoRank la cadena simplemente crece y el orden aguanta.
+  it("survives repeated drops into the same slot without reordering anything else", async () => {
+    const { owner, workspace, project, tasks } = await setupColumn(12);
+    const [anchor, ...rest] = tasks;
+    const context = { accessToken: owner.accessToken, workspaceSlug: workspace.slug, projectSlug: project.slug };
+
+    for (const task of rest) {
+      const res = await move({ ...context, taskNumber: task.taskNumber, status: "TODO", afterTaskId: anchor.id });
+      expect(res.status).toBe(200);
+    }
+
+    // Cada una entra justo detras del ancla, asi que acaban en orden inverso al de insercion.
+    await expect(columnOrder({ ...context, status: "TODO" })).resolves.toEqual([
+      anchor.id,
+      ...rest.map((task) => task.id).reverse(),
+    ]);
+  });
+
+  // El caso que motiva el advisory lock. Una tarjeta BAJA cruzando el ancla mientras otra SUBE
+  // hasta el mismo hueco: las dos transacciones leen las mismas vecinas y generan el mismo rank.
+  // Se repite porque la carrera depende del solape real de las dos transacciones: sin el lock
+  // fallan en torno a la mitad de las vueltas, con el no falla ninguna.
+  it("keeps ranks distinct when a move crosses an anchor another move is targeting", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const project = await createProject(owner.accessToken, workspace.slug);
+      const tasks = [];
+      for (let index = 0; index < 4; index += 1) {
+        tasks.push(await createTask(owner.accessToken, workspace.slug, project.slug, { title: `Task ${index + 1}` }));
+      }
+
+      const [first, anchor, , fourth] = tasks;
+      const context = { accessToken: owner.accessToken, workspaceSlug: workspace.slug, projectSlug: project.slug };
+
+      const [movedDown, movedUp] = await Promise.all([
+        move({ ...context, taskNumber: first.taskNumber, status: "TODO", afterTaskId: anchor.id }),
+        move({ ...context, taskNumber: fourth.taskNumber, status: "TODO", afterTaskId: anchor.id }),
+      ]);
+
+      expect(movedDown.status).toBe(200);
+      expect(movedUp.status).toBe(200);
+
+      const ranks = await prisma.task.findMany({
+        where: { projectId: project.id, status: "TODO" },
+        select: { rank: true },
+      });
+
+      expect(new Set(ranks.map((task) => task.rank)).size).toBe(ranks.length);
+    }
+  });
+});
+
+describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/archive", () => {
+  it("forbids a plain project MEMBER from archiving a task", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/archive`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("lets a project manager archive a task", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+  });
+
+  it("400s when the task is already archived", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/unarchive", () => {
+  async function archivedTask() {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    return { owner, workspace, project, task };
+  }
+
+  it("brings the task back into the default listing", async () => {
+    const { owner, workspace, project, task } = await archivedTask();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/unarchive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+
+    const list = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(list.body.data).toContainEqual(
+      expect.objectContaining({ taskNumber: task.taskNumber, isArchived: false }),
+    );
+  });
+
+  it("400s when the task is not archived", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/unarchive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(400);
+  });
+
+  it("forbids a plain project MEMBER from unarchiving a task", async () => {
+    const { owner, workspace, project, task } = await archivedTask();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/unarchive`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("POST/DELETE /workspaces/:workspaceSlug/projects/:projectSlug/tasks/:taskNumber/favorite", () => {
+  it("lets a project member favorite and unfavorite a task", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+
+    const favoriteRes = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(favoriteRes.status).toBe(204);
+
+    const afterFavorite = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(afterFavorite.body.isFavorite).toBe(true);
+
+    const unfavoriteRes = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(unfavoriteRes.status).toBe(204);
+
+    const afterUnfavorite = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(afterUnfavorite.body.isFavorite).toBe(false);
+  });
+
+  it("409s when favoriting a task twice", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(409);
+  });
+
+  it("404s when unfavoriting a task that isn't favorited", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+
+    const res = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("forbids favoriting a task the user is not a project member of", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    const outsider = await signUp();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/favorite`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("marks the task as favorite on the board", async () => {
+    const { owner, workspace, project } = await setupOwnerProject();
+    const task = await createTask(owner.accessToken, workspace.slug, project.slug);
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.taskNumber}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}/tasks/board`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.find((t: { id: string }) => t.id === task.id).isFavorite).toBe(true);
+  });
+});

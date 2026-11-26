@@ -1,0 +1,785 @@
+import { describe, expect, it } from "vitest";
+import request from "supertest";
+import { addActiveMember, app, createWorkspace, signUp, TEST_PNG_BASE64, uploadTestAvatarFile } from "../helpers/api.ts";
+import { MAX_AVATAR_SIZE_BYTES } from "../../src/shared/schemas/common.schema.ts";
+import { prisma } from "../../src/config/prisma.ts";
+
+describe("POST /workspaces", () => {
+  it("creates the workspace and makes the creator an active OWNER", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken, "Acme Inc");
+
+    expect(workspace.slug).toBe("acme-inc");
+
+    const members = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(members.body.data).toContainEqual(
+      expect.objectContaining({ userId: owner.user.id, role: "OWNER", status: "ACTIVE" }),
+    );
+  });
+
+  // Un nombre que empieza por emoji daba el slug "-launch", que slugSchema rechaza: la fila se
+  // creaba y salía en el listado, pero ninguna ruta volvía a encontrarla.
+  it("keeps the workspace reachable when the name does not slugify cleanly", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken, "🚀 Launch");
+
+    expect(workspace.slug).toBe("launch");
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects a name with no sluggable characters instead of creating an unreachable workspace", async () => {
+    const owner = await signUp();
+
+    const res = await request(app)
+      .post("/api/workspaces")
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "日本語" });
+
+    expect(res.status).toBe(400);
+  });
+
+  // Las tres pasan por el generador de slug antes de que ninguna haya escrito, así que las dos
+  // últimas chocan en el índice único. El sufijo es la respuesta correcta, no un 409.
+  it("gives each of three simultaneous creations with the same name its own slug", async () => {
+    const owner = await signUp();
+
+    const results = await Promise.all(
+      [1, 2, 3].map(() =>
+        request(app).post("/api/workspaces").set("Cookie", `accessToken=${owner.accessToken}`).send({ name: "Acme" }),
+      ),
+    );
+
+    expect(results.map((res) => res.status)).toEqual([201, 201, 201]);
+    expect(results.map((res) => res.body.slug).sort()).toEqual(["acme", "acme-1", "acme-2"]);
+  });
+});
+
+describe("GET /workspaces", () => {
+  it("only lists workspaces the user belongs to", async () => {
+    const owner = await signUp();
+    const other = await signUp();
+    await createWorkspace(owner.accessToken, "Mine");
+    await createWorkspace(other.accessToken, "Not Mine");
+
+    const res = await request(app).get("/api/workspaces").set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const names = res.body.data.map((w: { name: string }) => w.name);
+    expect(names).toEqual(["Mine"]);
+  });
+
+  it("excludes workspaces where membership is still PENDING (not yet activated)", async () => {
+    const owner = await signUp();
+    const invitee = await signUp();
+    const workspace = await createWorkspace(owner.accessToken, "Invite Only");
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" }); // se queda en PENDING, sin activar
+
+    const res = await request(app).get("/api/workspaces").set("Cookie", `accessToken=${invitee.accessToken}`);
+
+    expect(res.body.data).toEqual([]);
+  });
+
+  it("excludes workspaces where membership was REMOVED", async () => {
+    const owner = await signUp();
+    const memberUser = await signUp();
+    const workspace = await createWorkspace(owner.accessToken, "Left Already");
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${memberUser.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app).get("/api/workspaces").set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.body.data).toEqual([]);
+  });
+
+  it("lists both active and inactive workspaces when isActive is passed twice", async () => {
+    const owner = await signUp();
+    const active = await createWorkspace(owner.accessToken, "Active One");
+    const inactive = await createWorkspace(owner.accessToken, "Inactive One");
+    await request(app)
+      .patch(`/api/workspaces/${inactive.slug}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get("/api/workspaces")
+      .query({ isActive: ["true", "false"] })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const names = res.body.data.map((w: { name: string }) => w.name);
+    expect(names).toContain(active.name);
+    expect(names).toContain(inactive.name);
+  });
+
+  // El listado de inactivos del frontend solo ensena lo que quien mira puede reactivar, y lo pide
+  // con este filtro.
+  it("filters by the caller's own workspace role", async () => {
+    const owner = await signUp();
+    const mine = await createWorkspace(owner.accessToken, "Mine To Manage");
+    const theirs = await createWorkspace(owner.accessToken, "Theirs To Manage");
+
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: mine.slug,
+      targetUserId: memberUser.user.id,
+      role: "ADMIN",
+    });
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: theirs.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get("/api/workspaces")
+      .query({ myRole: ["OWNER", "ADMIN"] })
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((w: { slug: string }) => w.slug)).toEqual([mine.slug]);
+    expect(res.body.pagination.total).toBe(1);
+  });
+
+  // La tabla de gestion pinta los responsables, y sobre un espacio desactivado el listado de
+  // miembros ya responde 404: tienen que venir en el propio listado.
+  it("carries the owners, also for an inactive workspace", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const member = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: member.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get("/api/workspaces")
+      .query({ isActive: "false" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const row = res.body.data.find((w: { slug: string }) => w.slug === workspace.slug);
+
+    expect(row.owners).toEqual([expect.objectContaining({ id: owner.user.id })]);
+  });
+
+  // La pantalla de gestion necesita el rol para saber si puede ofrecer "reactivar", y sobre un
+  // espacio inactivo /members/me ya responde 404: tiene que venir en el propio listado.
+  it("carries myRole, also for an inactive workspace", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get("/api/workspaces")
+      .query({ isActive: "false" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.data).toContainEqual(
+      expect.objectContaining({ slug: workspace.slug, isActive: false, myRole: "OWNER" }),
+    );
+  });
+});
+
+describe("GET /workspaces/:slug", () => {
+  it("returns the workspace's own fields, without embedding projects or members", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(expect.objectContaining({ id: workspace.id, slug: workspace.slug }));
+    expect(res.body.projects).toBeUndefined();
+    expect(res.body.members).toBeUndefined();
+  });
+
+  it("403s when the user is not a member", async () => {
+    const owner = await signUp();
+    const outsider = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("404s when the workspace does not exist", async () => {
+    const owner = await signUp();
+
+    const res = await request(app)
+      .get("/api/workspaces/does-not-exist")
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("403s when the user's membership is still PENDING (not yet activated)", async () => {
+    const owner = await signUp();
+    const invitee = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ userId: invitee.user.id, role: "MEMBER" }); // se queda en PENDING, sin activar
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${invitee.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("403s when the user's membership was REMOVED", async () => {
+    const owner = await signUp();
+    const memberUser = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/members/${memberUser.user.id}/remove`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("PATCH /workspaces/:slug", () => {
+  it("forbids a plain MEMBER from updating the workspace", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`)
+      .send({ name: "New Name" });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("lets the OWNER update the workspace", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "New Name" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe("New Name");
+  });
+
+  // Renombrar recalcula el slug, así que es la otra puerta al mismo fallo: el workspace quedaba
+  // inalcanzable después de un rename, y el propio PATCH para deshacerlo también pide el slug.
+  it("renames into a slug the routes accept", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "🚀 Launch" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.slug).toBe("launch");
+
+    const reread = await request(app)
+      .get(`/api/workspaces/${res.body.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(reread.status).toBe(200);
+  });
+
+  // Un rename que no cambia el slug base no es una colisión: el slug ocupado es el del propio
+  // workspace, así que tiene que quedarse igual en lugar de sufijarse.
+  it("keeps the slug when the new name slugifies the same", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken, "Acme");
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "Acme!" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.slug).toBe("acme");
+  });
+
+  // Mismo caso pero con el slug propio ya sufijado de nacimiento: "acme" lo tiene otro workspace,
+  // así que descartar solo el slug base dejaría el rename en 409.
+  it("keeps a suffixed slug when the new name slugifies the same", async () => {
+    const first = await signUp();
+    await createWorkspace(first.accessToken, "Acme");
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken, "Acme");
+
+    expect(workspace.slug).toBe("acme-1");
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "Acme!" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.slug).toBe("acme-1");
+  });
+});
+
+describe("PATCH /workspaces/:slug/deactivate", () => {
+  it("lets the OWNER deactivate the workspace", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+  });
+
+  it("404s on a second deactivate (an inactive workspace is no longer reachable by slug)", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /workspaces/:slug/reactivate", () => {
+  async function deactivatedWorkspace() {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    return { owner, workspace };
+  }
+
+  it("brings the workspace back and makes it reachable by slug again", async () => {
+    const { owner, workspace } = await deactivatedWorkspace();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/reactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+
+    const detail = await request(app)
+      .get(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(detail.status).toBe(200);
+    expect(detail.body).toEqual(expect.objectContaining({ slug: workspace.slug, isActive: true }));
+  });
+
+  it("409s when the workspace is already active", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/reactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(409);
+  });
+
+  it("forbids a plain MEMBER from reactivating", async () => {
+    const { owner, workspace } = await deactivatedWorkspace();
+    const member = await signUp();
+    // El espacio ya esta inactivo, asi que la membresia se crea antes de desactivarlo no: aqui se
+    // escribe directa, porque /members tambien da 404 sobre un espacio muerto.
+    await prisma.workspaceMember.create({
+      data: { userId: member.user.id, workspaceId: workspace.id, role: "MEMBER", status: "ACTIVE" },
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/reactivate`)
+      .set("Cookie", `accessToken=${member.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("404s for a slug that does not exist", async () => {
+    const owner = await signUp();
+
+    const res = await request(app)
+      .patch("/api/workspaces/nope/reactivate")
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("forbids someone who is not a member of the inactive workspace", async () => {
+    const { workspace } = await deactivatedWorkspace();
+    const outsider = await signUp();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/reactivate`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("POST/DELETE /workspaces/:slug/favorite", () => {
+  it("lets a member favorite and unfavorite a workspace", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const favoriteRes = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(favoriteRes.status).toBe(204);
+
+    const afterFavorite = await request(app)
+      .get(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(afterFavorite.body.isFavorite).toBe(true);
+
+    const unfavoriteRes = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(unfavoriteRes.status).toBe(204);
+
+    const afterUnfavorite = await request(app)
+      .get(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(afterUnfavorite.body.isFavorite).toBe(false);
+  });
+
+  it("409s when favoriting a workspace twice", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(409);
+  });
+
+  it("404s when unfavoriting a workspace that isn't favorited", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("forbids favoriting a workspace the user is not a member of", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const outsider = await signUp();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/favorite`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("lists a favorited workspace when filtering by isFavorite=true", async () => {
+    const owner = await signUp();
+    const favorited = await createWorkspace(owner.accessToken, "Favorited");
+    await createWorkspace(owner.accessToken, "Other");
+    await request(app)
+      .post(`/api/workspaces/${favorited.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app).get("/api/workspaces?isFavorite=true").set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].slug).toBe(favorited.slug);
+  });
+});
+
+describe("POST /workspaces/:slug/avatar/upload-url", () => {
+  it("returns a presigned URL and a key scoped to the workspace", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/avatar/upload-url`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ contentType: "image/png", fileSize: 1000 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.uploadUrl).toEqual(expect.stringContaining("http"));
+    expect(res.body.key).toEqual(expect.stringContaining(`workspaces/${workspace.id}/`));
+  });
+
+  it("403s a plain MEMBER", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/avatar/upload-url`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`)
+      .send({ contentType: "image/png", fileSize: 1000 });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("400s on a content type that isn't an allowed image format", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/avatar/upload-url`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ contentType: "application/pdf", fileSize: 1000 });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("400s when fileSize exceeds the max allowed size", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/avatar/upload-url`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ contentType: "image/png", fileSize: MAX_AVATAR_SIZE_BYTES + 1 });
+
+    expect(res.status).toBe(400);
+  });
+
+  // El fileSize declarado va firmado dentro de la URL, así que el bucket rechaza un archivo de otro
+  // tamaño sin guardarlo. Sin eso, la URL aceptaría cualquier tamaño y el límite de 5MB no se
+  // comprobaría hasta el confirm, con el objeto ya subido.
+  it("signs the declared fileSize, so the bucket rejects a file of another size", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const bytes = Buffer.from(TEST_PNG_BASE64, "base64");
+
+    const uploadUrlRes = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/avatar/upload-url`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ contentType: "image/png", fileSize: bytes.byteLength + 1000 });
+    expect(uploadUrlRes.status).toBe(200);
+
+    const putRes = await fetch(uploadUrlRes.body.uploadUrl as string, {
+      method: "PUT",
+      headers: { "Content-Type": "image/png" },
+      body: bytes,
+    });
+
+    expect(putRes.status).toBe(403);
+  });
+});
+
+describe("PUT /workspaces/:slug/avatar", () => {
+  it("confirms a real upload and exposes the public avatarUrl afterwards", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const { key } = await uploadTestAvatarFile({ actorAccessToken: owner.accessToken, workspaceSlug: workspace.slug });
+
+    const confirmRes = await request(app)
+      .put(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ key });
+
+    expect(confirmRes.status).toBe(200);
+    expect(confirmRes.body.avatarUrl).toEqual(expect.stringContaining(key));
+
+    const getRes = await request(app)
+      .get(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(getRes.body.avatarUrl).toBe(confirmRes.body.avatarUrl);
+
+    // La URL pública debe ser accesible de verdad, no solo tener buena pinta.
+    const publicRes = await fetch(confirmRes.body.avatarUrl);
+    expect(publicRes.status).toBe(200);
+  });
+
+  it("replaces the previous avatar and deletes the old object from the bucket", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const first = await uploadTestAvatarFile({ actorAccessToken: owner.accessToken, workspaceSlug: workspace.slug });
+    const firstConfirmRes = await request(app)
+      .put(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ key: first.key });
+    const firstAvatarUrl = firstConfirmRes.body.avatarUrl as string;
+
+    const second = await uploadTestAvatarFile({ actorAccessToken: owner.accessToken, workspaceSlug: workspace.slug });
+    const secondConfirmRes = await request(app)
+      .put(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ key: second.key });
+
+    expect(secondConfirmRes.body.avatarUrl).not.toBe(firstAvatarUrl);
+
+    const oldObjectRes = await fetch(firstAvatarUrl);
+    expect(oldObjectRes.status).toBe(404);
+  });
+
+  it("400s when the key was never actually uploaded to the bucket", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .put(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ key: `workspaces/${workspace.id}/avatar-never-uploaded.png` });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("400s when the key belongs to a different workspace", async () => {
+    const owner = await signUp();
+    const workspaceA = await createWorkspace(owner.accessToken, "Workspace A");
+    const workspaceB = await createWorkspace(owner.accessToken, "Workspace B");
+    const { key } = await uploadTestAvatarFile({ actorAccessToken: owner.accessToken, workspaceSlug: workspaceA.slug });
+
+    const res = await request(app)
+      .put(`/api/workspaces/${workspaceB.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ key });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("403s a plain MEMBER", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    const { key } = await uploadTestAvatarFile({ actorAccessToken: owner.accessToken, workspaceSlug: workspace.slug });
+
+    const res = await request(app)
+      .put(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`)
+      .send({ key });
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("DELETE /workspaces/:slug/avatar", () => {
+  it("clears avatarUrl and removes the object from the bucket", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const { key } = await uploadTestAvatarFile({ actorAccessToken: owner.accessToken, workspaceSlug: workspace.slug });
+    const confirmRes = await request(app)
+      .put(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ key });
+    const avatarUrl = confirmRes.body.avatarUrl as string;
+
+    const deleteRes = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(deleteRes.status).toBe(204);
+
+    const getRes = await request(app)
+      .get(`/api/workspaces/${workspace.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(getRes.body.avatarUrl).toBeNull();
+
+    const objectRes = await fetch(avatarUrl);
+    expect(objectRes.status).toBe(404);
+  });
+
+  it("404s when the workspace has no avatar", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+
+    const res = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("403s a plain MEMBER", async () => {
+    const owner = await signUp();
+    const workspace = await createWorkspace(owner.accessToken);
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    const { key } = await uploadTestAvatarFile({ actorAccessToken: owner.accessToken, workspaceSlug: workspace.slug });
+    await request(app)
+      .put(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ key });
+
+    const res = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/avatar`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+});

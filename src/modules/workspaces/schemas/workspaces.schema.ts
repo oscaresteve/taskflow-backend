@@ -1,0 +1,53 @@
+import z from "zod";
+import { WorkspaceRole } from "../../../shared/types/prisma.types.ts";
+import {
+  booleanQueryParamSchema,
+  descriptionSchema,
+  limitSchema,
+  nameSchema,
+  pageSchema,
+  searchSchema,
+  sortOrderSchema,
+} from "../../../shared/schemas/common.schema.ts";
+
+export const createWorkspaceSchema = z.object({
+  name: nameSchema,
+  description: descriptionSchema,
+});
+
+export const updateWorkspaceSchema = z
+  .object({
+    name: nameSchema.optional(),
+    description: descriptionSchema.nullable(),
+  })
+  .refine((data) => Object.keys(data).length > 0, "At least one field must be provided");
+// Como todos los campos son opcionales se valida que al menos se envie un campo
+
+const sortableFields = ["name", "createdAt", "updatedAt"] as const;
+
+const isActiveQueryParamSchema = z.enum(["true", "false"]).transform((value) => value === "true");
+
+export const workspaceQuerySchema = z.object({
+  // Paginacion
+  page: pageSchema,
+  limit: limitSchema,
+
+  // Filtros
+  // Acepta un isActive ("?isActive=true") o varios ("?isActive=true&isActive=false").
+  isActive: z.union([isActiveQueryParamSchema, z.array(isActiveQueryParamSchema)]).optional(),
+  isFavorite: booleanQueryParamSchema,
+  search: searchSchema,
+
+  // Filtra por el rol del propio solicitante en el espacio, uno ("?myRole=OWNER") o varios
+  // ("?myRole=OWNER&myRole=ADMIN"). Lo pide el listado de inactivos, que solo ensena los espacios
+  // que quien mira puede reactivar.
+  myRole: z.union([z.enum(WorkspaceRole), z.array(z.enum(WorkspaceRole))]).optional(),
+
+  // Ordenacion
+  sort: z.enum(sortableFields).default("createdAt"),
+  order: sortOrderSchema,
+});
+
+export type CreateWorkspaceDto = z.infer<typeof createWorkspaceSchema>;
+export type UpdateWorkspaceDto = z.infer<typeof updateWorkspaceSchema>;
+export type WorkspaceQueryDto = z.infer<typeof workspaceQuerySchema>;

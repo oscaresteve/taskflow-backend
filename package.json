@@ -4,8 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "tsx watch src/server.ts"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "tsx watch src/server.ts",
+    "demo": "bash scripts/demo.sh",
+    "db:up": "docker compose up -d --wait && docker compose --profile init run --rm minio-init && docker compose --profile init run --rm minio-test-init",
+    "db:down": "docker compose down",
+    "db:seed": "prisma db seed"
   },
   "keywords": [],
   "author": "",
@@ -13,20 +18,44 @@
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "^11.5.3",
+      "version": "^12.14.0",
       "onFail": "download"
     }
   },
   "type": "module",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1136.0",
+    "@aws-sdk/s3-request-presigner": "^3.1136.0",
+    "@prisma/adapter-pg": "^7.9.0",
+    "@prisma/client": "^7.9.0",
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "lexorank": "^1.0.5",
+    "pg": "^8.13.1",
+    "socket.io": "^4.8.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/ms": "^2.1.0",
     "@types/node": "^26.1.1",
+    "@types/pg": "^8.11.10",
+    "@types/supertest": "^7.2.1",
+    "prisma": "^7.9.0",
+    "socket.io-client": "^4.8.4",
+    "supertest": "^7.2.2",
     "tsx": "^4.23.1",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   }
 }

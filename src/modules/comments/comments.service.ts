@@ -1,0 +1,248 @@
+import type { CommentQueryDto, CreateCommentDto, UpdateCommentDto } from "./schemas/comments.schema.ts";
+import type { Comment, Task } from "../../shared/types/prisma.types.ts";
+import type { ActivityEventInput } from "../activity/types/activity.types.ts";
+import * as authorizationService from "../../shared/auth/authorization.service.ts";
+import * as authorizationRepository from "../../shared/auth/authorization.repository.ts";
+import { extractMentionedUserIds } from "../../shared/utils/mentions.ts";
+import * as commentsRepository from "./comments.repository.ts";
+import type { PaginatedResult } from "../../shared/types/pagination.types.ts";
+import { requireCanManageComment } from "../../shared/auth/permissions.ts";
+import { ConflictError } from "../../shared/errors/conflict-error.ts";
+import { ForbiddenError } from "../../shared/errors/forbidden-error.ts";
+
+// Una tarea archivada es de solo lectura: se puede leer y desarchivar, y nada mas. Su contexto si la
+// resuelve (a diferencia del espacio inactivo o el proyecto archivado, que dan 404), asi que el
+// corte hay que ponerlo a mano, igual que ya lo hacen update y move de la propia tarea.
+function requireUnarchivedTask(task: Task): void {
+  if (task.isArchived) throw new ConflictError("Task is archived");
+}
+
+export async function create({
+  userId,
+  workspaceSlug,
+  projectSlug,
+  taskNumber,
+  data,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  taskNumber: number;
+  data: CreateCommentDto;
+}): Promise<Comment> {
+  const { project, task } = await authorizationService.getTaskContext({
+    userId,
+    workspaceSlug,
+    projectSlug,
+    taskNumber,
+  });
+
+  requireUnarchivedTask(task);
+
+  // No nos fiamos de los ids que vengan en el texto: se reresuelven contra los miembros activos
+  // del proyecto y se descarta a quien no lo sea. No es una regla nueva, es la misma pertenencia
+  // que getTaskContext ya exige para poder comentar.
+  const mentionedIds = extractMentionedUserIds(data.content);
+  const projectMemberIds = await authorizationRepository.findActiveProjectMemberIds({
+    projectId: project.id,
+    userIds: mentionedIds,
+  });
+
+  const mentions = mentionedIds.filter((mentionedId) => projectMemberIds.has(mentionedId));
+
+  const comment = await commentsRepository.create({
+    data,
+    authorId: userId,
+    taskId: task.id,
+    activity: {
+      workspaceId: project.workspaceId,
+      projectId: project.id,
+      taskNumber: task.taskNumber,
+      taskTitle: task.title,
+      mentions,
+    },
+  });
+
+  return comment;
+}
+
+export async function findAll({
+  userId,
+  workspaceSlug,
+  projectSlug,
+  taskNumber,
+  query,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  taskNumber: number;
+  query: CommentQueryDto;
+}): Promise<PaginatedResult<Comment>> {
+  const { task } = await authorizationService.getTaskContext({ userId, workspaceSlug, projectSlug, taskNumber });
+
+  const comments = await commentsRepository.findAll({ taskId: task.id, query });
+
+  return comments;
+}
+
+export async function update({
+  userId,
+  workspaceSlug,
+  projectSlug,
+  taskNumber,
+  commentId,
+  data,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  taskNumber: number;
+  commentId: string;
+  data: UpdateCommentDto;
+}): Promise<Comment> {
+  const { project, task, comment } = await authorizationService.getCommentContext({
+    userId,
+    workspaceSlug,
+    projectSlug,
+    taskNumber,
+    commentId,
+  });
+
+  requireUnarchivedTask(task);
+
+  if (comment.authorId !== userId) throw new ForbiddenError("You cannot manage others comments");
+
+  if (comment.deletedAt) throw new ConflictError("Comment is already deleted");
+
+  // Reenviar el mismo texto no es una edicion: ni deja evento ni marca el comentario como editado,
+  // igual que un PATCH de tarea que reenvia los valores que ya tenia.
+  if (data.content === comment.content) return comment;
+
+  // Solo se avisa a quien la edicion menciona de nuevo. El diff compara los ids tal y como salen
+  // del texto, sin pasar los viejos por la pertenencia: a quien ya estaba nombrado no se le vuelve
+  // a avisar aunque entrase en el proyecto despues.
+  const previousIds = new Set(extractMentionedUserIds(comment.content));
+  const addedIds = extractMentionedUserIds(data.content).filter((addedId) => !previousIds.has(addedId));
+
+  const projectMemberIds = await authorizationRepository.findActiveProjectMemberIds({
+    projectId: project.id,
+    userIds: addedIds,
+  });
+
+  const mentions = addedIds.filter((addedId) => projectMemberIds.has(addedId));
+
+  const reference = { taskNumber: task.taskNumber, taskTitle: task.title, commentId };
+
+  const events: ActivityEventInput[] = [
+    {
+      workspaceId: project.workspaceId,
+      projectId: project.id,
+      taskId: task.id,
+      actorId: userId,
+      action: "COMMENT_EDITED",
+      payload: reference,
+    },
+  ];
+
+  if (mentions.length > 0) {
+    events.push({
+      workspaceId: project.workspaceId,
+      projectId: project.id,
+      taskId: task.id,
+      actorId: userId,
+      action: "COMMENT_MENTIONED",
+      payload: { ...reference, mentions },
+    });
+  }
+
+  const newComment = await commentsRepository.update({ data, commentId, events });
+
+  return newComment;
+}
+
+export async function remove({
+  userId,
+  workspaceSlug,
+  projectSlug,
+  taskNumber,
+  commentId,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  taskNumber: number;
+  commentId: string;
+}): Promise<void> {
+  const { project, projectMember, task, comment } = await authorizationService.getCommentContext({
+    userId,
+    workspaceSlug,
+    projectSlug,
+    taskNumber,
+    commentId,
+  });
+
+  requireUnarchivedTask(task);
+
+  requireCanManageComment({ actor: projectMember, comment, userId });
+
+  if (comment.deletedAt) throw new ConflictError("Comment is already deleted");
+
+  await commentsRepository.remove({
+    commentId,
+    events: [
+      {
+        workspaceId: project.workspaceId,
+        projectId: project.id,
+        taskId: task.id,
+        actorId: userId,
+        action: "COMMENT_DELETED",
+        payload: { taskNumber: task.taskNumber, taskTitle: task.title, commentId },
+      },
+    ],
+  });
+}
+
+export async function restore({
+  userId,
+  workspaceSlug,
+  projectSlug,
+  taskNumber,
+  commentId,
+}: {
+  userId: string;
+  workspaceSlug: string;
+  projectSlug: string;
+  taskNumber: number;
+  commentId: string;
+}): Promise<void> {
+  // Un comentario borrado sigue siendo direccionable, asi que el contexto normal lo resuelve.
+  const { project, projectMember, task, comment } = await authorizationService.getCommentContext({
+    userId,
+    workspaceSlug,
+    projectSlug,
+    taskNumber,
+    commentId,
+  });
+
+  requireUnarchivedTask(task);
+
+  // Misma asimetria que al borrar: el autor siempre, y ademas quien manda en el proyecto.
+  requireCanManageComment({ actor: projectMember, comment, userId });
+
+  if (!comment.deletedAt) throw new ConflictError("Comment is not deleted");
+
+  await commentsRepository.restore({
+    commentId,
+    events: [
+      {
+        workspaceId: project.workspaceId,
+        projectId: project.id,
+        taskId: task.id,
+        actorId: userId,
+        action: "COMMENT_RESTORED",
+        payload: { taskNumber: task.taskNumber, taskTitle: task.title, commentId },
+      },
+    ],
+  });
+}

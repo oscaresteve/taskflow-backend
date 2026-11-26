@@ -1,0 +1,757 @@
+import { describe, expect, it } from "vitest";
+import request from "supertest";
+import { addActiveMember, addActiveProjectMember, app, createProject, createWorkspace, signUp } from "../helpers/api.ts";
+
+async function setupOwnerWorkspace() {
+  const owner = await signUp();
+  const workspace = await createWorkspace(owner.accessToken);
+  return { owner, workspace };
+}
+
+// Un manager del espacio que se quedo fuera del proyecto. Quien crea un proyecto queda project
+// OWNER automaticamente, asi que lo tiene que crear otro para que `owner` no sea miembro de el.
+async function setupProjectOwnerIsOutside() {
+  const owner = await signUp();
+  const workspace = await createWorkspace(owner.accessToken);
+  const builder = await signUp();
+  await addActiveMember({
+    managerAccessToken: owner.accessToken,
+    workspaceSlug: workspace.slug,
+    targetUserId: builder.user.id,
+    role: "ADMIN",
+  });
+  const project = await createProject(builder.accessToken, workspace.slug);
+
+  return { owner, workspace, builder, project };
+}
+
+// Un MEMBER raso del espacio, sin rol en el proyecto ni pertenencia a el.
+async function addPlainWorkspaceMember({
+  owner,
+  workspaceSlug,
+}: {
+  owner: Awaited<ReturnType<typeof signUp>>;
+  workspaceSlug: string;
+}) {
+  const user = await signUp();
+  await addActiveMember({
+    managerAccessToken: owner.accessToken,
+    workspaceSlug,
+    targetUserId: user.user.id,
+    role: "MEMBER",
+  });
+
+  return user;
+}
+
+describe("POST /workspaces/:workspaceSlug/projects", () => {
+  it("lets a workspace manager create a project and makes them the project OWNER", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "Website Redesign", key: "WEB" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.slug).toBe("website-redesign");
+
+    const members = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${res.body.slug}/members`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(members.body.data).toContainEqual(expect.objectContaining({ userId: owner.user.id, role: "OWNER" }));
+  });
+
+  // Un nombre que empieza por emoji daba el slug "-launch", que slugSchema rechaza: el proyecto se
+  // creaba y salía en el listado, pero ninguna ruta volvía a encontrarlo.
+  it("keeps the project reachable when the name does not slugify cleanly", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "🚀 Launch", key: "LNCH" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.slug).toBe("launch");
+
+    const reread = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${res.body.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(reread.status).toBe(200);
+  });
+
+  it("rejects a name with no sluggable characters instead of creating an unreachable project", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "日本語", key: "JP" });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("forbids a plain workspace MEMBER from creating a project", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`)
+      .send({ name: "Some Project", key: "SOME" });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("409s when the project key already exists in the workspace", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    await createProject(owner.accessToken, workspace.slug, { key: "DUP" });
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "Another Project", key: "DUP" });
+
+    expect(res.status).toBe(409);
+  });
+});
+
+// Dos creaciones simultáneas con el mismo nombre chocan en el índice del slug, y con la misma key
+// chocan en el de la key: lo primero se resuelve con el sufijo, lo segundo es un conflicto de verdad
+// y tiene que salir con el mensaje del módulo, no con el genérico de Prisma.
+describe("POST /workspaces/:workspaceSlug/projects (simultaneous)", () => {
+  it("gives each of three simultaneous creations with the same name its own slug", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+
+    const results = await Promise.all(
+      ["AAA", "BBB", "CCC"].map((key) =>
+        request(app)
+          .post(`/api/workspaces/${workspace.slug}/projects`)
+          .set("Cookie", `accessToken=${owner.accessToken}`)
+          .send({ name: "Acme", key }),
+      ),
+    );
+
+    expect(results.map((res) => res.status)).toEqual([201, 201, 201]);
+    expect(results.map((res) => res.body.slug).sort()).toEqual(["acme", "acme-1", "acme-2"]);
+  });
+
+  it("keeps its own message when two simultaneous creations share the key", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+
+    const results = await Promise.all(
+      ["Uno", "Dos"].map((name) =>
+        request(app)
+          .post(`/api/workspaces/${workspace.slug}/projects`)
+          .set("Cookie", `accessToken=${owner.accessToken}`)
+          .send({ name, key: "SAME" }),
+      ),
+    );
+
+    expect(results.map((res) => res.status).sort()).toEqual([201, 409]);
+
+    const conflict = results.find((res) => res.status === 409);
+    expect(conflict?.body.message).toBe("Project key already exists");
+  });
+});
+
+describe("GET /workspaces/:workspaceSlug/projects", () => {
+  it("only lists projects the user is a member of", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const mine = await createProject(owner.accessToken, workspace.slug, { key: "MINE" });
+    await createProject(owner.accessToken, workspace.slug, { key: "OTHR" });
+
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "ADMIN",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: mine.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    const slugs = res.body.data.map((p: { slug: string }) => p.slug);
+    expect(slugs).toEqual([mine.slug]);
+  });
+
+  // El listado trae el rol de quien pide para que el cliente no tenga que pedir su membership
+  // proyecto a proyecto, que es una peticion por fila.
+  it("carries the caller's own project role on every project", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const asOwner = await createProject(owner.accessToken, workspace.slug, { key: "OWND" });
+    const asMember = await createProject(owner.accessToken, workspace.slug, { key: "MEMB" });
+
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: asOwner.slug,
+      targetUserId: memberUser.user.id,
+      role: "OWNER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: asMember.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    const rolesBySlug = Object.fromEntries(
+      res.body.data.map((project: { slug: string; myRole: string | null }) => [project.slug, project.myRole]),
+    );
+    expect(rolesBySlug).toEqual({ [asOwner.slug]: "OWNER", [asMember.slug]: "MEMBER" });
+  });
+
+  // El listado de archivados del frontend solo ensena lo que quien mira puede desarchivar, y lo pide
+  // con este filtro.
+  it("filters by the caller's own project role", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const asOwner = await createProject(owner.accessToken, workspace.slug, { key: "MINE" });
+    const asMember = await createProject(owner.accessToken, workspace.slug, { key: "THEIRS" });
+
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: asOwner.slug,
+      targetUserId: memberUser.user.id,
+      role: "OWNER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: asMember.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects`)
+      .query({ myRole: ["OWNER", "ADMIN"] })
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((project: { slug: string }) => project.slug)).toEqual([asOwner.slug]);
+    expect(res.body.pagination.total).toBe(1);
+  });
+
+  it("excludes projects where the user's membership was deactivated", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug, { key: "GONE" });
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${memberUser.user.id}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.body.data).toEqual([]);
+  });
+});
+
+describe("GET /workspaces/:workspaceSlug/projects/:projectSlug", () => {
+  it("returns the project's own fields, without embedding workspace, members or tasks", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(expect.objectContaining({ id: project.id, slug: project.slug }));
+    expect(res.body.workspace).toBeUndefined();
+    expect(res.body.members).toBeUndefined();
+    expect(res.body.tasks).toBeUndefined();
+  });
+
+  it("reports the caller's own project role", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.myRole).toBe("OWNER");
+  });
+
+  it("403s when the user is a workspace member but not a project member", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("403s when the user's project membership was deactivated", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/members/${memberUser.user.id}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug", () => {
+  it("lets a project OWNER who is only a workspace MEMBER update the project", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    const memberUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "OWNER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`)
+      .send({ name: "New Name" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe("New Name");
+  });
+
+  it("lets a workspace ADMIN who is only a project MEMBER update the project", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    const adminUser = await signUp();
+    await addActiveMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      targetUserId: adminUser.user.id,
+      role: "ADMIN",
+    });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: adminUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${adminUser.accessToken}`)
+      .send({ name: "New Name" });
+
+    expect(res.status).toBe(200);
+  });
+
+  // Renombrar recalcula el slug, así que es la otra puerta al mismo fallo: el proyecto quedaba
+  // inalcanzable después de un rename, y el propio PATCH para deshacerlo también pide el slug.
+  it("lets a workspace OWNER who is not a project member rename it", async () => {
+    const { owner, workspace, project } = await setupProjectOwnerIsOutside();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "New Name" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe("New Name");
+    // Su mando viene del espacio, no del proyecto: no tiene rol en el que mirar.
+    expect(res.body.myRole).toBeNull();
+  });
+
+  it("forbids a plain workspace MEMBER who is not a project member", async () => {
+    const { owner, workspace, project } = await setupProjectOwnerIsOutside();
+    const outsider = await addPlainWorkspaceMember({ owner, workspaceSlug: workspace.slug });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`)
+      .send({ name: "New Name" });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("forbids someone who is only a MEMBER of both the workspace and the project", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    const memberUser = await addPlainWorkspaceMember({ owner, workspaceSlug: workspace.slug });
+    await addActiveProjectMember({
+      managerAccessToken: owner.accessToken,
+      workspaceSlug: workspace.slug,
+      projectSlug: project.slug,
+      targetUserId: memberUser.user.id,
+      role: "MEMBER",
+    });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${memberUser.accessToken}`)
+      .send({ name: "New Name" });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("renames into a slug the routes accept", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "🚀 Launch" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.slug).toBe("launch");
+
+    const reread = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${res.body.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(reread.status).toBe(200);
+  });
+
+  // Un rename que no cambia el slug base no es una colisión: el slug ocupado es el del propio
+  // proyecto, así que tiene que quedarse igual en lugar de sufijarse.
+  it("keeps the slug when the new name slugifies the same", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug, { name: "Acme", key: "ACME" });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "Acme!" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.slug).toBe("acme");
+  });
+
+  // Mismo caso pero con el slug propio ya sufijado de nacimiento: "acme" lo tiene otro proyecto del
+  // workspace, así que descartar solo el slug base dejaría el rename en 409.
+  it("keeps a suffixed slug when the new name slugifies the same", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    await createProject(owner.accessToken, workspace.slug, { name: "Acme", key: "ACME" });
+    const project = await createProject(owner.accessToken, workspace.slug, { name: "Acme", key: "ACMETWO" });
+
+    expect(project.slug).toBe("acme-1");
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`)
+      .send({ name: "Acme!" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.slug).toBe("acme-1");
+  });
+});
+
+describe("GET /workspaces/:workspaceSlug/projects, owners", () => {
+  // Igual que en espacios: la tabla de gestion los pinta y de un proyecto archivado el listado de
+  // miembros responde 404.
+  it("carries the owners, also for an archived project", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects`)
+      .query({ isArchived: "true" })
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const row = res.body.data.find((p: { slug: string }) => p.slug === project.slug);
+
+    expect(row.owners).toEqual([expect.objectContaining({ id: owner.user.id })]);
+  });
+});
+
+describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/archive", () => {
+  it("lets a workspace manager archive the project", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+  });
+
+  it("lets a workspace OWNER who is not a project member archive it", async () => {
+    const { owner, workspace, project } = await setupProjectOwnerIsOutside();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+  });
+
+  it("forbids a plain workspace MEMBER who is not a project member from archiving", async () => {
+    const { owner, workspace, project } = await setupProjectOwnerIsOutside();
+    const outsider = await addPlainWorkspaceMember({ owner, workspaceSlug: workspace.slug });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/archive`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("404s on a second archive (an archived project is no longer reachable by slug)", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /workspaces/:workspaceSlug/projects/:projectSlug/unarchive", () => {
+  async function archivedProject() {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/archive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    return { owner, workspace, project };
+  }
+
+  it("brings the project back and makes it reachable by slug again", async () => {
+    const { owner, workspace, project } = await archivedProject();
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/unarchive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+
+    const detail = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(detail.status).toBe(200);
+    expect(detail.body).toEqual(expect.objectContaining({ slug: project.slug, isArchived: false }));
+  });
+
+  it("lets a workspace OWNER who is not a project member unarchive it", async () => {
+    const { owner, workspace, builder, project } = await setupProjectOwnerIsOutside();
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/archive`)
+      .set("Cookie", `accessToken=${builder.accessToken}`);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/unarchive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(204);
+  });
+
+  it("409s when the project is not archived", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/unarchive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(409);
+  });
+
+  it("forbids a plain workspace MEMBER who is not a project member from unarchiving", async () => {
+    const { owner, workspace, project } = await archivedProject();
+    const outsider = await addPlainWorkspaceMember({ owner, workspaceSlug: workspace.slug });
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/unarchive`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  // El cargador resuelve primero el espacio, y con el estricto: el orden de la vuelta es reactivar
+  // el espacio y solo despues desarchivar sus proyectos.
+  it("404s while the workspace is deactivated", async () => {
+    const { owner, workspace, project } = await archivedProject();
+    await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/deactivate`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .patch(`/api/workspaces/${workspace.slug}/projects/${project.slug}/unarchive`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("POST/DELETE /workspaces/:workspaceSlug/projects/:projectSlug/favorite", () => {
+  it("lets a project member favorite and unfavorite a project", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+
+    const favoriteRes = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(favoriteRes.status).toBe(204);
+
+    const afterFavorite = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(afterFavorite.body.isFavorite).toBe(true);
+
+    const unfavoriteRes = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/projects/${project.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(unfavoriteRes.status).toBe(204);
+
+    const afterUnfavorite = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects/${project.slug}`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+    expect(afterUnfavorite.body.isFavorite).toBe(false);
+  });
+
+  it("409s when favoriting a project twice", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(409);
+  });
+
+  it("404s when unfavoriting a project that isn't favorited", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+
+    const res = await request(app)
+      .delete(`/api/workspaces/${workspace.slug}/projects/${project.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("forbids favoriting a project the user is not a member of", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const project = await createProject(owner.accessToken, workspace.slug);
+    const outsider = await signUp();
+
+    const res = await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${project.slug}/favorite`)
+      .set("Cookie", `accessToken=${outsider.accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("lists a favorited project when filtering by isFavorite=true", async () => {
+    const { owner, workspace } = await setupOwnerWorkspace();
+    const favorited = await createProject(owner.accessToken, workspace.slug, { key: "FAV" });
+    await createProject(owner.accessToken, workspace.slug, { key: "OTH" });
+    await request(app)
+      .post(`/api/workspaces/${workspace.slug}/projects/${favorited.slug}/favorite`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    const res = await request(app)
+      .get(`/api/workspaces/${workspace.slug}/projects?isFavorite=true`)
+      .set("Cookie", `accessToken=${owner.accessToken}`);
+
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].slug).toBe(favorited.slug);
+  });
+});

@@ -1,0 +1,422 @@
+generator client {
+  provider = "prisma-client"
+  output   = "generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                String    @id @default(cuid())
+  firstName         String
+  lastName          String 
+  // Identificador publico con el que se menciona a alguien en un comentario (@usuario). Es mutable,
+  // asi que una mencion guarda el id y resuelve el username al pintarla.
+  username          String    @unique
+  email             String    @unique
+  passwordHash      String
+  avatarKey         String?
+  timezone          String?
+  locale            String?
+  isActive          Boolean   @default(true)
+  emailVerifiedAt   DateTime?
+  lastLoginAt       DateTime?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  workspaceMembers  WorkspaceMember[]
+  projectMembers    ProjectMember[]
+
+  createdTasks      Task[]            @relation("TaskCreator")
+  assignedTasks     Task[]            @relation("TaskAssignee")
+  comments          Comment[]
+  refreshTokens     RefreshToken[]
+
+  favoriteWorkspaces WorkspaceFavorite[]
+  favoriteProjects   ProjectFavorite[]
+  favoriteTasks      TaskFavorite[]
+
+  activityEvents     ActivityEvent[]
+  notifications      Notification[]
+}
+
+model Workspace {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  avatarKey   String?
+  isActive    Boolean   @default(true)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  members     WorkspaceMember[]
+  projects    Project[]
+  favorites   WorkspaceFavorite[]
+  activity    ActivityEvent[]
+}
+
+model WorkspaceFavorite {
+  id          String    @id @default(cuid())
+
+  userId      String
+  workspaceId String
+
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([userId])
+  @@index([workspaceId])
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum WorkspaceMemberStatus {
+  PENDING
+  ACTIVE
+  REMOVED
+}
+
+model WorkspaceMember {
+  id          String                  @id @default(cuid())
+
+  userId      String
+  workspaceId String
+
+  role        WorkspaceRole           @default(MEMBER)
+  status      WorkspaceMemberStatus   @default(PENDING)
+
+  joinedAt    DateTime?
+
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([userId])
+  @@index([workspaceId])
+}
+
+model Project {
+  id              String    @id @default(cuid())
+
+  workspaceId     String
+
+  name            String
+  slug            String
+  key             String
+
+  description     String?
+  color           String?
+
+  nextTaskNumber  Int       @default(1)
+
+  isArchived      Boolean   @default(false)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  workspace        Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members          ProjectMember[]
+  tasks            Task[]
+  favorites        ProjectFavorite[]
+  activity         ActivityEvent[]
+
+  @@unique([workspaceId, slug])
+  @@unique([workspaceId, key])
+
+  @@index([workspaceId])
+}
+
+model ProjectFavorite {
+  id          String   @id @default(cuid())
+
+  userId      String
+  projectId   String
+
+  createdAt   DateTime @default(now())
+
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@index([userId])
+  @@index([projectId])
+}
+
+enum ProjectRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model ProjectMember {
+  id          String   @id @default(cuid())
+
+  projectId   String
+  userId      String
+
+  role        ProjectRole @default(MEMBER)
+
+  joinedAt    DateTime?
+
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+
+  @@index([projectId])
+  @@index([userId])
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Task {
+  id            String         @id @default(cuid())
+
+  projectId     String
+
+  createdById   String
+  assigneeId    String?
+
+  taskNumber    Int
+
+  title         String
+  description   String?
+
+  status        TaskStatus     @default(TODO)
+  priority      TaskPriority   @default(MEDIUM)
+
+  dueDate       DateTime?
+  completedAt   DateTime?
+
+  // Orden dentro de su columna del tablero (LexoRank). Se compara lexicograficamente, y la
+  // migracion le fija COLLATE "C" para que Postgres lo haga byte a byte igual que JavaScript.
+  rank          String
+
+  isArchived    Boolean        @default(false)
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  project        Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  creator        User @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  assignee       User? @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  comments       Comment[]
+  favorites      TaskFavorite[]
+  activity       ActivityEvent[]
+
+  @@unique([projectId, taskNumber])
+
+  @@index([projectId])
+  @@index([createdById])
+  @@index([assigneeId])
+
+  // Consulta principal del tablero: filtra por proyecto y ordena cada columna por su rank.
+  @@index([projectId, status, rank])
+}
+
+model TaskFavorite {
+  id        String   @id @default(cuid())
+
+  userId    String
+  taskId    String
+
+  createdAt DateTime @default(now())
+
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task      Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, taskId])
+  @@index([userId])
+  @@index([taskId])
+}
+
+model Comment {
+  id           String    @id @default(cuid())
+
+  taskId       String
+  authorId     String
+
+  content      String
+
+  editedAt     DateTime?
+  deletedAt    DateTime?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  task         Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  author       User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([authorId])
+}
+
+enum ActivityAction {
+  TASK_CREATED
+  // Los campos sin narrativa propia (titulo, descripcion, nombre, color...) comparten accion y
+  // solo registran cuales se tocaron; los que si la tienen van cada uno por su lado.
+  TASK_EDITED
+  TASK_STATUS_CHANGED
+  TASK_PRIORITY_CHANGED
+  TASK_ASSIGNEE_CHANGED
+  TASK_DUE_DATE_CHANGED
+  TASK_ARCHIVED
+  TASK_UNARCHIVED
+
+  COMMENT_CREATED
+  COMMENT_EDITED
+  COMMENT_DELETED
+  COMMENT_RESTORED
+  // Mencionar a alguien al editar sale aparte del COMMENT_EDITED: el historial cuenta que se edito
+  // y la campanita del mencionado tiene que contarle que le hablaron.
+  COMMENT_MENTIONED
+
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  PROJECT_ARCHIVED
+  PROJECT_UNARCHIVED
+
+  PROJECT_MEMBER_ADDED
+  PROJECT_MEMBER_ROLE_CHANGED
+  PROJECT_MEMBER_DEACTIVATED
+  PROJECT_MEMBER_ACTIVATED
+
+  WORKSPACE_CREATED
+  WORKSPACE_UPDATED
+  WORKSPACE_DEACTIVATED
+  WORKSPACE_REACTIVATED
+
+  WORKSPACE_MEMBER_INVITED
+  // Cancelar una invitacion borra la fila de membresia, que nunca llego a serlo; el historial es lo
+  // unico que queda de ella.
+  WORKSPACE_MEMBER_INVITE_CANCELED
+  WORKSPACE_MEMBER_ACTIVATED
+  WORKSPACE_MEMBER_ROLE_CHANGED
+  WORKSPACE_MEMBER_REMOVED
+  WORKSPACE_MEMBER_RESTORED
+}
+
+// Registro inmutable de lo que ha pasado en un proyecto. Nunca se actualiza ni se borra: el
+// historial lo lee tal cual, y las notificaciones y el tiempo real se derivan de el.
+model ActivityEvent {
+  id          String         @id @default(cuid())
+
+  // Todo evento pertenece a un espacio. Los de proyecto ademas cuelgan de uno, y los de tarea
+  // tambien de ella; los del propio espacio (miembros, ajustes) no tienen ninguno de los dos.
+  workspaceId String
+  projectId   String?
+  taskId      String?
+
+  actorId     String
+
+  action      ActivityAction
+
+  // Lo que la frase necesita y no es resoluble por id (from/to, numero y titulo de la tarea en ese
+  // momento). El nombre del actor NO se guarda: se resuelve al leer para que salga el actual.
+  payload     Json
+
+  createdAt   DateTime       @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  task        Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  // Un evento sin autor no es un evento. Los usuarios se desactivan, no se borran.
+  actor       User      @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  notifications Notification[]
+
+  // Los tres feeds: espacio, proyecto y tarea. Todos ordenan por fecha descendente. El de espacio
+  // ademas descarta lo que cuelga de una tarea, que es la mayoria de las filas, asi que taskId va
+  // en su indice: sin el, recorreria todo el historial del espacio para quedarse con poco.
+  @@index([workspaceId, taskId, createdAt(sort: Desc)])
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([taskId, createdAt(sort: Desc)])
+  @@index([actorId])
+}
+
+// Una fila por destinatario de un evento. El contenido no se duplica: la frase se compone desde el
+// evento, igual que en el historial. Se materializa al escribir y no se deriva al leer porque el
+// contador de no leidas se consulta en cada carga de pagina, y resolverlo recorriendo eventos seria
+// un escaneo.
+model Notification {
+  id        String        @id @default(cuid())
+
+  userId    String
+  eventId   String
+
+  readAt    DateTime?
+
+  createdAt DateTime      @default(now())
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     ActivityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  // Un mismo evento no puede notificarte dos veces aunque te mencione y ademas seas el asignado.
+  @@unique([userId, eventId])
+
+  // El listado de la campanita ordena por fecha sin filtrar por estado de lectura, y el contador
+  // filtra por estado sin ordenar: con un solo indice uno de los dos acaba ordenando a mano.
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, readAt])
+}
+
+model RefreshToken {
+  id          String    @id @default(cuid())
+
+  userId      String
+
+  tokenHash   String    @unique
+
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  lastUsedAt  DateTime?
+
+  deviceName  String?
+  ipAddress   String?
+  userAgent   String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
